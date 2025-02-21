@@ -1,0 +1,17 @@
+/gpfs/gibbs/project/hammarlund/aw853/10x_grl18/data/raw/240111
+/gpfs/gibbs/project/hammarlund/aw853/10x_grl18/data/raw/231019GRL
+/gpfs/gibbs/project/hammarlund/aw853/10x_grl18/data/raw/230505_PM
+/gpfs/gibbs/project/hammarlund/aw853/10x_grl18/data/raw/230505_AM
+/gpfs/gibbs/project/hammarlund/aw853/10x_grl18/data/raw/230421_PM
+/gpfs/gibbs/project/hammarlund/aw853/10x_grl18/data/raw/230421_AM
+/gpfs/gibbs/project/hammarlund/aw853/10x_grl18/data/raw/230414
+/gpfs/ycga/work/hammarlund/aw853/glia_10x_old/raw/2020-07-30_batch1/CHB3840b
+/gpfs/ycga/work/hammarlund/aw853/glia_10x_old/raw/2020-10-13_batch2/CHB3840b_CEG_fqs
+/gpfs/ycga/work/hammarlund/aw853/glia_10x_old/raw/2020-10-13_batch2/CHB3841_CEG_fqs
+/gpfs/ycga/work/hammarlund/aw853/glia_10x_old/raw/2021-04-13_batch3/CHB3840b
+/gpfs/ycga/work/hammarlund/aw853/glia_10x_old/raw/2021-04-13_batch3/CHB3841
+/gpfs/ycga/work/hammarlund/aw853/glia_10x_old/raw/2021-04-20_batch4/CHB3841
+/gpfs/ycga/work/hammarlund/aw853/glia_10x_old/raw/2021-04-20_batch4/hmn
+/gpfs/ycga/work/hammarlund/aw853/glia_10x_old/raw/2021-04-27_batch5/CHB3840b
+/gpfs/ycga/work/hammarlund/aw853/glia_10x_old/raw/2021-04-27_batch5/CHB3841
+/gpfs/ycga/work/hammarlund/aw853/glia_10x_old/raw/2022-02-10_OH17400
