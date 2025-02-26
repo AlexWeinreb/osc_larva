@@ -43,6 +43,13 @@ Create transcriptome file with `src/cr_prep_annot.sh`.
 Save index in `intermediates`
 
 
+# count
+
+In `src/cr_count.sh`, load lists of samples from `data/raw_xx.txt` and run on each sample. Save CellRanger alignments in `data/250225_aligned/` (note, the script just saved them in the current directory; results were transfered after running the script).
+
+
+
+
 
 
 
