@@ -83,6 +83,26 @@ Output:
 
 
 
+## SoupX
+
+
+With `soupX.R`, for each sample, `for` loop on cluster
+Can be run interactively for individual samples, for log run `src/soupX.sh`
+* inputs:
+  * the filtered matrix from emptyDrops
+  * the raw droplets matrix aligned
+* basic Seurat clustering, run SoupX using list of tissue-specific marker genes
+* output: `soupx_feature_bc_matrix` for each sample
+
+
+Note: when rerunning soupX, we can't overwrite existing files. Clean up with:
+```
+cd data/cellranger/
+rm L*/soupx_feature_bc_matrix/*.tsv.gz
+rm L*/soupx_feature_bc_matrix/*.mtx.gz
+rmdir L*/soupx_fea*
+```
+
 
 
 
