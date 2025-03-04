@@ -48,6 +48,37 @@ Save index in `intermediates`
 In `src/cr_count.sh`, load lists of samples from `data/raw_xx.txt` and run on each sample. Save CellRanger alignments in `data/250225_aligned/` (note, the script just saved them in the current directory; results were transfered after running the script).
 
 
+# emptydrops
+
+Following previous scripts in `larval_devt` repo, first run emptydrops as dsq, then load it and filter the actual cells.
+
+File `joblists/emptydrops.dsq.txt` created with:
+```
+writeClipboard(
+  
+  paste0(
+    r'(module load R; R -e 'library(DropletUtils) |> suppressPackageStartupMessages(); data_dir <- "data/250225_aligned"; samples <- list.files(data_dir); sample <- samples[[)',
+    1:17,
+    r'(]]; dat <- read10xCounts(file.path(data_dir,sample,"outs","raw_feature_bc_matrix")); e.out <- emptyDrops(dat, lower = 100, niter = 1e6); qs::qsave(e.out, file.path("intermediates/2502/emptydrops", paste0(sample,"_e_out.qs"))) ')'
+  ))
+```
+
+Then the dsq file is created interactively with:
+```
+ml dSQ; dsq --job-file joblists/emptydrops.dsq.txt  --cpus-per-task 1 --mem 7G --time 4:40:00 --partition day
+```
+
+Note sample #5 (job 04) failed after 4h40', rerun with 23h.
+
+
+
+
+
+
+
+
+
+
 
 
 
