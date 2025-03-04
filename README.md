@@ -70,6 +70,19 @@ ml dSQ; dsq --job-file joblists/emptydrops.dsq.txt  --cpus-per-task 1 --mem 7G -
 
 Note sample #5 (job 04) failed after 4h40', rerun with 23h.
 
+Second phase: running `src/runR_emptydrops.sh` which calls `R/emptydrops.R`. This is modified from `larval_devt` but removing the iterative cleaning (not required for this dataset).
+
+Inputs:
+* raw matrix from "data/250225_aligned"
+* precomputed emptydrops from "intermediates/2502/emptydrops"
+Then load the precomputed emptydrops object and subset the matrix
+Output:
+* filtered matrix in "intermediates/2502/empytdrops_filt/{sample}filt_feature_bc_matrix"
+
+(note the typo at "empytdrops", note the lack of separator between sample name and "filt")
+
+
+
 
 
 
