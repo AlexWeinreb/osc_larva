@@ -107,6 +107,23 @@ rmdir L*/soupx_fea*
 
 
 
+### DoubletFinder
+
+
+With `doubletFinder.R` called from `src/runR_doubletFinder.sh`
+* input: `soupx_feature_bc_matrix` for each sample
+* basic filtering, pca, clustering, DoubletFinder (discarded, we only keep the annotation)
+* output: Seurat object from `soupx_feature_bc_matrix` with an additional metadata column "doubletFinder", saved in `2502/250304_doubletFinder/250304_{sample}_dblts.qs`
+
+Note the log file can be filtered with `grep -e "-----  "`.
+
+Important: examining plots, it appears the pK parameter selection may be incorrect for several samples: maximum at either first of last value, instead of a peak.
+
+
+
+
+
+
 
 
 
