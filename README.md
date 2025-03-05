@@ -135,13 +135,54 @@ With `qc_per_sample.R`, interactive on cluster, for each sample:
 
 
 
+## Assemble per condition
+
+4 groups:
+* group 1, L2 herma
+* group 2, L4 herma
+* group 3, L4 male/feminized
+* group 4, adult herma
+
+note we don't group by promoter.
+
+| sample_name                    | sex           | promoter | stage | group |
+| ------------------------------ | ------------- | -------- | ----- | ----- |
+| 200730_batch1_CHB3840b         | hermaphrodite | mir-228  | L2    | 1     |
+| 201013_batch2_CHB3840b_CEG_fqs | hermaphrodite | mir-228  | L2    | 1     |
+| 201013_batch2_CHB3841_CEG_fqs  | male          | mir-228  | L4    | 3     |
+| 210413_batch3_CHB3840b         | hermaphrodite | mir-228  | L4    | 2     |
+| 210413_batch3_CHB3841          | male          | mir-228  | L4    | 3     |
+| 210420_batch4_CHB3841          | male          | mir-228  | L4    | 3     |
+| 210420_batch4_hmn              | other         | mir-228  | L4    | 3     |
+| 210427_batch5_CHB3840b         | hermaphrodite | mir-228  | L4    | 2     |
+| 210427_batch5_CHB3841          | male          | mir-228  | L4    | 3     |
+| 220210_OH17400                 | hermaphrodite | mam-5    | L4    | 2     |
+| 230414                         | hermaphrodite | grl-18   | L4    | 2     |
+| 230421_AM                      | hermaphrodite | grl-18   | L4    | 2     |
+| 230421_PM                      | hermaphrodite | grl-18   | L4    | 2     |
+| 230505_AM                      | hermaphrodite | grl-18   | L4    | 2     |
+| 230505_PM                      | hermaphrodite | grl-18   | L4    | 2     |
+| 231019GRL                      | hermaphrodite | grl-18   | adult | 4     |
+| 240111                         | hermaphrodite | grl-18   | adult | 4     |
+
+This table is also saved in `data/samples_table.tsv`
+
+
+For each group, load the corresponding files, assemble them (no integration), and annotate (next step).
 
 
 
 
+With `assemble_per_condition.R`, interactive on cluster:
+* inputs: `250304_filt_ds/{sample}.qs` grouped based on `data/samples_table.tsv`
+* Seurat merge per condition
+* SCT, clustering, find markers
+* outputs:
+    * `250305_per_condition/250305_seu_merged_{stage}.qs`
+    * `250305_per_condition/250305_marks_merged_{stage}.qs`
 
 
-
+(note: script adapted from `larval_devt/bseu_assemble.R`)
 
 
 
