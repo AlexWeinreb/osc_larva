@@ -121,6 +121,17 @@ Important: examining plots, it appears the pK parameter selection may be incorre
 
 
 
+### QC per sample
+
+
+With `qc_per_sample.R`, interactive on cluster, for each sample:
+* inputs: `2502/250304_doubletFinder/250304_{sample}_dblts.qs`
+* for each sample, remove cells with high mito or low count
+* cluster (SCT), basic annotation of clusters, eliminate bad clusters
+* output: `250304_filt_ds/{sample}.qs` for each sample
+
+
+(note, script adapted from `larval_devt/seurat_qc_fiilter_clusters`)
 
 
 
