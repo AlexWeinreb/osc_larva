@@ -187,6 +187,25 @@ With `assemble_per_condition.R`, interactive on cluster:
 
 
 
+## First pass per condition
+
+Two scripts
+
+On PC, run `first_pass_fwd.R`:
+* input: `250305_per_condition/250305_marks_merged_{stage}.qs`
+* go through clusters, compare cengenapp
+
+
+On cluster, run `first_pass_rev.R`:
+* input: `250305_per_condition/250305_seu_merged_{stage}.qs`
+* look at known tissue markers, compare with fwd results
+
+Save annotation in csv files as `250305_per_condition/250305_annot_{group}.csv`.
+
+Keep notes and UMAPs in `presentations/250305_first_pass_per_condition.pptx`.
+
+
+(note: scripts adapted from `larval_devt/bseu_first_pass_forward` and `bseu_first_pass_reverse`)
 
 
 
