@@ -178,8 +178,8 @@ With `assemble_per_condition.R`, interactive on cluster:
 * Seurat merge per condition
 * SCT, clustering, find markers
 * outputs:
-    * `250305_per_condition/250305_seu_merged_{stage}.qs`
-    * `250305_per_condition/250305_marks_merged_{stage}.qs`
+    * `250305_per_condition/250305_seu_merged_{group}.qs`
+    * `250305_per_condition/250305_marks_merged_{group}.qs`
 
 
 (note: script adapted from `larval_devt/bseu_assemble.R`)
@@ -192,12 +192,12 @@ With `assemble_per_condition.R`, interactive on cluster:
 Two scripts
 
 On PC, run `first_pass_fwd.R`:
-* input: `250305_per_condition/250305_marks_merged_{stage}.qs`
+* input: `250305_per_condition/250305_marks_merged_{group}.qs`
 * go through clusters, compare cengenapp
 
 
 On cluster, run `first_pass_rev.R`:
-* input: `250305_per_condition/250305_seu_merged_{stage}.qs`
+* input: `250305_per_condition/250305_seu_merged_{group}.qs`
 * look at known tissue markers, compare with fwd results
 
 Save annotation in csv files as `250305_per_condition/250305_annot_{group}.csv`.
@@ -208,6 +208,32 @@ Keep notes and UMAPs in `presentations/250305_first_pass_per_condition.pptx`.
 (note: scripts adapted from `larval_devt/bseu_first_pass_forward` and `bseu_first_pass_reverse`)
 
 
+
+
+### Second pass per tissue and condition
+
+With `second_pass_subset.R`, on cluster
+* inputs:
+    * `250305_per_condition/250305_seu_merged_{group}.qs`
+    * annotation in `250305_per_condition/250124_annot_{group}.csv`
+* For each stage, separate clusters by tissue, recluster, find markers
+* outputs:
+    * `250306_per_condition_tissue/250124_seu_{group}_{tissue}.qs`
+    * `250306_per_condition_tissue/250124_marks_{group}_{tissue}.qs`
+
+
+Note: discarding "unclear" clusters.
+
+
+
+With `bseu_second_pass_forward.R`, on PC
+* input: `250306_per_condition_tissue/250124_marks_{group}_{tissue}.qs`
+* forward marker selection
+
+With `bseu_second_pass_reverse.R` on cluster
+
+
+Save annotations in `250306_per_condition_tissue/250124_{group}_tissues.csv` (piling the different tissues in the same file).
 
 
 
