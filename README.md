@@ -215,25 +215,25 @@ Keep notes and UMAPs in `presentations/250305_first_pass_per_condition.pptx`.
 With `second_pass_subset.R`, on cluster
 * inputs:
     * `250305_per_condition/250305_seu_merged_{group}.qs`
-    * annotation in `250305_per_condition/250124_annot_{group}.csv`
+    * annotation in `250305_per_condition/250305_annot_{group}.csv`
 * For each stage, separate clusters by tissue, recluster, find markers
 * outputs:
-    * `250306_per_condition_tissue/250124_seu_{group}_{tissue}.qs`
-    * `250306_per_condition_tissue/250124_marks_{group}_{tissue}.qs`
+    * `250306_per_condition_tissue/250306_seu_{group}_{tissue}.qs`
+    * `250306_per_condition_tissue/250306_marks_{group}_{tissue}.qs`
 
 
 Note: discarding "unclear" clusters.
 
 
 
-With `bseu_second_pass_forward.R`, on PC
-* input: `250306_per_condition_tissue/250124_marks_{group}_{tissue}.qs`
+With `second_pass_fwd.R`, on PC
+* input: `250306_per_condition_tissue/250306_marks_{group}_{tissue}.qs`
 * forward marker selection
 
-With `bseu_second_pass_reverse.R` on cluster
+With `second_pass_rev.R` on cluster
 
 
-Save annotations in `250306_per_condition_tissue/250124_{group}_tissues.csv` (piling the different tissues in the same file).
+Save annotations in `250306_per_condition_tissue/250306_annot_tissues.xlsx` (piling the different groups and tissues in the same file).
 
 
 

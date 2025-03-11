@@ -16,7 +16,7 @@ dir_second <- "intermediates/2502/250306_per_condition_tissue"
 
 
 #~ next group ----
-group_here <- "4"
+group_here <- "3"
 
 
 # Load first pass results ----
@@ -86,7 +86,7 @@ sub <- FindNeighbors(sub,
                      verbose = FALSE)
 
 sub <- FindClusters(sub,
-                    resolution = .1)
+                    resolution = 1)
 
 
 DimPlot(sub,
@@ -186,7 +186,7 @@ sub <- FindNeighbors(sub,
 
 sub <- FindClusters(sub,
                     cluster.name = "seurat_clusters",
-                    resolution = .8)
+                    resolution = .5)
 
 DimPlot(
   sub,
