@@ -237,4 +237,26 @@ Save annotations in `250306_per_condition_tissue/250306_annot_tissues.xlsx` (pil
 
 
 
+### Third pass
+
+Separate/assemble by second-pass annotation, reannotate to ensure no subclusters. In `R/third_pass_subset.R`.
+
+Saved in `intermediates/2502/250311_third`:
+* `250311_third_subsets.xlsx`: description of the subsets
+* `250311_(marks|seu)_{group}_{tissue}.qs`: single tissue or cell type subset
+
+Further reprocessing those that are not an atomic cell type (single cluster).
+
+
+
+
+
+
+
+
+
+
+
+
+
 
