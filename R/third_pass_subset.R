@@ -66,10 +66,11 @@ all_seu <- seu_objects |>
       lut <- annots |>
         filter(group == .group,
                annot_first == .annot_first) |>
-        select(cluster, annot_second) |>
+        select(cluster, annot_second, cell_type) |>
         column_to_rownames("cluster")
       
       seu$second_tissue <- lut$annot_second[ Idents(seu) ]
+      seu$second_cell_type <- lut$cell_type[ Idents(seu) ]
       
       seu
     }
@@ -129,7 +130,7 @@ sub <- SCTransform(sub)
 nps_max <- pmin(200, ncol(sub) - 10L)
 sub <- RunPCA(sub, npcs = nps_max, verbose = FALSE)
 
-npca <- 30
+npca <- 60
 
 ElbowPlot(sub, ndims = nps_max) +
   geom_vline(aes(xintercept = npca))
@@ -168,7 +169,7 @@ sub <- FindNeighbors(sub,
 #~ clust ----
 sub <- FindClusters(sub,
                     cluster.name = "seurat_clusters",
-                    resolution = .4)
+                    resolution = 10)
 
 DimPlot(
   sub,
