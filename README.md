@@ -245,7 +245,14 @@ Saved in `intermediates/2502/250311_third`:
 * `250311_third_subsets.xlsx`: description of the subsets
 * `250311_(marks|seu)_{group}_{tissue}.qs`: single tissue or cell type subset
 
-Further reprocessing those that are not an atomic cell type (single cluster).
+Further reprocessing those that are not an atomic cell type (single cluster), in `R/third_pass_rev.R`. Note it includes the forward approach (no separate script to look at markers).
+
+For neurons, reprocessed separately in `third_pass_neurs.R`.
+
+The individually processed files are finally saved in `intermediates/2502/250313_third_processed`
+
+
+
 
 
 

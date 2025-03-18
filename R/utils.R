@@ -47,3 +47,59 @@ AggregateProportion <- function(obj){
   prop_per_ident <- apply(count_per_ident, 1, \(x) {x / nb_cells} ) |> t()
   prop_per_ident
 }
+
+
+
+plotsum <- function(genes, seu, assay = "RNA"){
+  
+  genes <- genes |> intersect(rownames(seu))
+  
+  if(length(genes) == 0L) stop("No gene found")
+  
+  mat <- GetAssayData(seu, assay = assay)[genes,]
+  colsums <- colMeans(mat)
+  umap <- FetchData(seu, vars = c("umap_1", "umap_2"))
+  umap$expr_genes <- colsums[rownames(umap)]
+  umap$expr_genes[umap$expr_genes == 0] <- NA_real_
+  
+  ggplot(umap) +
+    theme_minimal() +
+    scale_color_gradient(low = 'darkblue', high = 'red3') +
+    geom_point(aes(x = umap_1, y = umap_2,
+                   color = expr_genes),
+               size = 2,
+               alpha = .2)
+}
+
+
+plotsum2 <- function(genes1, genes2, seu, assay = "RNA"){
+  
+  genes1 <- genes1 |> intersect(rownames(seu))
+  genes2 <- genes2 |> intersect(rownames(seu))
+  
+  if(length(genes1) == 0L | length(genes2) == 0L) stop("No gene found")
+  
+  mat1 <- GetAssayData(seu, assay = assay)[genes1,]
+  mat2 <- GetAssayData(seu, assay = assay)[genes2,]
+  
+  colsums1 <- colMeans(mat1)
+  colsums2 <- colMeans(mat2)
+  
+  umap <- FetchData(seu, vars = c("umap_1", "umap_2"))
+  
+  umap$expr_genes1 <- colsums1[rownames(umap)]
+  umap$expr_genes2 <- colsums2[rownames(umap)]
+  umap$blend <- umap$expr_genes1 - umap$expr_genes2
+  
+  ggplot(umap) +
+    theme_minimal() +
+    scale_color_gradient2(low = scales::muted('red'),
+                          high = scales::muted('blue'),
+                          mid = 'lightgrey') +
+    geom_point(aes(x = umap_1, y = umap_2,
+                   color = blend),
+               size = 2,
+               alpha = .8)
+}
+
+
