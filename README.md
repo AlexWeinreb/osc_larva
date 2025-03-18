@@ -253,6 +253,12 @@ The individually processed files are finally saved in `intermediates/2502/250313
 
 
 
+### Fourth pass
+
+Assemble the cell types from L2 and L4.
+
+In `R/fourth_assemble_celltypes.R`:
+* inputs: Seurat files from both groups
 
 
 
