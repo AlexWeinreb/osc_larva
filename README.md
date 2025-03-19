@@ -253,14 +253,14 @@ The individually processed files are finally saved in `intermediates/2502/250313
 
 
 
-### Fourth pass
+### Fourth pass/step 1: assemble, impute, PCA
 
 Assemble the cell types from L2 and L4.
 
-In `R/fourth_assemble_celltypes.R`:
+In `R/fourth_assemble_celltypes.R`, called with `src/src/runR_step_1_impute_PCA.sh`:
 * inputs: Seurat files from both groups
-
-
+* impute, run SCT, run PCA
+* outputs in `250319_step1` for each cell type
 
 
 
