@@ -265,6 +265,46 @@ In `R/fourth_assemble_celltypes.R`, called with `src/src/runR_step_1_impute_PCA.
 
 
 
+### Step 2
+
+Assemble the cell types from L2 and L4.
+
+
+
+`step_2_DEGs.R` is to be run on cluster as dsq jobarray, called from dSQ. Contents:
+* load intermediates from step 1, prefilter, run ElPiGraph and pseudotimeDE
+* save intermediates in "intermediates/2502/250319_step2"
+
+
+
+
+Jobfile and list of cells created with:
+```r
+paste("module load R; Rscript R/step_2_DEGs.R",
+       "--batch_rmed_dir 'intermediates/2502/250319_step1'",
+      "--out_dir 'intermediates/2502/250319_step2'",
+      "--i", seq_along(list.files('intermediates/2502/250319_step1', pattern = "_seu\\.qs$")),
+      "--model 'auto' --prop_thres 0.05 --cnt_thres 30") |>
+  writeLines("joblists/step2.dsq.txt")
+  
+
+gsub("_seu\\.qs$", "",
+     list.files('intermediates/2502/250319_step1',
+                pattern = "_seu\\.qs$")) |>
+  writeLines('intermediates/2502/250319_step1/cell_types.txt')
+```
+
+
+Job prepared with:
+```
+ml dSQ; dsq --job-file joblists/step2.dsq.txt  --cpus-per-task 1 --mem 100G --time 20:40:00 --partition day
+```
+
+Note 1: here all samples ran in <1h, < 2GB. In previous version, some (e.g. ILso, germline, ...) took up to 15h, 100GB.
+Note 2: mechanosensory neurons failed, but anyway too few cells, will be discarded at next step. All 19 other samples ran successfully, though some will be removed for too few cells.
+
+
+
 
 
 
