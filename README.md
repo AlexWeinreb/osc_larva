@@ -42,6 +42,7 @@ Create transcriptome file with `src/cr_prep_annot.sh`.
 
 Save index in `intermediates`
 
+Everything with WS295.
 
 # count
 
@@ -304,6 +305,13 @@ Note 1: here all samples ran in <1h, < 2GB. In previous version, some (e.g. ILso
 Note 2: mechanosensory neurons failed, but anyway too few cells, will be discarded at next step. All 19 other samples ran successfully, though some will be removed for too few cells.
 
 
+
+### Step 3: curve shape
+
+On cluster, step 3: run `src/runR_step_3_curve_shape.sh` which calls `R/step_3_curve_shape.R`:
+* input: result of step 2 `2502/250319_step2/{celltype}_res_pseudotimeDE.qs` for each cell type
+* analyze some aspects of the curve shape (number of peaks, peak width, ...), add them to the ptDE dataframe, remove the full gam models (as these models are heavy)
+* save each cell type as `2502/250320_step3/{celltype}_res_ptDE_preproc.qs`
 
 
 
