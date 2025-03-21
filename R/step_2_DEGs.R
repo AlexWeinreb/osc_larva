@@ -27,7 +27,7 @@ if(! interactive()){
     batch_rmed_dir = "intermediates/2502/250319_step1",
     out_dir = "intermediates/2502/250319_step2",
     model = "auto",
-    i = 2,
+    i = 3,
     prop_thres = 0.1,
     cnt_thres = 30
   )
@@ -39,6 +39,11 @@ if(! interactive()){
 n_rep_pt_global <- 200
 nb_subsamples_ptDE <- 100
 n_rep_pt_subsamples <- 50
+
+
+# n_rep_pt_global <- 5
+# nb_subsamples_ptDE <- 3
+# n_rep_pt_subsamples <- 2
 
 
 set.seed(123)
@@ -88,7 +93,7 @@ gg_phase <- FetchData(subseu,
   theme_classic() +
   theme(legend.position = "none") +
   scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
-                        limits = c(0, 360)) +
+                        limits = c(0, 2*pi)) +
   geom_point(aes(x = PC_1, y = PC_2,
                  color = mean_angle, alpha = mean_rho)) +
   ggtitle(cell_type)
@@ -311,7 +316,7 @@ tictoc::tic()
 res_pseudotimeDE <- PseudotimeDE::runPseudotimeDE(gene.vec = high_genes,
                                                   ori.tbl = cells_pt_global,
                                                   sub.tbl = sub_tbl,
-                                                  mat = cnts_filtered,
+                                                  mat = round(cnts_filtered),
                                                   model = params$model,
                                                   formula = expv ~ s(pseudotime, k = 6, bs = 'cc'),
                                                   mc.cores = 1)
