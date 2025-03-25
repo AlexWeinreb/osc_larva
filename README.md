@@ -281,12 +281,12 @@ Assemble the cell types from L2 and L4.
 
 Jobfile and list of cells created with:
 ```r
-paste("module load R; Rscript R/step_2_DEGs.R",
+paste("module load R; Rscript R/step_2_gam_binom.R",
        "--batch_rmed_dir 'intermediates/2502/250319_step1'",
-      "--out_dir 'intermediates/2502/250319_step2'",
+      "--out_dir 'intermediates/2502/250325_step2_binom'",
       "--i", seq_along(list.files('intermediates/2502/250319_step1', pattern = "_seu\\.qs$")),
-      "--model 'auto' --prop_thres 0.05 --cnt_thres 30") |>
-  writeLines("joblists/step2.dsq.txt")
+      "--model 'auto' --prop_thres 0.05 --cnt_thres 20") |>
+  writeLines("joblists/step2_gam_binom.dsq.txt")
   
 
 gsub("_seu\\.qs$", "",
@@ -298,7 +298,7 @@ gsub("_seu\\.qs$", "",
 
 Job prepared with:
 ```
-ml dSQ; dsq --job-file joblists/step2.dsq.txt  --cpus-per-task 1 --mem 100G --time 20:40:00 --partition day
+ml dSQ; dsq --job-file joblists/step2_gam_binom.dsq.txt  --cpus-per-task 1 --mem 100G --time 10:40:00 --partition day
 ```
 
 Note 1: here all samples ran in <1h, < 2GB. In previous version, some (e.g. ILso, germline, ...) took up to 15h, 100GB.
@@ -313,6 +313,13 @@ On cluster, step 3: run `src/runR_step_3_curve_shape.sh` which calls `R/step_3_c
 * analyze some aspects of the curve shape (number of peaks, peak width, ...), add them to the ptDE dataframe, remove the full gam models (as these models are heavy)
 * save each cell type as `2502/250320_step3/{celltype}_res_ptDE_preproc.qs`
 
+
+### Step 4: create heatmaps
+
+On cluster, `genes_by_cell_type_4_heatmaps.R` called from `src/runR_step4_heatmaps.sh`
+* load intermediates from 3 to keep only "peaky"" genes
+* load intermediates from 2 to take the gam.fit model of peaky genes
+* save heatmap of peaky genes
 
 
 
