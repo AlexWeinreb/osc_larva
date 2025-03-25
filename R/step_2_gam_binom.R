@@ -214,10 +214,11 @@ message("---- compute metrics")
 res <- tibble::tibble(
   cell_type = cell_type,
   gene_name = names(mods),
-  amplitude = apply(all_preds, 2, \(.x) diff(range(.x))),
+  amplitude = apply( all_preds, 2, \(.x) diff(range(.x)) ),
   dev_expl = vapply(mods,
                     \(.mod) summary(.mod)[["dev.expl"]],
                     FUN.VALUE = double(1L)),
+  area_under_curve = apply( all_preds, 2, \(.y) pracma::trapz(seq_along(.y), .y) ),
   gam_fit = mods
 )
 

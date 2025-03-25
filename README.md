@@ -272,9 +272,9 @@ Assemble the cell types from L2 and L4.
 
 
 
-`step_2_DEGs.R` is to be run on cluster as dsq jobarray, called from dSQ. Contents:
-* load intermediates from step 1, prefilter, run ElPiGraph and pseudotimeDE
-* save intermediates in "intermediates/2502/250319_step2"
+`step_2_gam_binom.R` is to be run on cluster as dsq jobarray, called from dSQ. Contents:
+* load intermediates from step 1, prefilter, run ElPiGraph and a GAM with binomial family, save the model along with curve amplitude and dev explained
+* save intermediates in "intermediates/2502/250325_step2_binom"
 
 
 
@@ -298,20 +298,20 @@ gsub("_seu\\.qs$", "",
 
 Job prepared with:
 ```
-ml dSQ; dsq --job-file joblists/step_2_gam_binom.dsq.txt  --cpus-per-task 1 --mem 50G --time 5:40:00 --partition day
+ml dSQ; dsq --job-file joblists/step_2_gam_binom.dsq.txt  --cpus-per-task 1 --mem 5G --time 00:10:00 --partition day
 ```
 
-Note 1: here all samples ran in <1h, < 2GB. In previous version, some (e.g. ILso, germline, ...) took up to 15h, 100GB.
-Note 2: mechanosensory neurons failed, but anyway too few cells, will be discarded at next step. All 19 other samples ran successfully, though some will be removed for too few cells.
+Note: previously used pseudotimeDE at this step, along with filtering on curve shape as step 3. No longer useful: most/all genes appear DE with pseudotime, replace with simple GAM and curve shape filtering. Keeping state of repo at this point in branch `pseudotimede`.
 
 
 
-### Step 3: curve shape
 
-On cluster, step 3: run `src/runR_step_3_curve_shape.sh` which calls `R/step_3_curve_shape.R`:
-* input: result of step 2 `2502/250319_step2/{celltype}_res_pseudotimeDE.qs` for each cell type
+### Step 3: process cell types, curve shape, heatmaps
+
+On cluster, interactively, run `src/runR_step_3_process_celltypes`:
+* input: result of step 2 `2502/250319_step2/{celltype}_res_gam.qs` for each cell type
 * analyze some aspects of the curve shape (number of peaks, peak width, ...), add them to the ptDE dataframe, remove the full gam models (as these models are heavy)
-* save each cell type as `2502/250320_step3/{celltype}_res_ptDE_preproc.qs`
+* save each cell type as `2502/250325_step3/{celltype}_res_ptDE_preproc.qs`
 
 
 ### Step 4: create heatmaps
