@@ -309,17 +309,16 @@ Note: previously used pseudotimeDE at this step, along with filtering on curve s
 ### Step 3: process cell types, curve shape, heatmaps
 
 On cluster, interactively, run `src/runR_step_3_process_celltypes`:
-* input: result of step 2 `2502/250319_step2/{celltype}_res_gam.qs` for each cell type
-* analyze some aspects of the curve shape (number of peaks, peak width, ...), add them to the ptDE dataframe, remove the full gam models (as these models are heavy)
-* save each cell type as `2502/250325_step3/{celltype}_res_ptDE_preproc.qs`
+* inputs:
+  * result of step 2 `2502/250325_step2_binom/{celltype}_res_gam.qs` for each cell type
+  * also use step1 to examine individual genes
+* determine what genes are peaky based on curve shape; plot heatmaps per cell type, determine if heatmap diagonal
+* save results in `2502/250325_step3_genes_by_celltype/`
 
 
-### Step 4: create heatmaps
 
-On cluster, `genes_by_cell_type_4_heatmaps.R` called from `src/runR_step4_heatmaps.sh`
-* load intermediates from 3 to keep only "peaky"" genes
-* load intermediates from 2 to take the gam.fit model of peaky genes
-* save heatmap of peaky genes
+
+
 
 
 

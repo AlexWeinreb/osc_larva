@@ -24,6 +24,7 @@ gids <- wb_load_gene_ids(295) |>
 dir_step1 <- "intermediates/2502/250319_step1"
 dir_step2 <- "intermediates/2502/250325_step2_binom/"
 
+dir_step3 <- "intermediates/2502/250325_step3_genes_by_celltype/"
 
 
 
@@ -40,44 +41,44 @@ all_raw |>
              alpha = .2)
 
 
+all_preds <- vapply(all_raw$gam_fit,
+                    \(.mod) predict(.mod,
+                                    type = "response",
+                                    newdata = data.frame(pseudotime = (0:199)/200)),
+                    FUN.VALUE = double(200))
+
+all_raw$area <- apply( all_preds, 2, \(.y) pracma::trapz(seq_along(.y), .y) )
+
+all.equal(all_raw$amplitude, apply( all_preds, 2, \(.x) diff(range(.x)) ))
 
 
 
 
 
 
+
+# Manually annotate some genes ----
+# use the manual annotation to chosse threshold
 
 unique(all_raw$cell_type)
-# individual genes prep ----
 
-ct <- "AM_PHso"
+ct <- "pharyngeal_muscle"
 subseu <- qs::qread( file.path(dir_step1, paste0(ct, "_seu.qs")) )
 
 
 
-# plot genes ----
-appg_genes_strict <- c("abu-11", "pqn-54", "pqn-2","abu-15","abu-1","abu-7","abu-8",
-                       "abu-6","abu-14","abu-4","pqn-57", "pqn-71","pqn-13")
-
-
-
-appg_genes_strict |> intersect(all_raw$gene_name)
-goi <- "abu-14"
-goi <- "DH11.5"
-goi <- sample(ptDE_proc$gene_name, 1)
-
+# select a set of genes to annotate
 gois <- all_raw |>
   filter(cell_type == ct) |>
   # filter(dev_expl  > .05, dev_expl < .25,
   #        amplitude > .45, amplitude < .7) |>
-  # filter(area_ratio < 75) |>
-  # filter(rmse_sub/rmse > 1) |>
-  pull(gene_name) |> fct_inorder() |> sample(10) |> sort() |> as.character()
+  pull(gene_name) |> fct_inorder() |> sample(15) |> sort() |> as.character()
 
 all_raw |>
   filter(cell_type == ct, gene_name %in% gois)
 i=0
 
+# look at them
 i <- i+1
 goi <- gois[[i]]
 
@@ -112,9 +113,13 @@ g2 <- ggplot() +
 patchwork::wrap_plots(g1, g2)
 
 
-#~ check manual selection ----
-manual <- readxl::read_excel(file.path(dir_step2, "manual_annotation.xlsx"))
 
+#~ check manual selection results ----
+manual <- readxl::read_excel(file.path(dir_step2, "manual_annotation.xlsx")) |>
+  select(-amplitude, -dev_expl)
+
+manual <- left_join(manual, all_raw,
+                     by = c("cell_type", "gene_name"))
 
 
 manual |>
@@ -123,9 +128,10 @@ manual |>
   scale_color_manual(values = c("grey", "firebrick2", "chartreuse4")) +
   # geom_vline(aes(xintercept = .15), color = 'grey') +
   # geom_hline(aes(yintercept = .65), color = 'grey') +
-  geom_point(aes(x = dev_expl, y = amplitude, color = manual, shape = cell_type))
+  geom_point(aes(x = dev_expl, y = amplitude, color = manual, size = area))
 
-# make model
+
+# use logistic regression to pick threshold that matches manual annotation
 training <- manual |>
   filter(manual == "no" | manual == "yes") |>
   mutate(manual = case_match(manual,
@@ -134,40 +140,234 @@ training <- manual |>
            factor(levels = c("non-peak", "peak")))
 
 mod <- glmnet::cv.glmnet(x = training |>
-                           select(amplitude, dev_expl) |>
+                           select(amplitude, dev_expl, area) |>
                            as.matrix(),
                          y = training |>
                            pull(manual),
                          type.measure = "class",
                          family = "binomial")
 
+# mod <- glm(manual ~ amplitude + dev_expl + area, data = training, family = "binomial")
+
+
+
+stopifnot(all( rownames(coef(mod)) == c("(Intercept)", "amplitude", "dev_expl", "area") ))
+
+
+
+all_raw$peaky <- predict(mod,
+                         newx = all_raw |>
+                           select(amplitude, dev_expl, area) |>
+                           as.matrix(),
+                         type = "class",
+                         s = "lambda.1se") |>
+  as.factor()
+
+manual <- left_join(manual |> select(cell_type, gene_name, manual),
+                    all_raw,
+                    by = c("cell_type", "gene_name"))
 
 manual |>
   ggplot() +
   theme_classic() +
   scale_color_manual(values = c("grey", "firebrick2", "chartreuse4")) +
-  geom_point(aes(x = dev_expl, y = amplitude, color = manual, shape = cell_type)) +
+  geom_point(aes(x = dev_expl, y = amplitude, color = manual, size = area, shape = peaky),
+              alpha = .5) +
   geom_abline(slope = - coef(mod)[3] / coef(mod)[2],
               intercept = - coef(mod)[1] / coef(mod)[2],
               color = 'grey')
 
-all_raw$class <- predict(mod,
-                         newx = all_raw |>
-                           select(amplitude, dev_expl) |>
-                           as.matrix(),
-                         type = "class",
-                         s = "lambda.1se") |>
-  as.character()
 
-
-
-
+# explore annotation
 all_raw |>
-  filter(cell_type %in% c("AM_PHso", "intestine")) |>
+  filter(cell_type == "AM_PHso") |>
   ggplot() +
   theme_classic() +
-  geom_point(aes(x = dev_expl, y = amplitude, color = cell_type, shape = class),
+  geom_point(aes(x = dev_expl, y = amplitude, color = peaky),
              alpha = .2)
+
+all_raw |>
+  filter(cell_type == "intestine") |>
+  ggplot() +
+  theme_classic() +
+  geom_point(aes(x = dev_expl, y = amplitude, color = peaky),
+             alpha = .2)
+
+all_raw |>
+  ggplot() +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  geom_bar(aes(x = cell_type, fill = peaky))
+
+all_raw |>
+  summarize(nb_peaky = sum(peaky == "peak"),
+            nb_genes = n(),
+            prop_peaky = nb_peaky / nb_genes,
+            .by = cell_type) |>
+  ggplot() +
+  theme_classic() +
+  aes(x = nb_genes, y = prop_peaky, label = cell_type) +
+  geom_point() +
+  ggrepel::geom_text_repel()
+
+
+
+
+# heatmap ----
+
+# save a heatmap for each cell type
+
+filtered_data <- all_raw |>
+  group_by(cell_type) |>
+  nest() |>
+  ungroup() |>
+  mutate(nb_peaky = map_int(data,
+                            ~{
+                              sum(.x[["peaky"]] == "peak")
+                            })) |>
+  filter(nb_peaky > 5)
+
+heatmaps_list <- set_names(filtered_data$data,
+                           filtered_data$cell_type) |>
+  map(
+    \(.dat){
+      
+      all_preds <- vapply(.dat[["gam_fit"]][.dat$peaky == "peak"],
+                          \(.mod) predict(.mod,
+                                          type = "response",
+                                          newdata = data.frame(pseudotime = (0:199)/200)),
+                          FUN.VALUE = double(200))
+      
+      peak_loc <- apply(all_preds, 2, which.max)
+      
+      all_preds[, order(peak_loc)]
+      
+    },
+    .progress = TRUE
+  )
+
+# sapply(heatmaps_list, dim)
+
+
+
+#~ uniformity ----
+
+
+heatmaps_list$intestine |> rowMeans() |> range() |> diff()
+
+
+filtered_data$unif_index <- map_dbl(heatmaps_list,
+                                    \(hm) {
+                                      hm |>
+                                        rowMeans() |>
+                                        range() |>
+                                        diff()
+                                    })
+
+hist(filtered_data$unif_index, breaks = 50)
+abline(v = .2, lwd = 2, col ='grey30')
+
+filtered_data |> filter(unif_index < .2)
+
+
+
+
+
+#~ distance ----
+filtered_data$dist <- sapply(heatmaps_list,
+                             \(hm){
+                               
+                               n_t <- nrow(hm)
+                               n_g <- ncol(hm)
+                               
+                               sig_cent <- make_ref_sig(n_t)
+                               
+                               null_mat <- sapply(seq_len(n_g),
+                                                  \(i){
+                                                    circ_perm(sig_cent, floor(n_t * i/n_g))
+                                                  })
+                               
+                               
+                               mynorm(hm - null_mat)
+                             })
+
+
+hist(filtered_data$dist, breaks = 30)
+
+
+ggplot(filtered_data) +
+  theme_classic() +
+  geom_text(aes(x = unif_index, y = dist, label = cell_type))
+
+
+
+# dists with pvals
+
+dists_with_perms <- lapply(heatmaps_list,
+                \(hm){
+                  
+                  n_t <- nrow(hm)
+                  n_g <- ncol(hm)
+                  
+                  sig_cent <- make_ref_sig(n_t)
+                  
+                  null_mat <- sapply(seq_len(n_g),
+                                     \(i){
+                                       circ_perm(sig_cent, floor(n_t * i/n_g))
+                                     })
+                  
+                  
+                  c(
+                    norm(hm - null_mat, type = "1"),
+                    replicate(500,{
+                      hm_perm <- hm[,sample(ncol(hm))]
+                      norm(hm_perm - null_mat, type = "1")
+                    })
+                  )
+                })
+
+p <- sapply(dists_with_perms,
+            \(res) mean(res[[1]] >= res)) |>
+  p.adjust()
+
+
+
+
+
+# hmp_sparsified <- heatmaps_list[["intestine"]]
+# 
+# 
+# colnames_to_sparsify <- setdiff(seq_len(ncol(hmp_sparsified)),
+#                                 6*seq_len(ncol(hmp_sparsified)/6))
+# 
+# colnames(hmp_sparsified)[colnames_to_sparsify] <- ""
+# head(colnames(hmp_sparsified), 20)
+# 
+# 
+# pheatmap::pheatmap(hmp_sparsified,
+#                    cluster_rows = FALSE,
+#                    cluster_cols = FALSE,
+#                    show_rownames = FALSE,
+#                    fontsize = 7)
+
+
+
+
+
+
+# Save ----
+  message("    Save heatmap")
+  
+  squash::savemat(t(mat)[, nrow(mat):1],
+                  filename = file.path(dir_step3,
+                                       paste0(ct, "_heatmap.png")))
+  qs::qsave(mat,
+            file.path(dir_step3,
+                      paste0(ct, "_heatmap.qs")))
+  
+  
+  
+
 
 
 
