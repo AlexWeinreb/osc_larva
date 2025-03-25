@@ -298,7 +298,7 @@ gsub("_seu\\.qs$", "",
 
 Job prepared with:
 ```
-ml dSQ; dsq --job-file joblists/step2_gam_binom.dsq.txt  --cpus-per-task 1 --mem 100G --time 10:40:00 --partition day
+ml dSQ; dsq --job-file joblists/step_2_gam_binom.dsq.txt  --cpus-per-task 1 --mem 50G --time 5:40:00 --partition day
 ```
 
 Note 1: here all samples ran in <1h, < 2GB. In previous version, some (e.g. ILso, germline, ...) took up to 15h, 100GB.

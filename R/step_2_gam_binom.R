@@ -96,7 +96,7 @@ gg_phase <- FetchData(seu,
                  color = mean_angle, alpha = mean_rho)) +
   ggtitle(cell_type)
 
-ggsave(paste0(cell_type_path,"_harmony_phase.png"), gg_phase,
+ggsave(paste0(cell_type,"_harmony_phase.png"), gg_phase,
        path = params$out_dir,
        width = 7, height = 5, units = "in")
 
@@ -156,7 +156,7 @@ gg_int_cca_circlepath <- PlotPG(embding,
 
 # gg_int_cca_circlepath
 
-ggsave(paste0(cell_type_path,"_circlepath.png"), gg_int_cca_circlepath,
+ggsave(paste0(cell_type,"_circlepath.png"), gg_int_cca_circlepath,
        path = params$out_dir,
        width = 6, height = 5, units = "in", dpi = 600)
 
@@ -231,10 +231,8 @@ message("---- save results")
 
 
 qs::qsave(res,
-          file.path(params$out_dir, paste0(cell_type_path, "_res_gam.qs")) )
+          file.path(params$out_dir, paste0(cell_type, "_res_gam.qs")) )
 
-qs::qsave(cells_pt_global,
-          file.path(params$out_dir, paste0(cell_type_path, "_cells_pt_global.qs")))
 
 
 
@@ -245,7 +243,7 @@ log_content <- paste0(log_content,
 
 
 writeLines(log_content,
-           file.path(params$out_dir, paste0(cell_type_path, "_log.txt")) )
+           file.path(params$out_dir, paste0(cell_type, "_log.txt")) )
 
 
 message("--------------------------------------")
