@@ -6,6 +6,7 @@
 # Inits ----
 library(tidyverse)
 library(Seurat)
+library(mgcv) # if not loaded, `predict()` may call `predict.lm()` instead of gam
 
 library(wbData)
 
@@ -19,6 +20,8 @@ gids <- wb_load_gene_ids(295) |>
           biotype = "protein_coding_gene",
           name = "GFP"
   )
+
+source("R/utils_heatmap_processing.R")
 
 
 dir_step1 <- "intermediates/2502/250319_step1"
@@ -40,16 +43,6 @@ all_raw |>
   geom_point(aes(x = dev_expl, y = amplitude, color = cell_type),
              alpha = .2)
 
-
-all_preds <- vapply(all_raw$gam_fit,
-                    \(.mod) predict(.mod,
-                                    type = "response",
-                                    newdata = data.frame(pseudotime = (0:199)/200)),
-                    FUN.VALUE = double(200))
-
-all_raw$area <- apply( all_preds, 2, \(.y) pracma::trapz(seq_along(.y), .y) )
-
-all.equal(all_raw$amplitude, apply( all_preds, 2, \(.x) diff(range(.x)) ))
 
 
 
@@ -125,10 +118,11 @@ manual <- left_join(manual, all_raw,
 manual |>
   ggplot() +
   theme_classic() +
+  theme(legend.position = 'none') +
   scale_color_manual(values = c("grey", "firebrick2", "chartreuse4")) +
   # geom_vline(aes(xintercept = .15), color = 'grey') +
   # geom_hline(aes(yintercept = .65), color = 'grey') +
-  geom_point(aes(x = dev_expl, y = amplitude, color = manual, size = area))
+  geom_point(aes(x = dev_expl, y = amplitude, color = manual, size = area_under_curve))
 
 
 # use logistic regression to pick threshold that matches manual annotation
@@ -140,7 +134,7 @@ training <- manual |>
            factor(levels = c("non-peak", "peak")))
 
 mod <- glmnet::cv.glmnet(x = training |>
-                           select(amplitude, dev_expl, area) |>
+                           select(amplitude, dev_expl, area_under_curve) |>
                            as.matrix(),
                          y = training |>
                            pull(manual),
@@ -151,13 +145,13 @@ mod <- glmnet::cv.glmnet(x = training |>
 
 
 
-stopifnot(all( rownames(coef(mod)) == c("(Intercept)", "amplitude", "dev_expl", "area") ))
+stopifnot(all( rownames(coef(mod)) == c("(Intercept)", "amplitude", "dev_expl", "area_under_curve") ))
 
 
 
 all_raw$peaky <- predict(mod,
                          newx = all_raw |>
-                           select(amplitude, dev_expl, area) |>
+                           select(amplitude, dev_expl, area_under_curve) |>
                            as.matrix(),
                          type = "class",
                          s = "lambda.1se") |>
@@ -170,8 +164,9 @@ manual <- left_join(manual |> select(cell_type, gene_name, manual),
 manual |>
   ggplot() +
   theme_classic() +
+  theme(legend.position = "none") +
   scale_color_manual(values = c("grey", "firebrick2", "chartreuse4")) +
-  geom_point(aes(x = dev_expl, y = amplitude, color = manual, size = area, shape = peaky),
+  geom_point(aes(x = dev_expl, y = amplitude, color = manual, size = area_under_curve, shape = peaky),
               alpha = .5) +
   geom_abline(slope = - coef(mod)[3] / coef(mod)[2],
               intercept = - coef(mod)[1] / coef(mod)[2],
@@ -318,27 +313,37 @@ dists_with_perms <- lapply(heatmaps_list,
                   
                   
                   c(
-                    norm(hm - null_mat, type = "1"),
+                    mynorm(hm - null_mat),
                     replicate(500,{
                       hm_perm <- hm[,sample(ncol(hm))]
-                      norm(hm_perm - null_mat, type = "1")
+                      mynorm(hm_perm - null_mat)
                     })
                   )
                 })
 
-p <- sapply(dists_with_perms,
-            \(res) mean(res[[1]] >= res)) |>
-  p.adjust()
 
 
 
+filtered_data$p <- sapply(dists_with_perms,
+                          \(res) mean(res[[1]] >= res))
+
+filtered_data$p_adj <- filtered_data$p |>
+  p.adjust(method = "holm")
+hist(filtered_data$p, breaks = 30)
 
 
+ggplot(filtered_data) +
+  theme_classic() +
+  geom_text(aes(x = unif_index, y = dist, label = cell_type, color = p_adj < .05))
+
+
+
+# only label every 6th column
 # hmp_sparsified <- heatmaps_list[["intestine"]]
 # 
 # 
 # colnames_to_sparsify <- setdiff(seq_len(ncol(hmp_sparsified)),
-#                                 6*seq_len(ncol(hmp_sparsified)/6))
+#                                 6 * seq_len( ncol(hmp_sparsified) / 6 ) )
 # 
 # colnames(hmp_sparsified)[colnames_to_sparsify] <- ""
 # head(colnames(hmp_sparsified), 20)
@@ -356,14 +361,27 @@ p <- sapply(dists_with_perms,
 
 
 # Save ----
-  message("    Save heatmap")
-  
-  squash::savemat(t(mat)[, nrow(mat):1],
-                  filename = file.path(dir_step3,
-                                       paste0(ct, "_heatmap.png")))
-  qs::qsave(mat,
-            file.path(dir_step3,
-                      paste0(ct, "_heatmap.qs")))
+
+all_raw |>
+  select(- gam_fit) |>
+  qs::qsave(file.path(dir_step3, "all_genes.qs"))
+
+
+filtered_data |>
+  select(-data) |>
+  qs::qsave(file.path(dir_step3, "cell_types.qs"))
+
+iwalk(heatmaps_list,
+      ~ squash::savemat(t(.x)[, nrow(.x):1],
+                        filename = file.path(dir_step3,
+                                             paste0(.y, "_heatmap.png"))))
+
+
+iwalk(heatmaps_list,
+      ~ qs::qsave(.x,
+                  file.path(dir_step3,
+                            paste0(.y, "_heatmap.qs")))
+)
   
   
   
