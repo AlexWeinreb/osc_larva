@@ -256,7 +256,7 @@ The individually processed files are finally saved in `intermediates/2502/250313
 
 ### Assemble and plot
 
-In `assemble_osc.R` assemble all cell types from L2 and L4 (herma only). Merge into big Seurat object, compute and plot cell phases etc.
+In `assemble_osc.R` (interactive on cluster) assemble all cell types from L2 and L4 (herma only).
 
 * inputs: `250313_third_processed/230318_g(1|2)_{cell_type}.qs` for each cell type and each stage
 * assemble into single big Seurat object, re-umap
@@ -272,14 +272,13 @@ In `assemble_osc.R` assemble all cell types from L2 and L4 (herma only). Merge i
 
 
 
-### Fourth pass/step 1: assemble, impute, PCA
+### Step 1: impute, preprocess
 
-Assemble the cell types from L2 and L4.
 
-In `R/fourth_assemble_celltypes.R`, called with `src/src/runR_step_1_impute_PCA.sh`:
-* inputs: Seurat files from both groups
+In `R/step_1_preproc_ct.R`, called with `src/step_1_preproc_ct.sh`:
+* inputs: Seurat object `250328_assembled/250329_seu_all_herma.qs` from assembled
 * impute, run SCT, run PCA
-* outputs in `250319_step1` for each cell type
+* outputs in `250330_step1` for each cell type
 
 
 

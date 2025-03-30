@@ -1,0 +1,176 @@
+
+# Inits ----
+library(tidyverse) |> suppressPackageStartupMessages()
+library(Seurat) |> suppressPackageStartupMessages()
+
+
+source("https://raw.githubusercontent.com/yanailab/knn-smoothing/refs/heads/master/knn_smooth.R")
+
+
+# library(wbData)
+
+
+dir_assembled <- "intermediates/2502/250328_assembled/"
+dir_out <- "intermediates/2502/250330_step1"
+
+
+
+
+
+
+
+# Load ----
+
+seu <- qs::qread( file.path(dir_assembled, "250329_seu_all_herma.qs"))
+
+
+
+#~ Next cell type ----
+
+for(.ct in levels(Idents(seu)) ){
+  
+  
+  
+  
+  
+  message("---------  ", .ct, "  ---------")
+  
+  sub <- subset(seu, idents = .ct)
+  
+  
+  
+  #~ gene expression ----
+  cnts_raw <- GetAssayData(sub, assay = "RNA", layer = "counts")
+  
+  gene_expressions <- data.frame(
+    gene_name = rownames(cnts_raw),
+    nb_cells = rowSums(cnts_raw > 0),
+    prop_cells = rowMeans(cnts_raw > 0)
+  )
+  
+  
+  
+  
+  
+  #~ smooth ----
+  
+  smoothed <- knn_smoothing(cnts_raw,
+                            k = 5)
+  
+  
+  sub <- CreateSeuratObject(smoothed |> as("dgCMatrix"),
+                            meta.data = sub[[]])
+  
+  
+  
+  
+  #~ PCA ----
+  sub <- SCTransform(sub)
+  
+  sub <- RunPCA(sub, npcs = 2, verbose = FALSE)
+  
+  
+  
+  #~ save ----
+  
+  gg_batch <- DimPlot(sub,
+                      reduction = "pca",
+                      group.by = "orig.ident",
+                      pt.size = 2,
+                      alpha = .2) +
+    NoLegend()
+  
+  
+  ggsave(paste0(.ct,"_batch.png"), gg_batch,
+         path = dir_out,
+         width = 7, height = 5, units = "in")
+  
+  
+  
+  gg_phase <- ggplot(FetchData(sub,
+                               vars = c("PC_1", "PC_2",
+                                        "cell_phase_masked", "cell_rho"))) +
+    theme_classic() +
+    scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
+                          limits = c(0, 360)) +
+    geom_point(aes(x = PC_1, y = PC_2,
+                   color = cell_phase_masked,
+                   alpha = cell_rho))
+  
+  ggsave(paste0(.ct,"_phase.png"), gg_phase,
+         path = dir_out,
+         width = 7, height = 5, units = "in")
+  
+  
+  
+  
+  
+  qs::qsave(
+    sub,
+    file.path(dir_out,
+              paste0(.ct, "_seu.qs"))
+  )
+  
+  qs::qsave(
+    gene_expressions,
+    file.path(dir_out,
+              paste0(.ct, "_gene_expressions.qs"))
+  )
+  
+  
+}
+
+
+# End ----
+message("Done  ", date())
+
+sessionInfo()
+
+
+
+
+
+# visual comparison for several values of k
+
+# res <- map(c(3,5,7,10,20) |> set_names(),
+#            ~{
+#              smoothed <- knn_smoothing(cnts_raw,
+#                                        k = .x)
+#              
+#              seu1 <- CreateSeuratObject(smoothed |> as("dgCMatrix"),
+#                                         meta.data = seu[[]])
+#              
+#              
+#              
+#              # reprocess
+#              seu1 <- SCTransform(seu1)
+#              
+#              nps_max <- pmin(200, ncol(seu1) - 2L)
+#              seu1 <- RunPCA(seu1, npcs = nps_max, verbose = FALSE)
+#              seu1
+#            })
+# 
+# iwalk(res,
+#       ~{
+#         k <- .y
+#         g1 <- DimPlot(.x,
+#                       reduction = "pca",
+#                       group.by = "orig.ident",
+#                       pt.size = 2,
+#                       alpha = .2) +
+#           NoLegend()
+#         ggsave(paste0("tmp/",.y,"_batch.png"), plot = g1)
+#         
+#         g2 <- ggplot(FetchData(.x,
+#                                vars = c("PC_1", "PC_2",
+#                                         "mean_angle", "mean_rho"))) +
+#           theme_classic() +
+#           scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
+#                                 limits = c(0, 2*pi)) +
+#           geom_point(aes(x = PC_1, y = PC_2,
+#                          color = mean_angle,
+#                          alpha = mean_rho))
+#         ggsave(paste0("tmp/",.y,"_phase.png"), plot = g2)
+#       })
+
+
