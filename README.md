@@ -254,6 +254,24 @@ The individually processed files are finally saved in `intermediates/2502/250313
 
 
 
+### Assemble and plot
+
+In `assemble_osc.R` assemble all cell types from L2 and L4 (herma only). Merge into big Seurat object, compute and plot cell phases etc.
+
+* inputs: `250313_third_processed/230318_g(1|2)_{cell_type}.qs` for each cell type and each stage
+* assemble into single big Seurat object, re-umap
+* Compute cell phases, permutation tests, add as columns in Seurat object
+  * produces several plots (copied out), several intermediates (saved in `250328_assembled`)
+* outputs:
+  * Main Seurat object saved as `250328_assembled/250329_seu_all_herma.qs`
+  * Re-exporting individual cell types in `250328_assembled/250330_cell_types/{cell_type.qs}`
+
+
+
+
+
+
+
 ### Fourth pass/step 1: assemble, impute, PCA
 
 Assemble the cell types from L2 and L4.

@@ -36,7 +36,7 @@ osc_raw <- readxl::read_excel("../10x_grl18/data/oscillating/msb209498-sup-0003-
 
 
 dir_out <- "intermediates/2502/250328_assembled"
-
+dir_out_individual_cts <- file.path(dir_out, "250330_cell_types")
 
 dir_third_processed <- "intermediates/2502/250313_third_processed"
 
@@ -348,6 +348,187 @@ dotprod_by_cell |>
 
 
 
+
+
+#~~ perm test ----
+
+cells_phases <- FetchData(seu, vars = c("cell_phase", "cell_rho", "tissue", "cell_type"))
+
+# the neighbors do not change between permutations: compute once and reuse
+cell_neighbors <- tibble(
+  cell = rownames(cells_phases),
+  neighbors = map(cell,
+                  \(cell) TopNeighbors(seu@neighbors$SCT.nn, cell = cell, n = (20+1L) ) |>
+                    setdiff(cell),
+                  .progress = TRUE)
+)
+
+
+
+run_permutation_test_by_celltype_rand_phase <- function(.perm){
+  
+  
+  if(.perm > 0){
+    
+    osc_perm <- osc_table |>
+      mutate(peak_phase_deg = sample(peak_phase_deg))
+  } else{
+    
+    osc_perm <- osc_table
+  }
+  
+  cells_phases_perm <- cells_phases
+  
+  # overwrite with permuted
+  cells_phases_perm$cell_phase <- angle_from_mat(mat, osc_perm$peak_phase_deg)
+  cells_phases_perm$cell_rho <- rho_from_mat(mat, osc_perm$peak_phase_deg)
+  
+  cells_phases_xy <- cells_phases_perm |>
+    mutate(x = cell_rho * cos(cell_phase *pi/180),
+           y = cell_rho * sin(cell_phase *pi/180),
+           x = if_else(is.nan(cell_phase), 0, x),
+           y = if_else(is.nan(cell_phase), 0, y))
+  
+  all_cells_neighs_xy <- cell_neighbors |>
+    mutate(cell_x = cells_phases_xy[cell, "x"],
+           cell_y = cells_phases_xy[cell, "y"]) |>
+    unnest(neighbors) |>
+    mutate(neigh_x = cells_phases_xy[neighbors, "x"],
+           neigh_y = cells_phases_xy[neighbors, "y"])
+  
+  
+  mean_dotprod_by_cell <- tibble(cell = all_cells_neighs_xy$cell,
+                                 dotprod = all_cells_neighs_xy$cell_x * all_cells_neighs_xy$neigh_x +
+                                   all_cells_neighs_xy$cell_y * all_cells_neighs_xy$neigh_y) |>
+    summarize(coherence = mean(dotprod),
+              .by = cell)
+  
+  cells_phases_perm |>
+    add_column(coherence = mean_dotprod_by_cell$coherence) |>
+    summarize(mean_coherence = mean(coherence),
+              .by = c(tissue, cell_type)) |>
+    add_column(permutation = .perm)
+}
+
+
+
+set.seed(123)
+mean_dotprod_by_celltype_res_perm <- map_dfr(0:10000,
+                                             run_permutation_test_by_celltype_rand_phase,
+                                             .progress = TRUE)
+# qs::qsave(mean_dotprod_by_celltype_res_perm,
+#           file.path(dir_out, "250330_coherence_perm10000.qs"))
+
+# mean_dotprod_by_celltype_res_perm <- qs::qread(file.path(dir_out, "250330_coherence_perm10000.qs"))
+
+
+mean_dotprod_by_celltype_res_perm |>
+  arrange(tissue) |> mutate(cell_type = fct_inorder(cell_type)) |>
+  mutate(`permutated` = !(permutation == 0)) |>
+  ggplot() +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  theme(legend.position = "none") +
+  scale_color_manual(values = c('red3','grey')) +
+  scale_alpha_manual(values = c(1,.01)) +
+  ylab("Mean (in cell type) of mean (with neighbors) dot product") + xlab(NULL) +
+  geom_point(aes(x = cell_type, y = mean_coherence, color = permutated, alpha = permutated),
+             size = 2)
+
+
+
+p_vals <- mean_dotprod_by_celltype_res_perm |>
+  group_by(tissue, cell_type) |>
+  nest() |>
+  summarize(p_val = map_dbl(data,
+                            \(dat){
+                              mean(dat$mean_coherence >= dat$mean_coherence[[1]])
+                            }),
+            .groups = 'drop') |>
+  mutate(p_adj = p.adjust(p_val, method = "holm"))
+
+
+hist(p_vals$p_val)
+
+
+# filter on nb of cells
+
+cell_types_to_plot <- dotprod_by_cell |>
+  summarize(nb_cells = n(),
+            .by = cell_type) |>
+  filter(nb_cells >= 20) |>
+  pull(cell_type)
+
+
+gg_dotprod_by_cell <- dotprod_by_cell |>
+  filter(cell_type %in% cell_types_to_plot) |>
+  arrange(tissue, cell_type) |> mutate(cell_type = fct_inorder(cell_type)) |>
+  ggplot() +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  ylab("Local phase coherence") + xlab(NULL) +
+  scale_shape_manual(values = c("-","*")) +
+  coord_cartesian(ylim = c(-.1,.7)) +
+  ggbeeswarm::geom_quasirandom(aes(x = cell_type, y = coherence, color = tissue),
+                               alpha = .2) +
+  geom_point(aes(x = cell_type, y = mean_coherence, shape = p_adj < .05),
+             data = (
+               dotprod_by_cell |>
+                 filter(cell_type %in% cell_types_to_plot) |>
+                 summarize(mean_coherence = mean(coherence),
+                           .by = "cell_type") |>
+                 left_join(p_vals,
+                           by = c("cell_type")) |>
+                 mutate(p_adj = if_else(is.na(p_adj), 1, p_adj))
+             ),
+             size = 8)
+
+gg_dotprod_by_cell
+# gg copy: 1000x550
+
+
+
+
+
+# save for other scripts
+local_coherence_by_ct <- dotprod_by_cell |>
+  summarize(mean_coherence = mean(coherence),
+            .by = "cell_type") |>
+  left_join(p_vals,
+            by = c("cell_type")) |>
+  mutate(p_adj = if_else(is.na(p_adj), 1, p_adj)) |>
+  as_tibble()
+
+# qs::qsave(local_coherence_by_ct,
+#           file.path(dir_out, "250330_coherence_by_ct.qs"))
+
+
+
+
+
+# Export cell types ----
+
+
+# seu <- qs::qread( file.path(dir_out, "250329_seu_all_herma.qs"))
+
+
+
+levels(Idents(seu)) |>
+  walk(~{
+    filename <- file.path(dir_out_individual_cts,
+                          paste0(.x, ".qs"))
+    
+    sub <- subset(seu, idents = .x)
+    
+    
+    if(!file.exists(filename)){
+      qs::qsave(sub,
+                filename)
+      message("saved")
+    } else{
+      stop("exists!")
+    }
+  })
 
 
 
