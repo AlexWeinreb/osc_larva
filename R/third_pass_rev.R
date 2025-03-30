@@ -621,11 +621,15 @@ tea_res <- wormbaseEnrich::enrichment_analysis(s2i(genelist, gids), wbe_dict,
 
 
 tea_res |>
+  mutate(progenitor = startsWith(term_name, "AB")) |>
   # filter(! startsWith(term_name, "AB")) |>
   ggplot() +
   theme_classic() +
-  aes(x = observed, y = -log10(FDR), label = term_name) +
-  geom_point() +
+  scale_alpha_manual(values = c(`TRUE` = .2, `FALSE` = 1)) +
+  aes(x = observed, y = -log10(FDR),
+      alpha = progenitor,
+      label = term_name) +
+  geom_point(aes(size = enrichment_fc)) +
   ggrepel::geom_text_repel()
 
 tea_res |> arrange(desc(observed))

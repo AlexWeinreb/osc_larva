@@ -52,6 +52,12 @@ files_list |>
   count(n)
 
 
+list("L2" = files_list$cell_type[files_list$group == "g1"],
+     L4 = files_list$cell_type[files_list$group == "g2"]) |>
+  eulerr::euler() |>
+  plot(quantities = TRUE)
+
+
 files_list_by_type <- files_list |>
   summarize(both_names = list(filename),
             n = n(),
