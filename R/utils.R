@@ -103,3 +103,97 @@ plotsum2 <- function(genes1, genes2, seu, assay = "RNA"){
 }
 
 
+
+#' Merge many Seurat objects
+#' 
+#' The default SeuratObject::merge can be slow with many objects, also requires subsequent JoinLayers.
+#' This function strips down all information from the Seurat objects, only keeps the genes present in all objects, and
+#' the metadata columns present in all objects. Errors if there are duplicate column names
+#'
+#' @param seu_list a list of Seurat objects.
+#' @param cell_keys if TRUE, adds a sample id to each cell barcode. If a character vector of the same length as seu_list,
+#' use this as sample id. If FALSE, keep the cell barcodes, this will lead to an error if there are duplicate 
+#' barcodes across the objects to merge.
+#'
+#' @return a merged Seurat object, only with the counts and metadata
+#'
+#' @examples
+merge_fast <- function(seu_list, cell_keys = FALSE){
+  
+  
+  stopifnot( length(seu_list) > 1 )
+  
+  stopifnot(all( map_chr(seu_list, class) == "Seurat" ))
+  
+  
+  # extract
+  mat_list <- map(seu_list, ~GetAssayData(.x, assay = "RNA", layer = "count"))
+  
+  genes_common <- map(mat_list, rownames) |>
+    reduce(intersect)
+  
+  mat_list <- map(mat_list, ~ .x[genes_common,] )
+  
+  
+  
+  meta_vars <- map(seu_list, ~ colnames(.x[[]]) ) |>
+    reduce(intersect)
+  
+  metadata_list <- map(seu_list, ~FetchData(.x, vars = meta_vars))
+  
+  
+  
+  
+  # ensure unique cell names
+  cell_names <- map(mat_list, colnames)
+  
+  stopifnot(identical(cell_names, map(metadata_list, rownames)))
+  
+  
+  if(isTRUE(cell_keys)){
+    
+    # create keys
+    cell_keys <- paste0("s", seq_along(seu_list), "_")
+  }
+  
+  if(typeof(cell_keys) == "character"){
+    
+    stopifnot(length(cell_keys) == length(seu_list))
+    
+    cell_names <- map2(cell_keys, cell_names,
+         \(.k, .cell_names){
+           paste0(.k, .cell_names)
+         })
+  }
+  
+  
+  stopifnot( anyDuplicated(unlist(cell_names)) == 0 )
+  
+  if(! isFALSE(cell_keys)){
+    mat_list <- map2(mat_list, cell_names,
+                     \(.mat, .cell_names){
+                       colnames(.mat) <- .cell_names
+                       .mat
+                     })
+    
+    metadata_list <- map2(metadata_list, cell_names,
+                           \(.df, .cell_names){
+                             rownames(.df) <- .cell_names
+                             .df
+                           })
+    
+  }
+  
+  # merge elements
+  mat_merged <- do.call(cbind, mat_list)
+  metadata_merged <- bind_rows(metadata_list)
+  
+  
+  stopifnot(identical( colnames(mat_merged), rownames(metadata_merged) ))
+  
+  
+  
+  seu_merged <- CreateSeuratObject(mat_merged, meta.data = metadata_merged)
+  seu_merged
+}
+
