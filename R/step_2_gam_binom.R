@@ -30,8 +30,8 @@ if(! interactive()){
 } else{
   # Options for interactive
   params <- list(
-    batch_rmed_dir = "intermediates/2502/250319_step1",
-    out_dir = "intermediates/2502/250319_step2",
+    batch_rmed_dir = "intermediates/2502/250330_step1",
+    out_dir = "intermediates/2502/250330_step2",
     model = "auto",
     i = 3,
     prop_thres = 0.1,
@@ -51,8 +51,10 @@ n_rep_pt_global <- 50
 set.seed(123)
 
 
-cell_types <- readLines(file.path(params$batch_rmed_dir,
-                                  "cell_types.txt"))
+cell_types <- list.files(params$batch_rmed_dir,
+                         pattern = "_seu\\.qs$") |>
+  stringr::str_remove("_seu\\.qs$")
+
 
 
 
@@ -86,17 +88,19 @@ seu <- qs::qread(
 
 # save the plot with phases
 gg_phase <- FetchData(seu,
-                      vars = c("PC_1", "PC_2", "mean_angle", "mean_rho")) |>
+                      vars = c("PC_1", "PC_2", "cell_phase_masked", "cell_rho")) |>
   ggplot() +
   theme_classic() +
   theme(legend.position = "none") +
   scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
-                        limits = c(0, 2*pi)) +
+                        limits = c(0, 360)) +
   geom_point(aes(x = PC_1, y = PC_2,
-                 color = mean_angle, alpha = mean_rho)) +
+                 color = cell_phase_masked, alpha = cell_rho)) +
   ggtitle(cell_type)
 
-ggsave(paste0(cell_type,"_harmony_phase.png"), gg_phase,
+# gg_phase
+
+ggsave(paste0(cell_type,"_phase.png"), gg_phase,
        path = params$out_dir,
        width = 7, height = 5, units = "in")
 

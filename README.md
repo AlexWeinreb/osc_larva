@@ -285,31 +285,22 @@ In `R/step_1_preproc_ct.R`, called with `src/step_1_preproc_ct.sh`:
 
 ### Step 2
 
-Assemble the cell types from L2 and L4.
-
-
 
 `step_2_gam_binom.R` is to be run on cluster as dsq jobarray, called from dSQ. Contents:
 * load intermediates from step 1, prefilter, run ElPiGraph and a GAM with binomial family, save the model along with curve amplitude and dev explained
-* save intermediates in "intermediates/2502/250325_step2_binom"
+* save intermediates in "intermediates/2502/250330_step2"
 
 
 
 
-Jobfile and list of cells created with:
+Jobfile created with:
 ```r
 paste("module load R; Rscript R/step_2_gam_binom.R",
-       "--batch_rmed_dir 'intermediates/2502/250319_step1'",
-      "--out_dir 'intermediates/2502/250325_step2_binom'",
-      "--i", seq_along(list.files('intermediates/2502/250319_step1', pattern = "_seu\\.qs$")),
+       "--batch_rmed_dir 'intermediates/2502/250330_step1'",
+      "--out_dir 'intermediates/2502/250330_step2'",
+      "--i", seq_along(list.files('intermediates/2502/250330_step1', pattern = "_seu\\.qs$")),
       "--model 'auto' --prop_thres 0.05 --cnt_thres 20") |>
-  writeLines("joblists/step2_gam_binom.dsq.txt")
-  
-
-gsub("_seu\\.qs$", "",
-     list.files('intermediates/2502/250319_step1',
-                pattern = "_seu\\.qs$")) |>
-  writeLines('intermediates/2502/250319_step1/cell_types.txt')
+  writeLines("joblists/step_2_gam_binom.dsq.txt")
 ```
 
 
@@ -318,7 +309,7 @@ Job prepared with:
 ml dSQ; dsq --job-file joblists/step_2_gam_binom.dsq.txt  --cpus-per-task 1 --mem 5G --time 00:10:00 --partition day
 ```
 
-Note: previously used pseudotimeDE at this step, along with filtering on curve shape as step 3. No longer useful: most/all genes appear DE with pseudotime, replace with simple GAM and curve shape filtering. Keeping state of repo at this point in branch `pseudotimede`.
+Note: previously used pseudotimeDE at this step, along with filtering on curve shape as step 3. No longer useful: most/all genes appear DE with pseudotime, replace with simple GAM and curve shape filtering. Keeping state of repo at that point in branch `pseudotimede`.
 
 
 
