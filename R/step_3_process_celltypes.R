@@ -24,13 +24,19 @@ gids <- wb_load_gene_ids(295) |>
 source("R/utils_heatmap_processing.R")
 
 
-dir_step1 <- "intermediates/2502/250319_step1"
-dir_step2 <- "intermediates/2502/250325_step2_binom/"
+dir_step1 <- "intermediates/2502/250330_step1/"
+dir_step2 <- "intermediates/2502/250330_step2/"
 
-dir_step3 <- "intermediates/2502/250325_step3_genes_by_celltype/"
+dir_step3 <- "intermediates/2502/250330_step3_genes_by_celltype/"
 
 
 
+ct2tissue <- read_csv("data/cell_type2tissue.csv")
+
+
+
+
+# Load ----
 
 all_raw <- list.files(dir_step2, ".+res_gam.qs$") |>
   map(~ qs::qread( file.path(dir_step2, .x) ) ) |>
@@ -55,7 +61,7 @@ all_raw |>
 
 unique(all_raw$cell_type)
 
-ct <- "pharyngeal_muscle"
+ct <- "AM_PHso"
 subseu <- qs::qread( file.path(dir_step1, paste0(ct, "_seu.qs")) )
 
 
@@ -88,22 +94,53 @@ all_raw[row_nb,]
 
 g2 <- ggplot() +
   theme_classic() +
+  ylab(expression(P* "[" * N[UMI] > 0*"]" )) +
   geom_point(aes(x = pseudotime,
                  y = count),
              data = tibble(pseudotime = mod$model$pseudotime,
-                           count = log1p(mod$y)),
+                           count = mod$y),
              alpha = .5) +
   geom_line(aes(x = pseudotime,
                 y = prediction),
             data = tibble(pseudotime = mod$model$pseudotime,
-                          prediction = log1p(mod$fitted.values))) +
+                          prediction = mod$fitted.values)) +
   ggtitle(paste0(all_raw$cell_type[[row_nb]], " -- ", all_raw$gene_name[[row_nb]]),
           paste0(" ampl: ", all_raw$amplitude[[row_nb]] |> round(2),
-                 " dev: ", all_raw$dev_expl[[row_nb]] |> round(2) )
+                 " dev: ", all_raw$dev_expl[[row_nb]] |> round(2),
+                 " area: ", all_raw$area_under_curve[[row_nb]] |> round() )
   )
 
 
 patchwork::wrap_plots(g1, g2)
+
+
+
+# # illustrate area under curve
+# 
+# ggplot() +
+#   theme_classic() +
+#   ylab(expression(P* "[" * N[UMI] > 0*"]" )) +
+#   geom_ribbon(aes(x = pseudotime,
+#                   ymin = 0,
+#                   ymax = prediction),
+#               data = tibble(pseudotime = mod$model$pseudotime,
+#                             prediction = mod$fitted.values),
+#               fill = "lightyellow",
+#               alpha = .6) +
+#   geom_point(aes(x = pseudotime,
+#                  y = count),
+#              data = tibble(pseudotime = mod$model$pseudotime,
+#                            count = mod$y),
+#              alpha = .5) +
+#   geom_line(aes(x = pseudotime,
+#                 y = prediction),
+#             data = tibble(pseudotime = mod$model$pseudotime,
+#                           prediction = mod$fitted.values)) +
+#   ggtitle(paste0(all_raw$cell_type[[row_nb]], " -- ", all_raw$gene_name[[row_nb]]),
+#           paste0(" ampl: ", all_raw$amplitude[[row_nb]] |> round(2),
+#                  " dev: ", all_raw$dev_expl[[row_nb]] |> round(2),
+#                  " area: ", all_raw$area_under_curve[[row_nb]] |> round() )
+#   )
 
 
 
@@ -118,11 +155,12 @@ manual <- left_join(manual, all_raw,
 manual |>
   ggplot() +
   theme_classic() +
-  theme(legend.position = 'none') +
+  # theme(legend.position = 'none') +
   scale_color_manual(values = c("grey", "firebrick2", "chartreuse4")) +
   # geom_vline(aes(xintercept = .15), color = 'grey') +
   # geom_hline(aes(yintercept = .65), color = 'grey') +
-  geom_point(aes(x = dev_expl, y = amplitude, color = manual, size = area_under_curve))
+  geom_point(aes(x = dev_expl, y = amplitude, color = manual, size = area_under_curve),
+             alpha = .6)
 
 
 # use logistic regression to pick threshold that matches manual annotation
@@ -164,10 +202,10 @@ manual <- left_join(manual |> select(cell_type, gene_name, manual),
 manual |>
   ggplot() +
   theme_classic() +
-  theme(legend.position = "none") +
+  # theme(legend.position = "none") +
   scale_color_manual(values = c("grey", "firebrick2", "chartreuse4")) +
   geom_point(aes(x = dev_expl, y = amplitude, color = manual, size = area_under_curve, shape = peaky),
-              alpha = .5) +
+              alpha = .6) +
   geom_abline(slope = - coef(mod)[3] / coef(mod)[2],
               intercept = - coef(mod)[1] / coef(mod)[2],
               color = 'grey')
@@ -199,11 +237,14 @@ all_raw |>
             nb_genes = n(),
             prop_peaky = nb_peaky / nb_genes,
             .by = cell_type) |>
+  left_join(ct2tissue, by = "cell_type") |>
   ggplot() +
   theme_classic() +
-  aes(x = nb_genes, y = prop_peaky, label = cell_type) +
+  labs(x = "Number of genes tested",
+       y = "Proportion of genes selected") +
+  aes(x = nb_genes, y = prop_peaky, label = cell_type, color = tissue) +
   geom_point() +
-  ggrepel::geom_text_repel()
+  ggrepel::geom_text_repel(show.legend = FALSE)
 
 
 
@@ -233,9 +274,9 @@ heatmaps_list <- set_names(filtered_data$data,
                                           newdata = data.frame(pseudotime = (0:199)/200)),
                           FUN.VALUE = double(200))
       
-      peak_loc <- apply(all_preds, 2, which.max)
+      peak_location <- apply(all_preds, 2, which.max)
       
-      all_preds[, order(peak_loc)]
+      all_preds[, order(peak_location)]
       
     },
     .progress = TRUE
@@ -248,102 +289,121 @@ heatmaps_list <- set_names(filtered_data$data,
 #~ uniformity ----
 
 
-heatmaps_list$intestine |> rowMeans() |> range() |> diff()
+filtered_data$uniformity_index <- map_dbl(heatmaps_list,
+                                          \(hm) {
+                                            diffrange <- hm |>
+                                              rowMeans() |>
+                                              range() |>
+                                              diff()
+                                            
+                                            1 - diffrange
+                                          })
 
 
-filtered_data$unif_index <- map_dbl(heatmaps_list,
-                                    \(hm) {
-                                      hm |>
-                                        rowMeans() |>
-                                        range() |>
-                                        diff()
-                                    })
 
-hist(filtered_data$unif_index, breaks = 50)
-abline(v = .2, lwd = 2, col ='grey30')
+hist(filtered_data$uniformity_index, breaks = 50)
 
-filtered_data |> filter(unif_index < .2)
 
 
 
 
 
 #~ distance ----
-filtered_data$dist <- sapply(heatmaps_list,
-                             \(hm){
-                               
-                               n_t <- nrow(hm)
-                               n_g <- ncol(hm)
-                               
-                               sig_cent <- make_ref_sig(n_t)
-                               
-                               null_mat <- sapply(seq_len(n_g),
-                                                  \(i){
-                                                    circ_perm(sig_cent, floor(n_t * i/n_g))
-                                                  })
-                               
-                               
-                               mynorm(hm - null_mat)
-                             })
 
 
-hist(filtered_data$dist, breaks = 30)
+filtered_data$similarity_diag <- map_dbl(heatmaps_list,
+                                         \(hm){
+                                           
+                                           n_t <- nrow(hm)
+                                           n_g <- ncol(hm)
+                                           
+                                           sig_cent <- make_ref_sig(n_t)
+                                           
+                                           null_mat <- sapply(seq_len(n_g),
+                                                              \(i){
+                                                                circ_perm(sig_cent, floor(n_t * i/n_g))
+                                                              })
+                                           
+                                           
+                                           dist <- norm(hm - null_mat, "1")
+                                           similarity <- dist/n_t
+                                           1 - similarity
+                                         })
+
+
+hist(filtered_data$similarity_diag, breaks = 30)
 
 
 ggplot(filtered_data) +
   theme_classic() +
-  geom_text(aes(x = unif_index, y = dist, label = cell_type))
+  geom_text(aes(x = uniformity_index, y = similarity_diag, label = cell_type))
 
 
 
 # dists with pvals
 
-dists_with_perms <- lapply(heatmaps_list,
-                \(hm){
-                  
-                  n_t <- nrow(hm)
-                  n_g <- ncol(hm)
-                  
-                  sig_cent <- make_ref_sig(n_t)
-                  
-                  null_mat <- sapply(seq_len(n_g),
-                                     \(i){
-                                       circ_perm(sig_cent, floor(n_t * i/n_g))
-                                     })
-                  
-                  
-                  c(
-                    mynorm(hm - null_mat),
-                    replicate(500,{
-                      hm_perm <- hm[,sample(ncol(hm))]
-                      mynorm(hm_perm - null_mat)
-                    })
-                  )
-                })
+filtered_data$p_val <- map_dbl(heatmaps_list,
+                               \(hm){
+                                 
+                                 n_t <- nrow(hm)
+                                 n_g <- ncol(hm)
+                                 
+                                 sig_cent <- make_ref_sig(n_t)
+                                 
+                                 null_mat <- sapply(seq_len(n_g),
+                                                    \(i){
+                                                      circ_perm(sig_cent, floor(n_t * i/n_g))
+                                                    })
+                                 
+                                 
+                                 
+                                 similarity_perms <- c(
+                                   {
+                                     dist <- norm(hm - null_mat, "1")
+                                     similarity <- dist/n_t
+                                     1 - similarity
+                                   },
+                                   replicate(10000,{
+                                     hm_perm <- hm[,sample(ncol(hm))]
+                                     dist <- norm(hm_perm - null_mat, "1")
+                                     similarity <- dist/n_t
+                                     1 - similarity
+                                   })
+                                 )
+                                 
+                                 pval <- mean(similarity_perms >= similarity_perms[[1]])
+                                 pval
+                               },
+                               .progress = TRUE)
 
 
-
-
-filtered_data$p <- sapply(dists_with_perms,
-                          \(res) mean(res[[1]] >= res))
-
-filtered_data$p_adj <- filtered_data$p |>
+filtered_data$p_adj <- filtered_data$p_val |>
   p.adjust(method = "holm")
-hist(filtered_data$p, breaks = 30)
+hist(filtered_data$p_val, breaks = 30)
 
 
 ggplot(filtered_data) +
   theme_classic() +
-  geom_text(aes(x = unif_index, y = dist, label = cell_type, color = p_adj < .05))
+  aes(x = uniformity_index, y = similarity_diag, label = cell_type, shape = p_adj < .05, color = p_adj < .05) +
+  geom_point() +
+  ggrepel::geom_text_repel()
 
 
+ggplot(filtered_data) +
+  theme_classic() +
+  aes(x = similarity_diag, y = -log10(p_adj), label = cell_type, shape = p_adj < .05, color = p_adj < .05) +
+  geom_point() +
+  ggrepel::geom_text_repel()
 
-# only label every 6th column
-# hmp_sparsified <- heatmaps_list[["intestine"]]
+
+# # only label every n-th column
+# ct <- "BWM"
+# hmp_sparsified <- heatmaps_list[[ct]]
+# hmp_sparsified <- null_mat
 # 
-# 
+# spar_index <- 7
 # colnames_to_sparsify <- setdiff(seq_len(ncol(hmp_sparsified)),
-#                                 6 * seq_len( ncol(hmp_sparsified) / 6 ) )
+#                                 spar_index * seq_len( ncol(hmp_sparsified) / spar_index ) )
 # 
 # colnames(hmp_sparsified)[colnames_to_sparsify] <- ""
 # head(colnames(hmp_sparsified), 20)
@@ -353,8 +413,8 @@ ggplot(filtered_data) +
 #                    cluster_rows = FALSE,
 #                    cluster_cols = FALSE,
 #                    show_rownames = FALSE,
-#                    fontsize = 7)
-
+#                    fontsize = 7,
+#                    main = ct)
 
 
 

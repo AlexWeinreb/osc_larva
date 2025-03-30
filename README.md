@@ -320,8 +320,9 @@ On cluster, interactively, run `src/runR_step_3_process_celltypes`:
 * inputs:
   * result of step 2 `2502/250325_step2_binom/{celltype}_res_gam.qs` for each cell type
   * also use step1 to examine individual genes
-* determine what genes are peaky based on curve shape; plot heatmaps per cell type, determine if heatmap diagonal
-* save results in `2502/250325_step3_genes_by_celltype/`
+* determine what genes are peaky based on curve shape
+* plot heatmaps per cell type, determine if heatmap diagonal
+* save results in `2502/250330_step3_genes_by_celltype/`
 
 
 
