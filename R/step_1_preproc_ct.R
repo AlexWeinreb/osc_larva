@@ -25,13 +25,20 @@ seu <- qs::qread( file.path(dir_assembled, "250329_seu_all_herma.qs"))
 
 
 
-#~ Next cell type ----
+cell_types <- seu[[]] |>
+  count(cell_type, stage,
+        name = "nb_cells") |>
+  summarize(nb_stages = n(),
+            nb_cells = sum(nb_cells),
+            .by = cell_type) |>
+  filter(nb_stages > 1,
+         nb_cells > 20) |>
+  pull(cell_type)
 
-for(.ct in levels(Idents(seu)) ){
-  
-  
-  
-  
+
+message("Processing ", length(cell_types)," cell types")
+
+for(.ct in cell_types ){
   
   message("---------  ", .ct, "  ---------")
   
@@ -123,6 +130,9 @@ for(.ct in levels(Idents(seu)) ){
 
 # End ----
 message("Done  ", date())
+message("======================================================================")
+message("                             sessionInfo                              ")
+message("======================================================================")
 
 sessionInfo()
 
