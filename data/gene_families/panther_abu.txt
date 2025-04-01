@@ -1,0 +1,13 @@
+
+CAEEL|WormBase=WBGene00004159|UniProtKB=Q9NF69	Prion-like-(Q_N-rich)-domain-bearing protein;pqn-78;PTN000785849;orthologs	ACTIVATED IN BLOCKED UNFOLDED PROTEIN RESPONSE-RELATED (PTHR31895:SF9)		Caenorhabditis elegans
+CAEEL|WormBase=WBGene00004158|UniProtKB=G5ECQ7	Prion-like-(Q_N-rich)-domain-bearing protein;pqn-79;PTN001591027;orthologs	ACTIVATED IN BLOCKED UNFOLDED PROTEIN RESPONSE-RELATED (PTHR31895:SF9)		Caenorhabditis elegans
+CAEEL|WormBase=WBGene00020670|UniProtKB=O45192	Intrinsically Disordered Protein, expressed in Pharynx;idpp-9;PTN008641190;orthologs	ACTIVATED IN BLOCKED UNFOLDED PROTEIN RESPONSE-RELATED (PTHR31895:SF9)		Caenorhabditis elegans
+CAEEL|WormBase=WBGene00000024|UniProtKB=Q17400	Activated in Blocked Unfolded protein response;abu-1;PTN000785846;orthologs	ACTIVATED IN BLOCKED UNFOLDED PROTEIN RESPONSE-RELATED (PTHR31895:SF9)		Caenorhabditis elegans
+CAEEL|WormBase=WBGene00044521|UniProtKB=Q4R172	Activated in Blocked Unfolded protein response;CELE_Y5H2A.4;PTN000785853;orthologs	ACTIVATED IN BLOCKED UNFOLDED PROTEIN RESPONSE-RELATED (PTHR31895:SF9)		Caenorhabditis elegans
+CAEEL|WormBase=WBGene00004170|UniProtKB=Q9NA61	Prion-like-(Q_N-rich)-domain-bearing protein;pqn-90;PTN000785850;orthologs	ACTIVATED IN BLOCKED UNFOLDED PROTEIN RESPONSE-RELATED (PTHR31895:SF9)		Caenorhabditis elegans
+CAEEL|WormBase=WBGene00000027|UniProtKB=Q86S74	Activated in Blocked Unfolded protein response;abu-4;PTN000785856;orthologs	ACTIVATED IN BLOCKED UNFOLDED PROTEIN RESPONSE-RELATED (PTHR31895:SF9)		Caenorhabditis elegans
+CAEEL|WormBase=WBGene00000028|UniProtKB=Q9NF70	Activated in Blocked Unfolded protein response;abu-5;PTN000785847;orthologs	ACTIVATED IN BLOCKED UNFOLDED PROTEIN RESPONSE-RELATED (PTHR31895:SF9)		Caenorhabditis elegans
+CAEEL|WormBase=WBGene00004098|UniProtKB=Q17401	Prion-like-(Q_N-rich)-domain-bearing protein;pqn-2;PTN000785858;orthologs	ACTIVATED IN BLOCKED UNFOLDED PROTEIN RESPONSE-RELATED (PTHR31895:SF9)		Caenorhabditis elegans
+CAEEL|WormBase=WBGene00004171|UniProtKB=Q9NA38	Prion-like-(Q_N-rich)-domain-bearing protein;pqn-91;PTN000785855;orthologs	ACTIVATED IN BLOCKED UNFOLDED PROTEIN RESPONSE-RELATED (PTHR31895:SF9)		Caenorhabditis elegans
+CAEEL|WormBase=WBGene00000025|UniProtKB=Q19594	Activated in Blocked Unfolded protein response;abu-2;PTN000785852;orthologs	ACTIVATED IN BLOCKED UNFOLDED PROTEIN RESPONSE-RELATED (PTHR31895:SF9)		Caenorhabditis elegans
+CAEEL|WormBase=WBGene00020384|UniProtKB=Q23036	EB domain-containing protein;CELE_T09D3.3;PTN008641189;orthologs	ACTIVATED IN BLOCKED UNFOLDED PROTEIN RESPONSE-RELATED (PTHR31895:SF9)		Caenorhabditis elegans
