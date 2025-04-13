@@ -93,6 +93,19 @@ for(.ct in cell_types ){
          width = 7, height = 5, units = "in")
   
   
+  # gg_stage <-  ggplot(FetchData(sub,
+  #                               vars = c("PC_1", "PC_2",
+  #                                        "stage"))) +
+  #   theme_classic() +
+  #   geom_point(aes(x = PC_1, y = PC_2,
+  #                  color = stage),
+  #              size = 2,
+  #              alpha = .2)
+  # 
+  # ggsave(paste0(.ct,"_stage.png"), gg_stage,
+  #        path = "presentations/",
+  #        width = 7, height = 5, units = "in")
+  
   
   gg_phase <- ggplot(FetchData(sub,
                                vars = c("PC_1", "PC_2",
@@ -109,9 +122,44 @@ for(.ct in cell_types ){
          width = 7, height = 5, units = "in")
   
   
+  # gg_phase <- ggplot(FetchData(sub,
+  #                              vars = c("PC_1", "PC_2",
+  #                                       "cell_phase_masked", "cell_rho"))) +
+  #   theme_classic() +
+  #   scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
+  #                         limits = c(0, 360)) +
+  #   geom_point(aes(x = PC_1, y = PC_2,
+  #                  color = cell_phase_masked),
+  #              size = 3,
+  #              shape = 16,
+  #              alpha = .5)
+  # 
+  # ggsave(paste0(.ct,"_phase.png"), gg_phase,
+  #        path = "presentations/",
+  #        width = 7, height = 5, units = "in")
   
-  
-  
+  # # same with a continuous alpha scale
+  # gg_phase_with_legend <- ggplot(FetchData(sub,
+  #                  vars = c("PC_1", "PC_2",
+  #                           "cell_phase_masked", "cell_rho"))) +
+  #   theme_classic() +
+  #   scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
+  #                         limits = c(0, 360)) +
+  #   geom_point(aes(x = PC_1, y = PC_2,
+  #                  color = cell_phase_masked,
+  #                  alpha = cell_rho),
+  #              shape = 16,
+  #              size = 3,
+  #              show.legend = c(color = TRUE, alpha = FALSE)) +
+  #   scale_fill_gradient(high = "black", low = "grey90",
+  #                       limits = c(0,1)) +
+  #   geom_point(aes(x = PC_1, y = PC_2,
+  #                  fill = cell_rho),
+  #              alpha = 0)
+  # ggsave(paste0(.ct,"_phase.pdf"), gg_phase_with_legend,
+  #        path = dir_out,
+  #        width = 7, height = 5, units = "in")
+
   qs::qsave(
     sub,
     file.path(dir_out,

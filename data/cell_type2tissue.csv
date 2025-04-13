@@ -34,7 +34,7 @@ IL1,neuron
 IL2_LR,neuron
 mechanosensory,neuron
 OLQ,neuron
-pharyngeal,pharynx
+pharyngeal,neuron
 PVD,neuron
 PVQ,neuron
 RIA,neuron

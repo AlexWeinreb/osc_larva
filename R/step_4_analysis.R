@@ -124,6 +124,57 @@ gg_peaky_by_celltype
 
 
 
+ordered_cells <- all_genes |>
+  summarize(nb_peaky = sum(peaky == "peak"),
+            nb_tested = n(),
+            .by = cell_type) |>
+  mutate(prop_peaky = nb_peaky / nb_tested) |>
+  left_join(bulk_cat, by = "cell_type") |>
+  arrange(tissue, desc(prop_peaky)) |>
+  pull(cell_type) |> fct_inorder() |> levels()
+
+all_genes |>
+  summarize(nb_peaky = sum(peaky == "peak"),
+            nb_not_peaky = sum(peaky == "non-peak"),
+            .by = cell_type) |>
+  left_join(bulk_cat, by = "cell_type") |>
+  pivot_longer(cols = starts_with("nb_"),
+               names_to = "type",
+               values_to = "count",
+               names_prefix = "nb_") |>
+  mutate(cell_type = factor(cell_type, levels = ordered_cells)) |>
+  ggplot() +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  scale_fill_manual(values = c(peaky = "red4", not_peaky = "grey70")) +
+  xlab(NULL) + ylab("Number of genes") +
+  geom_col(aes(x = cell_type, y = count, fill = type),
+           show.legend = FALSE) +
+  geom_text(aes(x = cell_type,
+                y = nb_peaky,
+                label = prop_peaky),
+            data = all_genes |>
+              summarize(nb_peaky = sum(peaky == "peak"),
+                        nb_tested = n(),
+                        .by = cell_type) |>
+              mutate(prop_peaky = round( 100 * nb_peaky / nb_tested) |> paste0("%") ),
+            nudge_y = 100
+            )
+
+
+
+scale_y_continuous(labels = scales::label_percent(),
+                   limits = c(0,.8)) +
+scale_x_continuous(labels = scales::label_comma(),
+                   limits = c(0,NA)) +
+scale_shape_manual(values = c(19,8)) +
+scale_size_manual(values = c(1, 2.5)) +
+aes(x = nb_tested,
+    y = prop_peaky,
+    color = tissue) +
+geom_point(aes(shape = bulk, size = bulk)) +
+ggrepel::geom_text_repel(aes(label = cell_type_noneur), show.legend = FALSE)
+
 
 
 
@@ -554,32 +605,70 @@ genelist <- dict_panther$wbid[dict_panther[col_nb] == 1L]
 genelist |> i2s(gids)
 
 
+dict_panther$wbid[dict_panther[str_detect(colnames(dict_panther), paste0("PTHR10127", " WBbt:0000000"))] == 1L  ] |>
+  i2s(gids)
 
 
 
 
-#~ defined families ----
+#~ manually defined families ----
 
 
+genelist_cutl_extended <- dict_panther$wbid[dict_panther[str_detect(colnames(dict_panther), paste0("PTHR47327", " WBbt:0000000"))] == 1L |
+                                              dict_panther[str_detect(colnames(dict_panther), paste0("PTHR22907", " WBbt:0000000"))] == 1L ]
 
 genelist_cutl <- gids$gene_id[which(startsWith(gids$symbol, "cutl-"))]
+
+genelist_nas_metalloproteases <- dict_panther$wbid[dict_panther[str_detect(colnames(dict_panther),
+                                                                           paste0("PTHR10127", " WBbt:0000000"))] == 1L  ]
 
 genelist_hedgehog <- readxl::read_excel("data/gene_families/hedgehog_hao2006_table1.xlsx", skip = 1) |>
   pull(gene_name)
 
-genelist_collagen <- gids$gene_id[which(startsWith(gids$symbol, "col-"))]
+genelist_collagen_by_name <- gids$gene_id[which(startsWith(gids$symbol, "col-"))]
+genelist_collagen_by_panther <- dict_panther$wbid[dict_panther[str_detect(colnames(dict_panther),
+                                                                          paste0("PTHR24637", " WBbt:0000000"))] == 1L  ]
 
+list(name = genelist_collagen_by_name,
+     panther = genelist_collagen_by_panther) |>
+  eulerr::euler() |>
+  plot(quantities = TRUE)
+genelist_collagen_by_name |> setdiff(genelist_collagen_by_panther) |> i2s(gids) |> paste(collapse = ", ")
+genelist_collagen_by_panther |> setdiff(genelist_collagen_by_name) |> i2s(gids) |> paste(collapse = ", ")
+
+
+genelist_patched <- dict_panther$wbid[dict_panther[str_detect(colnames(dict_panther),
+                                                              paste0("PTHR10796", " WBbt:0000000"))] == 1L  ]
 
 genelist_abu <- str_match(read_lines("data/gene_families/panther_abu.txt"),
                           "WormBase=(WBGene[0-9]{8})")[,2] |>
   na.omit()
 
+genelist_mam <- gids$name[which(startsWith(gids$symbol, "mam-"))] |>
+  c("mlt-9", "CD4.11","R04B3.1", "R04B3.3", "Y43D4A.5") |>
+  s2i(gids)
+
+
+
+genelist_sundaram <- readxl::read_excel("data/gene_families/sundaram.xlsx",
+                                        skip = 1L) |>
+  pull(gene_id)
+
+
+
+
+
+
 
 genelist <- genelist_abu
 genelist <- appg_genes |> wb_clean_gene_names()
 genelist <- s2i(genelist_hedgehog, gids)
-genelist <- genelist_collagen
-genelist <- genelist_cutl
+genelist <- genelist_collagen_by_panther
+genelist <- genelist_cutl_extended
+genelist <- genelist_patched
+genelist <-  genelist_nas_metalloproteases
+genelist <- genelist_mam
+genelist <- genelist_sundaram
 
 
 
@@ -604,7 +693,143 @@ all_genes |>
 
 
 
+# Export ILso genes in families
 
+lookup_famid <- dict_panther |>
+  pivot_longer(-wbid,
+               names_to = "family_long",
+               values_to = "present") |>
+  filter(present == 1L) |>
+  separate_wider_regex(family_long,
+                       patterns = c("^[[:print:]]* ",
+                                    family_id = "PTHR[0-9]+(?:\\:SF[0-9]+)?",
+                                    " WBbt:0000000$")) |>
+  inner_join(panther_filt |>
+              filter(cell_type == "ILso") |>
+              select(family_id) |>
+              mutate(family_terms = case_match(
+                family_id,
+                "PTHR47327" ~ "cuticlins/apple domain",
+                "PTHR22907" ~ "ZP domain cuticlins",
+                "PTHR10127" ~ "NAS Zn metalloproteinases",
+                "PTHR24637" ~ "collagens",
+                "PTHR10796" ~ "patched-related")),
+            by = "family_id") |>
+  mutate(gene_name = i2s(wbid, gids)) |>
+  select(gene_name, family_id, family_description = family_terms) |>
+  mutate(source = "PANTHER") |>
+  bind_rows(tibble(
+    gene_name = genelist_hedgehog,
+    family_id = "N.A.",
+    family_description = "hedgehog-related",
+    source = "Hao 2006 Table 1"
+  )) |>
+  bind_rows(tibble(
+    gene_name = genelist_cutl |> setdiff(genelist_cutl_extended) |> i2s(gids),
+    family_id = "N.A.",
+    family_description = "cuticlin",
+    source = "Additional cuticlin by name"
+  )) |>
+  bind_rows(tibble(
+    gene_name = genelist_mam |> i2s(gids),
+    family_id = "N.A.",
+    family_description = "mam",
+    source = "By name and direct paralogy"
+  )) |>
+  bind_rows(tibble(
+    gene_name = genelist_sundaram |> i2s(gids),
+    family_id = "N.A.",
+    family_description = "Sundaram",
+    source = "Sundaram and Pujol 2024 Supp table"
+  ))
+  
+
+osc_table_nodup <- osc_table |>
+  summarize(osc_amplitude = mean(osc_amplitude),
+            .by = c(gene_name, bulk_class))
+
+# all_genes |>
+#   filter(cell_type == "ILso") |>
+#   inner_join(lookup_famid,
+#             by = "gene_name") |>
+#   relocate(family_description, .after = gene_name) |>
+#   left_join(osc_table_nodup) |>
+#   writexl::write_xlsx("data/gene_families/250413_ILso_osc_genes_from_defined_families.xlsx")
+
+all_genes |>
+  filter(cell_type == "ILso") |>
+  inner_join(lookup_famid,
+            by = "gene_name") |>
+  relocate(family_description, .after = gene_name) |>
+  left_join(osc_table_nodup) |>
+  filter(peaky == "peak", bulk_class == "nonOsc")
+
+
+
+#~ plot btw cell types ----
+genelist |> i2s(gids) |> head()
+
+
+all_genes |>
+  filter(gene_name %in% i2s(genelist, gids),
+         cell_type %in% cell_types_osc_both) |>
+  summarize(n_peaky = sum(peaky == "peak"),
+            n_tot = n(),
+            `%` = round(100*n_peaky / n_tot),
+            .by = cell_type) |>
+  arrange(desc(n_peaky))
+
+
+list(ILso = all_genes |>
+       filter(gene_name %in% i2s(genelist, gids),
+              cell_type == "ILso") |>
+       pull(gene_name),
+     hypodermis = all_genes |>
+       filter(gene_name %in% i2s(genelist, gids),
+              cell_type == "hypodermis") |>
+       pull(gene_name)) |>
+  eulerr::euler() |>
+  plot(quantities = TRUE,
+       main = "expressed")
+
+
+list(ILso = all_genes |>
+       filter(gene_name %in% i2s(genelist, gids),
+              cell_type == "ILso",
+              peaky == "peak") |>
+       pull(gene_name),
+     hypodermis = all_genes |>
+       filter(gene_name %in% i2s(genelist, gids),
+              cell_type == "hypodermis",
+              peaky == "peak") |>
+       pull(gene_name)) |>
+  eulerr::euler() |>
+  plot(quantities = TRUE,
+       main = "pulsatile")
+
+
+  list(
+  ILso_expr = all_genes |>
+    filter(gene_name %in% i2s(genelist, gids),
+           cell_type == "ILso") |>
+    pull(gene_name),
+  hypodermis_expr = all_genes |>
+    filter(gene_name %in% i2s(genelist, gids),
+           cell_type == "hypodermis") |>
+    pull(gene_name),
+  ILso_spiky = all_genes |>
+    filter(gene_name %in% i2s(genelist, gids),
+           cell_type == "ILso",
+           peaky == "peak") |>
+    pull(gene_name),
+  hypodermis_spiky = all_genes |>
+    filter(gene_name %in% i2s(genelist, gids),
+           cell_type == "hypodermis",
+           peaky == "peak") |>
+    pull(gene_name)
+)|>
+  UpSetR::fromList() |>
+  UpSetR::upset()
 
 
 

@@ -41,7 +41,8 @@ dir_out_individual_cts <- file.path(dir_out, "250330_cell_types")
 dir_third_processed <- "intermediates/2502/250313_third_processed"
 
 
-
+# the result
+# seu <- qs::qread( file.path(dir_out, "250329_seu_all_herma.qs"))
 
 
 
@@ -154,14 +155,19 @@ DimPlot(seu,
         alpha = .05) +
   NoLegend()
 
-
+seu$tissue2 <- seu$tissue
+seu$tissue2[seu$cell_type == "ILso"] <- "ILso"
 DimPlot(seu,
-        group.by = "tissue",
+        group.by = "tissue2",
         reduction = "umap",
-        label = TRUE,
+        label = FALSE,
         pt.size = 2,
-        alpha = .05) +
+        alpha = .1) +
   NoLegend()
+
+# ggsave("UMAP_tissue.png", path = "presentations/",
+#        width = 110, height = 120, units = "mm",
+#        scale = 2)
 
 
 
@@ -317,7 +323,7 @@ dotprod_by_cell <- cells_phases |>
 # qs::qsave(dotprod_by_cell, file.path(dir_out, "250329_dotprod_by_cell.qs"))
 dotprod_by_cell <- qs::qread(file.path(dir_out, "250329_dotprod_by_cell.qs"))
 
-
+# dotprod_by_cell$tissue[dotprod_by_cell$cell_type == "pharyngeal"] <- "neuron"
 
 
 # Plot by cell type and cluster
@@ -327,6 +333,7 @@ dotprod_by_cell |>
   ggplot() +
   theme_classic() +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  coord_cartesian(ylim = c(-.1, .6)) +
   ylab("Local phase coherence") + xlab(NULL) +
   ggbeeswarm::geom_quasirandom(aes(x = cell_type, y = coherence, color = tissue)) +
   geom_point(aes(x = cell_type, y = mean_coherence),
@@ -456,35 +463,48 @@ hist(p_vals$p_val)
 cell_types_to_plot <- dotprod_by_cell |>
   summarize(nb_cells = n(),
             .by = cell_type) |>
-  filter(nb_cells >= 20) |>
-  pull(cell_type)
+  filter(nb_cells >= 30) |>
+  pull(cell_type) |>
+  setdiff("reproductive")
 
+
+dotprod_agg_by_ct <- dotprod_by_cell |>
+  filter(cell_type %in% cell_types_to_plot) |>
+  summarize(mean_coherence = mean(coherence),
+            .by = "cell_type") |>
+  left_join(p_vals,
+            by = c("cell_type")) |>
+  mutate(p_adj = if_else(is.na(p_adj), 1, p_adj),
+         signif = cut(p_adj, breaks = c(-Inf, 1e-3,1e-2,5e-2,Inf), labels = c("***","**","*","n.s."))) |>
+  arrange(tissue, desc(mean_coherence)) |>
+  mutate(cell_type = fct_inorder(cell_type))
 
 gg_dotprod_by_cell <- dotprod_by_cell |>
   filter(cell_type %in% cell_types_to_plot) |>
-  arrange(tissue, cell_type) |> mutate(cell_type = fct_inorder(cell_type)) |>
+   mutate(cell_type = factor(cell_type, levels = levels(dotprod_agg_by_ct$cell_type))) |>
   ggplot() +
   theme_classic() +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
   ylab("Local phase coherence") + xlab(NULL) +
-  scale_shape_manual(values = c("-","*")) +
   coord_cartesian(ylim = c(-.1,.7)) +
   ggbeeswarm::geom_quasirandom(aes(x = cell_type, y = coherence, color = tissue),
-                               alpha = .2) +
-  geom_point(aes(x = cell_type, y = mean_coherence, shape = p_adj < .05),
-             data = (
-               dotprod_by_cell |>
-                 filter(cell_type %in% cell_types_to_plot) |>
-                 summarize(mean_coherence = mean(coherence),
-                           .by = "cell_type") |>
-                 left_join(p_vals,
-                           by = c("cell_type")) |>
-                 mutate(p_adj = if_else(is.na(p_adj), 1, p_adj))
-             ),
-             size = 8)
+                               alpha = .2,
+                               shape = 16) +
+  geom_tile(aes(x = cell_type, y = .3,
+                fill = p_adj < .05 ),
+            height = .9,
+            alpha = .1,
+            data = dotprod_agg_by_ct) +
+  geom_point(aes(x = cell_type, y = mean_coherence),
+             data = dotprod_agg_by_ct)
 
 gg_dotprod_by_cell
 # gg copy: 1000x550
+
+# ggsave("local_phase_coherence.png", plot = gg_dotprod_by_cell,
+#        path = "presentations/",
+#        width = 200, height = 70, units = "mm",
+#        scale = 2)
 
 
 
@@ -532,12 +552,318 @@ levels(Idents(seu)) |>
 
 
 
+# UMAPs per tissue ----
+tissues <- seu$tissue |> unique()
+i=0
+
+i=i+1
+tissue_here <- tissues[[i]]
+tissue_here
+
+sub <- subset(seu, tissue == tissue_here)
+table(sub$cell_type)
+sub <- SCTransform(sub)
+sub <- RunPCA(sub, npcs = 200, verbose = FALSE)
+
+npca <- 20
+
+ElbowPlot(sub, ndims = 200) +
+  geom_vline(aes(xintercept = npca))
+
+
+sub <- RunUMAP(sub, dims = 1:npca)
+
+DimPlot(sub,
+        group.by = "cell_type",
+        label = TRUE) + NoLegend()
+
+FetchData(sub,
+          vars = c("umap_1", "umap_2",
+                   "cell_phase_masked", "cell_rho")) |>
+  ggplot() +
+  theme_classic() +
+  # theme(legend.position = "none") +
+  scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
+                        limits = c(0, 360)) +
+  aes(x = umap_1, y = umap_2) +
+  geom_point(aes(color = cell_phase_masked),
+             shape = 16,
+             size = 2,
+             alpha = .2,
+             show.legend = FALSE)
+
+# ggsave("umap_other.png", path = "presentations/",
+#        width = 78, height = 60, units = "mm",
+#        scale = 2)
+
+
+
+# ____________ ----
+# Illustrations ----
+
+#~ Individual cells ----
+# seu <- sub
+mat <- GetAssayData(seu)
+
+DimPlot(seu,
+        reduction = "umap",
+        label = FALSE,
+        pt.size = .8,
+        alpha = .3,
+        cells.highlight = colnames(mat)[c(10, 23, 6)],
+        sizes.highlight = 3,
+        cols.highlight = 'red') +
+  NoLegend()
+
+
+dat <- FetchData(seu,
+          vars = c("umap_1", "umap_2")) |>
+  mutate(selected = FALSE,
+         selected = {x <- selected; x[c(10, 23, 6)] <- TRUE; x})
+dat |> 
+  ggplot() +
+  theme_classic() +
+  theme(legend.position = "none") +
+  geom_point(aes(x = umap_1, y = umap_2),
+             alpha = .1, color = "grey") +
+  geom_point(aes(x = umap_1, y = umap_2),
+             data = dat |> filter(selected),
+             size = 3, color = 'red3')
+
+
+
+#~ cell 18 ----
+# 10, 23, 6
+dat_1_cell <- enframe(mat[,242],
+                      name = "gene_name",
+                      value = "expression") |>
+  left_join(osc_table,
+            by = "gene_name") |>
+  filter(!is.na(osc_amplitude))
+
+dat_1_cell |>
+  ggplot() +
+  theme_bw() +
+  coord_polar() +
+  scale_x_continuous(limits = c(0,360), n.breaks = 15) +
+  ylab("expression") +
+  geom_segment(aes(x = peak_phase_deg,
+                   xend = peak_phase_deg,
+                   y = 0,
+                   yend = expression),
+               linewidth = .25) +
+  geom_segment(aes(x = mean_angle %% (360),
+                   xend = mean_angle %% (360),
+                   y = 0,
+                   yend = mean_rho),
+               data = dat_1_cell |>
+                 summarize(mean_angle = circhelp::weighted_circ_mean(peak_phase_deg*pi/180, expression)*180/pi,
+                           mean_rho = max(expression)*circhelp::weighted_circ_rho(peak_phase_deg*pi/180, expression)),
+               linewidth = 1,
+               color = 'red3')
+
+
+
+ggsave("phases_ILso_cell_242.pdf", path = "presentations/",
+       width = 6, height = 6, units = "in")
+
+
+dat_1_cell |>
+  ggplot() +
+  theme_bw() +
+  coord_polar() +
+  scale_x_continuous(limits = c(0,360), n.breaks = 15) +
+  scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50)) +
+  ylab("expression") +
+  geom_segment(aes(x = peak_phase_deg,
+                   xend = peak_phase_deg,
+                   y = 0,
+                   yend = expression,
+                   color = peak_phase_deg),
+               linewidth = .25) +
+  geom_segment(aes(x = mean_angle %% (360),
+                   xend = mean_angle %% (360),
+                   y = 0,
+                   yend = mean_rho),
+               data = dat_1_cell |>
+                 summarize(mean_angle = circhelp::weighted_circ_mean(peak_phase_deg*pi/180, expression)*180/pi,
+                           mean_rho = max(expression)*circhelp::weighted_circ_rho(peak_phase_deg*pi/180, expression)),
+               linewidth = 1,
+               color = 'black') #+theme(legend.position = 'none')
+
+
+ggsave("phases_ILso_cell_242_col.pdf", path = "presentations/",
+       width = 6, height = 6, units = "in")
+
+
+
+# same on PCA instead of UMAP
+
+# seu <- sub
+mat <- GetAssayData(seu)
+
+DimPlot(seu,
+        reduction = "pca",
+        label = FALSE,
+        pt.size = .8,
+        alpha = .3,
+        cells.highlight = colnames(mat)[c(1,242)],
+        sizes.highlight = 3,
+        cols.highlight = 'red') +
+  NoLegend()
+
+
+dat <- FetchData(seu,
+                 vars = c("PC_1", "PC_2")) |>
+  mutate(selected = FALSE,
+         selected = {x <- selected; x[c(4,242)] <- TRUE; x})
+dat |> 
+  ggplot() +
+  theme_classic() +
+  theme(legend.position = "none") +
+  geom_point(aes(x = PC_1, y = PC_2),
+             alpha = .1, color = "grey") +
+  geom_point(aes(x = PC_1, y = PC_2),
+             data = dat |> filter(selected),
+             size = 3, color = 'red3')
+
+# ggsave("phases_ILso_cells_4-242_pca.pdf", path = "presentations/",
+#        width = 6, height = 6, units = "in")
+
+
+
+# permutation test result illustr ----
+
+
+mat2 <- mat[,colnames(sub)[[7]], drop = FALSE]
+
+stopifnot(identical(rownames(mat2),
+                    osc_table$gene_name))
+
+sub$cell_rho[[7]]
+
+empirical <- rho_from_mat(mat2, osc_table$peak_phase_deg)
+perms <- replicate(n = 10000,
+                   rho_from_mat(mat2, sample(osc_table$peak_phase_deg)))
+
+as_tibble(perms) |>
+  ggplot() +
+  theme_classic() +
+  scale_x_continuous(limits = c(0, 1)) +
+  xlab("Average phase length") +
+  geom_histogram(aes(x = value),
+                 bins = 50,
+                 color = 'white',
+                 linewidth = .3) +
+  geom_vline(xintercept = empirical,
+             color = 'red3',
+             linewidth = 1.5)
+
+ggsave("perm_BWM_cell_7.pdf", path = "presentations/",
+       width = 120, height = 75, units = "mm")
+
+sum(perms >= empirical)
+length(perms)
+
+
+
+# UMAP phases ----
+
+FetchData(seu,
+          vars = c("umap_1", "umap_2",
+                   "cell_phase_masked", "cell_rho")) |>
+  ggplot() +
+  theme_classic() +
+  # theme(legend.position = "none") +
+  scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
+                        limits = c(0, 360)) +
+  scale_alpha_continuous(limits = c(0,1),
+                         trans = scales::transform_exp()) +
+  scale_fill_gradient(high = "black", low = "grey90",
+                      limits = c(0,1),
+                      trans = scales::transform_exp()) +
+  aes(x = umap_1, y = umap_2) +
+  geom_point(aes(fill = cell_rho),alpha = 0) +
+  geom_point(aes(color = cell_phase_masked,
+                 alpha = .2*cell_rho),
+             shape = 16,
+             size = 2,
+             show.legend = FALSE)
+
+# ggsave("umap_all.pdf", path = "presentations/",
+#        width = 100, height = 70, units = "mm",
+#        scale = 2)
+
+
+# no alpha scale
+
+
+FetchData(seu,
+          vars = c("umap_1", "umap_2",
+                   "cell_phase_masked", "cell_rho")) |>
+  ggplot() +
+  theme_classic() +
+  # theme(legend.position = "none") +
+  scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
+                        limits = c(0, 360)) +
+  aes(x = umap_1, y = umap_2) +
+  geom_point(aes(color = cell_phase_masked),
+             shape = 16,
+             size = 2,
+             alpha = .2,
+             show.legend = FALSE)
+
+# ggsave("umap_all.png", path = "presentations/",
+#        width = 140, height = 120, units = "mm",
+#        scale = 2)
 
 
 
 
 
+FetchData(seu,
+          vars = c("PC_1", "PC_2", "cell_type", "stage")) |>
+  filter(cell_type == "AM_PHso") |>
+  ggplot() +
+  theme_classic() +
+  theme(legend.position = "none") +
+  geom_point(aes(x = PC_1, y = PC_2,
+                 color = stage),
+             alpha = .2)
 
+sub <- seu |>
+  subset(cell_type == "AM_PHso") |>
+  SCTransform(verbose = FALSE) |>
+  RunPCA(npcs = 2, verbose = FALSE)
+
+
+FetchData(sub,
+          vars = c("PC_1", "PC_2", "cell_type", "stage")) |>
+  filter(cell_type == "AM_PHso") |>
+  ggplot() +
+  theme_classic() +
+  theme(legend.position = "none") +
+  geom_point(aes(x = PC_1, y = PC_2,
+                 color = stage),
+             alpha = .2)
+
+
+
+FetchData(sub,
+          vars = c("PC_1", "PC_2", "length_signif", "cell_phase")) |>
+  mutate(cell_phase_masked = if_else(length_signif,
+                                     cell_phase,
+                                     NA)) |>
+  ggplot() +
+  theme_classic() +
+  theme(legend.position = "none") +
+  scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
+                        limits = c(0, 360)) +
+  geom_point(aes(x = PC_1, y = PC_2,
+                 color = cell_phase_masked),
+             alpha = .2)
+
+sub <- qs::qread(file.path(dir_out_individual_cts, "AM_PHso.qs"))
 
 # ___________ ----
 
