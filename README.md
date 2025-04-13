@@ -268,6 +268,25 @@ In `assemble_osc.R` (interactive on cluster) assemble all cell types from L2 and
 
 
 
+# Velocyto (test)
+
+Reran `cr_count.sh` with saving bam (in scratch dir).
+
+Problem: velocyto will always read `filtered_feature_bc_matrix`. But my annotation has more cells. In `save_filtered_matrices_for_velocyto`, for each sample we rename the CellRanger `filtered_feature_bc_matrix` and replace it with an export of the Seurat object.
+
+Then we run velocyto on each samples (as dsq array). Joblist file in `joblists/velocyto.dsq.txt`
+
+Contents (one row per sample):
+```
+bash ./src/velocyto_sample.sh "200730_batch1_CHB3840b"
+bash ./src/velocyto_sample.sh "201013_batch2_CHB3840b_CEG_fqs"
+```
+
+dsq prepared with:
+```
+ml dSQ; dsq --job-file joblists/velocyto_samples.dsq.txt  --cpus-per-task 6 --mem 20G --time 1:50:00 --partition day
+```
+
 
 
 
@@ -312,6 +331,21 @@ ml dSQ; dsq --job-file joblists/step_2_gam_binom.dsq.txt  --cpus-per-task 1 --me
 Note: previously used pseudotimeDE at this step, along with filtering on curve shape as step 3. No longer useful: most/all genes appear DE with pseudotime, replace with simple GAM and curve shape filtering. Keeping state of repo at that point in branch `pseudotimede`.
 
 
+
+Testing with bootstraps:
+```
+paste("module load R; Rscript R/step_2_gene_expr_bootstrap_dtw.R",
+       "--batch_rmed_dir 'intermediates/2502/250330_step1'",
+      "--out_dir 'intermediates/2502/250401_step2_boot'",
+      "--i", seq_along(list.files('intermediates/2502/250330_step1', pattern = "_seu\\.qs$")),
+      "--model 'auto' --prop_thres 0.05 --cnt_thres 20") |>
+  writeLines("joblists/step_2_gam_boot.dsq.txt")
+```
+
+Run with:
+```
+ml dSQ; dsq --job-file joblists/step_2_gam_boot.dsq.txt  --cpus-per-task 1 --mem 10G --time 23:50:00 --partition day
+```
 
 
 ### Step 3: process cell types, curve shape, heatmaps

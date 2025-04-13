@@ -1,9 +1,9 @@
 #!/bin/bash
 #SBATCH --partition=week
 #SBATCH --job-name=cr_count
-#SBATCH -c 16
+#SBATCH -c 24
 #SBATCH --mem=80G
-#SBATCH --time=5-5:00:00
+#SBATCH --time=6-05:00:00
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=alexis.weinreb@yale.edu
 
@@ -13,25 +13,16 @@ set -ue
 # Define variables
 WS="WS295"
 
-outbase="250221_${WS}_glia_"
 
+dir="/gpfs/gibbs/project/hammarlund/aw853/osc_larva/"
 
-if [[ -d results_to_export ]]
-then
-	if [ "$(ls -A results_to_export)" ]
-	then
-		echo "ERROR: the results dir exists and not emtpy"
-	fi
-fi
-
-mkdir results_to_export
 
 
 # List the samples to process ----
 
 
-mapfile -t sample_paths < data/raw_paths.txt
-mapfile -t sample_ids < data/raw_sample_ids.txt
+mapfile -t sample_paths < $dir/data/raw_paths.txt
+mapfile -t sample_ids < $dir/data/raw_sample_ids.txt
 
 
 
@@ -53,8 +44,8 @@ do
 	cellranger count \
 		--id=$cur_id \
 		--fastqs=$cur_path \
-		--transcriptome=intermediates/c_el_${WS}_GFP_genome \
-		--create-bam=false \
+		--transcriptome=$dir/intermediates/c_el_${WS}_GFP_genome \
+		--create-bam=true \
 		--localcores=$SLURM_CPUS_PER_TASK \
 		--localmem=$(( $SLURM_MEM_PER_NODE / 1024 ))
 	
@@ -66,9 +57,6 @@ do
 	
 
 
-	echo
-	echo
-	echo "    > copy done."
 done
 
 
