@@ -7,7 +7,8 @@ suppressPackageStartupMessages( library(Seurat) )
 library("ElPiGraph.R")
 
 
-source("~/project/larval_devt/R/utils_dist_CORT.R")
+# source("~/project/larval_devt/R/utils_dist_CORT.R")
+source("../larval_devt/R/utils_dist_CORT.R")
 
 
 
@@ -72,11 +73,11 @@ circ_perm <- function(preds){
 #~ params ----
 params <- list(
   batch_rmed_dir = "intermediates/2502/250330_step1",
-  out_dir = "intermediates/2502/250401_step2_boot",
+  out_dir = "intermediates/2502/250421_step2_boot",
   model = "auto",
-  i = 3,
-  prop_thres = 0.1,
-  cnt_thres = 50,
+  i = 1,
+  prop_thres = 0.01,
+  cnt_thres = 30,
   nb_subsamples_ptDE = 10
 )
 
@@ -152,20 +153,20 @@ gg_phase
 
 #
 
-# #~ Pick genes ----
-# pos_high_genes <- which(
-#   (gene_expressions$prop_cells >= params$prop_thres) &
-#     (gene_expressions$nb_cells >= params$cnt_thres)
-# )
-# 
-# high_genes <- gene_expressions$gene_name[pos_high_genes]
-# 
-# length(high_genes)
+#~ Pick genes ----
+pos_high_genes <- which(
+  (gene_expressions$prop_cells >= params$prop_thres) &
+    (gene_expressions$nb_cells >= params$cnt_thres)
+)
+
+high_genes <- gene_expressions$gene_name[pos_high_genes]
+
+length(high_genes)
 
 
 
-pred_manual <- readxl::read_excel("intermediates/2502/250330_step2/manual_AMPHso.xlsx")
-high_genes <- pred_manual$gene_name
+# pred_manual <- readxl::read_excel("intermediates/2502/250330_step2/manual_AMPHso.xlsx")
+# high_genes <- pred_manual$gene_name
 
 
 
@@ -265,11 +266,12 @@ mods <- lapply(high_genes,
                }) |>
   setNames(high_genes)
 
-
+# qs::qsave(mods,
+#           "intermediates/2502/250421_test_autoencoder/250421_AMPHso_models.qs")
 
 message("   -- get distance")
 
-len <- 100
+len <- 128
 all_preds <- vapply(mods,
                     \(.mod) predict(.mod,
                                     type = "response",
@@ -279,9 +281,23 @@ all_preds_centered <- circ_perm(all_preds)
 
 dim(all_preds_centered)
 
+# qs::qsave(all_preds_centered,
+#           "intermediates/2502/250421_test_autoencoder/250421_AMPHso_all_preds.qs")
 
 
-pheatmap::pheatmap(all_preds_centered,
+
+# tests ----
+
+library(tidyverse)
+library(keras)
+
+pred_manual <- readxl::read_excel("intermediates/2502/250330_step2/manual_AMPHso.xlsx")
+
+all_preds_centered <- qs::qread("intermediates/2502/250421_test_autoencoder/250421_AMPHso_all_preds.qs")
+
+stopifnot(all(pred_manual$gene_name %in% colnames(all_preds_centered)))
+
+pheatmap::pheatmap(log1p(all_preds_centered),
                    cluster_rows = FALSE,
                    cluster_cols = TRUE,
                    # scale = "column",
@@ -290,6 +306,215 @@ pheatmap::pheatmap(all_preds_centered,
                      dplyr::select(manual, gene_name) |>
                      column_to_rownames("gene_name"))
 
+
+#~ Embedding AE ----
+
+# reticulate::use_virtualenv("r-tensorflow")
+# keras::install_keras(method = "virtualenv")
+
+
+# dataset
+
+len <- nrow(all_preds_centered)
+
+genes <- colnames(all_preds_centered)
+x_train <- all_preds_centered[, sample(genes, .8*length(genes))] |> t()
+x_test <- all_preds_centered[, setdiff(genes, rownames(x_train))] |> t()
+
+x_train <- x_train |> log1p()
+x_test <- x_test |> log1p()
+
+stopifnot(all.equal(
+  genes |> sort(),
+  union(rownames(x_train), rownames(x_test)) |> sort()
+))
+
+dim(x_train);dim(x_test)
+
+matplot(x_train[sample(nrow(x_train), 5),] |> t(), type = "l")
+
+
+
+
+# autoencoder
+n_bottleneck <- 8
+
+# Define the encoder
+encoder <- keras_model_sequential() |>
+  layer_conv_1d(filters = 64, kernel_size = 3, activation = 'relu', input_shape = c(len, 1),
+                name = "inputConv") |>
+  layer_max_pooling_1d(pool_size = 2,
+                       name = "Pool") |>
+  # layer_conv_1d(filters = 64, kernel_size = 3, activation = 'relu') |>
+  # layer_max_pooling_1d(pool_size = 2) |>
+  layer_flatten() |>
+  layer_dense(units = n_bottleneck, activation = 'relu', name = "bottleneck")
+
+# Define the decoder
+decoder <- keras_model_sequential() |>
+  layer_dense(units = 64, activation = 'relu', input_shape = n_bottleneck,
+              name = "denseFromBottleneck") |>
+  layer_reshape(target_shape = c(64, 1),
+                name = "reshape") |>
+  layer_conv_1d_transpose(filters = 64, kernel_size = 3,
+                          strides = 2, activation = 'relu',
+                          padding = 'same',
+                          name = "deconv") |>
+  # layer_conv_1d_transpose(filters = 32, kernel_size = 3,
+  #                         strides = 2, activation = 'relu',
+  #                         padding = 'same') |>
+  layer_conv_1d(filters = 1, kernel_size = 3,
+                activation = 'linear', padding = 'same',
+                name = "output")
+
+# Connect them to create the autoencoder
+autoencoder <- keras_model(inputs = encoder$input, outputs = decoder(encoder$output))
+autoencoder  |> compile(optimizer = 'adam', loss = 'mean_squared_error')
+
+
+
+
+
+# Train the model
+autoencoder |>
+  fit(x_train,
+      x_train,
+      epochs = 50,
+      batch_size = 128,
+      validation_data = list(x_test, x_test))
+
+
+
+
+
+# extract the bottleneck layer
+intermediate_layer_model <- keras_model(inputs = autoencoder$input,
+                                        outputs = get_layer(autoencoder, "bottleneck")$output)
+intermediate_output <- predict(intermediate_layer_model, t(all_preds_centered))
+
+reconstructed <- predict(autoencoder, t(all_preds_centered))[,,1]
+
+rownames(intermediate_output) <- rownames(reconstructed) <- colnames(all_preds_centered)
+
+# opar <- par(no.readonly = TRUE)
+
+par(mfrow = c(1,2), mar = c(3, 2, 2, 1) + 0.1)
+exple <- sample(rownames(x_train), 5)
+
+
+matplot(t(x_train)[,exple], type = "l")
+matplot(t(reconstructed)[,exple], type = "l")
+par(opar)
+matplot(t(intermediate_output)[,exple], type = "l")
+
+
+hc <- hclust(dist(apply(intermediate_output, 1, \(x) x/max(x)) |> t()))
+
+pheatmap::pheatmap(log1p(all_preds_centered),
+                   cluster_rows = FALSE,
+                   cluster_cols = hc,
+                   # scale = "column",
+                   show_rownames = FALSE,
+                   show_colnames = FALSE,
+                   annotation_col = pred_manual |>
+                     dplyr::select(manual, gene_name) |>
+                     column_to_rownames("gene_name"))
+
+# pheatmap::pheatmap(apply(intermediate_output, 1, \(x) x/max(x)),
+#                    cluster_rows = FALSE,
+#                    cluster_cols = hc,
+#                    # scale = "column",
+#                    annotation_col = pred_manual |>
+#                      dplyr::select(manual, gene_name) |>
+#                      column_to_rownames("gene_name"))
+
+# cl <- cluster::pam(apply(intermediate_output, 1, \(x) x/max(x)) |> t(), k = 2)
+# cl$clustering |> table(useNA = 'ifany')
+
+km <- kmeans(apply(intermediate_output, 1, \(x) x/max(x)) |> t(), centers = 2)
+
+km$cluster |> table(useNA = 'ifany')
+
+enframe(km$cluster,
+        name = "gene_name",
+        value = "cluster") |> View()
+
+
+res <- pred_manual |>
+  left_join(
+    tibble(gene_name = names(km$cluster),
+           cluster = km$cluster),
+    by = "gene_name"
+  ) |>
+  arrange(desc(manual), cluster)
+
+table(res$manual, res$cluster)
+
+
+# examples from each cluster
+
+par(mfrow = c(1,2), mar = c(3, 2, 2, 1) + 0.1)
+
+matplot(all_preds_centered[,sample(names(km$cluster)[km$cluster == 1], 10)], type = "l")
+matplot(all_preds_centered[,sample(names(km$cluster)[km$cluster == 2], 10)], type = "l")
+par(opar)
+
+
+# loss based on manual
+
+res |>
+  filter(manual %in% c("no", "yes")) |>
+  count(manual, cluster)
+
+
+
+
+#~ previous CNN model ----
+
+
+
+# autoencoder
+n_bottleneck <- 8
+
+# Define the encoder
+encoder <- keras_model_sequential() |>
+  layer_conv_1d(filters = 64, kernel_size = 7, activation = 'relu', input_shape = c(len, 1),
+                name = "inputConv") |>
+  layer_max_pooling_1d(pool_size = 2,
+                       name = "Pool") |>
+  # layer_conv_1d(filters = 64, kernel_size = 3, activation = 'relu') |>
+  # layer_max_pooling_1d(pool_size = 2) |>
+  layer_flatten() |>
+  layer_dense(units = n_bottleneck, activation = 'relu', name = "bottleneck")
+
+# Define the decoder
+decoder <- keras_model_sequential() |>
+  layer_dense(units = 64, activation = 'relu', input_shape = n_bottleneck,
+              name = "denseFromBottleneck") |>
+  layer_reshape(target_shape = c(64, 1),
+                name = "reshape") |>
+  layer_conv_1d_transpose(filters = 64, kernel_size = 7,
+                          strides = 2, activation = 'relu',
+                          padding = 'same',
+                          name = "deconv") |>
+  # layer_conv_1d_transpose(filters = 32, kernel_size = 3,
+  #                         strides = 2, activation = 'relu',
+  #                         padding = 'same') |>
+  layer_conv_1d(filters = 1, kernel_size = 3,
+                activation = 'linear', padding = 'same',
+                name = "output")
+
+# Connect them to create the autoencoder
+autoencoder <- keras_model(inputs = encoder$input, outputs = decoder(encoder$output))
+autoencoder  |> compile(optimizer = 'adam', loss = 'mean_squared_error')
+
+
+
+
+
+
+
+#~ clust ts dist ----
 
 library(dtwclust)
 dist_cort <- manual_dist_CORT(t(all_preds_centered), k = 0.1)
