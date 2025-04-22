@@ -8,4 +8,9 @@ data/250225_aligned/
 presentations/
 osc_larva.Rproj
 data/CelEst_v1pt1.txt
-
+ipynb/*.csv
+ipynb/.ipynb_checkpoints/*
+ipynb/AM_PHso/
+ipynb/ILso/
+ipynb/BWM/
+outs/*
