@@ -334,18 +334,26 @@ Note: previously used pseudotimeDE at this step, along with filtering on curve s
 
 Testing with bootstraps:
 ```
-paste("module load R; Rscript R/step_2_gene_expr_bootstrap_dtw.R",
+paste("module load R; Rscript R/step_2_gene_expr_nb_bootstrap_dtw.R",
        "--batch_rmed_dir 'intermediates/2502/250330_step1'",
-      "--out_dir 'intermediates/2502/250401_step2_boot'",
+      "--out_dir 'intermediates/2502/250424_step2_boot_nb'",
       "--i", seq_along(list.files('intermediates/2502/250330_step1', pattern = "_seu\\.qs$")),
-      "--model 'auto' --prop_thres 0.05 --cnt_thres 20") |>
-  writeLines("joblists/step_2_gam_boot.dsq.txt")
+      "--prop_thres 0.05 --cnt_thres 20") |>
+  writeLines("joblists/step_2_gam_boot_nb.dsq.txt")
 ```
 
 Run with:
 ```
-ml dSQ; dsq --job-file joblists/step_2_gam_boot.dsq.txt  --cpus-per-task 1 --mem 10G --time 23:50:00 --partition day
+ml dSQ; dsq --job-file joblists/step_2_gam_boot_nb.dsq.txt  --cpus-per-task 1 --mem 15G --time 20:00:00 --partition day; ml unload dSQ
 ```
+
+
+Third alternative: fit with NB,
+```
+dsq --job-file joblists/step_2_gam_nb.dsq.txt --cpus-per-task 1 --mem 5G --time 00:10:00 --partition day
+```
+
+
 
 
 ### Step 3: process cell types, curve shape, heatmaps
