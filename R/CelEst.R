@@ -16,7 +16,8 @@ gids <- wb_load_gene_ids(295) |>
 
 
 out_dir <- "presentations/2503_figures/"
-dir_step3 <- "intermediates/2502/250330_step3_genes_by_celltype//"
+dir_step3 <- "intermediates/2502/250425_step3_genes_by_celltype/"
+dir_step2_clust <- "intermediates/2502/250422_step2_nb_centered/"
 
 
 # download.file("https://raw.githubusercontent.com/IBMB-MFP/CelEsT-MS/refs/heads/main/CelEsT_annotated_v1pt1.txt",
@@ -24,30 +25,67 @@ dir_step3 <- "intermediates/2502/250330_step3_genes_by_celltype//"
 
 
 
-# Load ----
 
-cellest <- read_tsv("data/CelEst_v1pt1.txt")
-
-
-
-
+#~ load step 3 ----
 
 cell_types_info <- qs::qread(file.path(dir_step3, "cell_types.qs"))
 
-all_genes <- qs::qread(file.path(dir_step3, "all_genes.qs"))
+all_genes <- read_csv(file.path(dir_step2_clust, "250424_cluster_results.csv")) |>
+  mutate(cellgene = paste0(cell_type, "|", gene_name))
 
-stopifnot(all( unique(cell_types_info$cell_type) |> sort() %in%
-                 unique(all_genes$cell_type) |> sort() ))
 
+stopifnot(all.equal(
+  unique(cell_types_info$cell_type) |> sort(),
+  unique(all_genes$cell_type) |> sort()
+))
+
+
+
+# select cell types to test
+
+cell_types_info |>
+  mutate(signif = case_when(
+    p_diag_adj < .05 & p_coherence_adj < .05 ~ "both",
+    p_diag_adj < .05 & p_coherence_adj >= .05 ~ "diag only",
+    p_diag_adj >= .05 & p_coherence_adj < .05 ~ "bulk only",
+    p_diag_adj >= .05 & p_coherence_adj >= .05 ~ "neither"
+  )) |>
+  ggplot() +
+  theme_classic() +
+  xlab("Mean local phase coherence (bulk)") +
+  ylab("Diagonal similarity (sc)") +
+  scale_shape_manual(values = c("both" = 8, "diag only" = 7, "bulk only" = 9, "neither" = 16)) +
+  geom_point(aes(x = mean_coherence, y = similarity_diag, color = tissue,
+                 shape = signif),
+             size = 3) +
+  ggrepel::geom_text_repel(aes(x = mean_coherence, y = similarity_diag, label = cell_type))
+
+cell_types_test <- cell_types_info |>
+  filter(prop_puls >= 10,
+         p_diag_adj < .05,
+         p_coherence_adj < .05) |>
+  pull(cell_type)
+
+
+
+
+
+
+
+
+# Load CelEst ----
+
+celest <- read_tsv("data/CelEst_v1pt1.txt")
 
 #~ check weights ----
-table(cellest$weight)
-all.equal(cellest$weight,
-          rowSums(cellest[,c("with_motif" , "in_ChIP" , "in_eY1H")],
+table(celest$weight)
+all.equal(celest$weight,
+          rowSums(celest[,c("with_motif" , "in_ChIP" , "in_eY1H")],
                   na.rm = TRUE) / 3)
 
 
-#~ annotate gene names ----
+
+#~ clean gene names ----
 
 # # More comparison of gene correction
 # comp <- tibble(
@@ -69,7 +107,12 @@ all.equal(cellest$weight,
 # # both NA: some dead unidentified genes
 
 
-cellest <- cellest |>
+# note, Wormbase temporarily unavailable
+wb_clean_gene_names <- function(...){
+  wbData::wb_clean_gene_names(...,dir_cache = ".", refresh = Inf)
+}
+
+celest <- celest |>
   mutate(target_id = wb_clean_gene_names(target, warn_missing = FALSE, return_one = TRUE),
          source_id = wb_clean_gene_names(source)) |>
   filter(! is.na(target_id)) |>
@@ -77,72 +120,68 @@ cellest <- cellest |>
          source_name = i2s(source_id, gids, warn_missing = TRUE))
 
 
+
+
 # Enrichment ----
 
+# Fisher exact test
 
-
-cellest$source |> unique() |> length()
-cellest$target |> unique() |> length()
-expand_grid(unique(cellest$source), unique(cellest$target)) |> nrow()
-
-
-
-all_tests <- map_dfr(all_genes$cell_type |> unique(),
-                 \(ct){
-                   message("---- ", ct)
-                   
-                   tested_genes <- all_genes$gene_name[all_genes$cell_type == ct]
-                   
-                   background_genes <- intersect(tested_genes,
-                                                 cellest$target_name)
-                   
-                   message("background: ", length(background_genes)," genes")
-                   
-                   genes_osc <- all_genes |>
-                     filter(cell_type == ct) |>
-                     filter(peaky == "peak") |>
-                     pull(gene_name) |>
-                     intersect(background_genes)
-                   
-                   message("osc: ", length(genes_osc)," genes")
-                   
-                   
-                   
-                   
-                   cellest_filt <- cellest |>
-                     filter(target_name %in% background_genes,
-                            source_name %in% tested_genes)
-                   
-                   
-                   
-                   candidates <- cellest_filt$source_name |> unique()
-                   
-                   p_vals <- map_dbl(candidates,
-                                     \(candidate){
-                                       
-                                       nb_target_osc <- intersect(
-                                         cellest_filt$target_name[cellest_filt$source_name == candidate],
-                                         genes_osc
-                                       ) |>
-                                         length()
-                                       
-                                       nb_osc <- length(genes_osc)
-                                       nb_nonosc <- background_genes |> setdiff(genes_osc) |> length()
-                                       nb_target <- cellest_filt$target_name[cellest_filt$source_name == candidate] |> length()
-                                       
-                                       stats::phyper(q = nb_target_osc, m = nb_osc, n = nb_nonosc, k = nb_target,
-                                                     lower.tail = FALSE)
-                                     })
-                   
-                   tibble(cell_type = ct,
-                          source_name = candidates,
-                          p_val = p_vals)
-                 }) |>
+all_tests <- map_dfr(
+  cell_types_test,
+  \(ct){
+    
+    all_genes_ct <- all_genes |> filter(cell_type == ct) |> pull(gene_name)
+    puls_genes <- all_genes |> filter(cell_type == ct, shape == "pulsatile") |> pull(gene_name)
+    nonpuls_genes <- all_genes_ct |> setdiff(puls_genes)
+    
+    stopifnot(all.equal(
+      nonpuls_genes,
+      all_genes |> filter(cell_type == ct, shape == "nonpulsatile") |> pull(gene_name)
+    ))
+    
+    
+    tfs_to_test_ct <- intersect(unique(celest$source_name),
+                                all_genes_ct)
+    
+    
+    res <- lapply(tfs_to_test_ct, function(tf) {
+      
+      targets_tf <- celest |> filter(source_name == tf) |> pull(target_name)
+      
+      
+      contingency <- matrix(c(
+        length( intersect(targets_tf, puls_genes) ),
+        length( puls_genes |> setdiff(targets_tf) ),
+        length( nonpuls_genes |> intersect(targets_tf) ),
+        length( nonpuls_genes |> setdiff(targets_tf) )
+      ), nrow = 2)
+      
+      
+      data.frame(
+        cell_type = ct,
+        source_name = tf,
+        p_val = fisher.test(contingency, alternative = "greater")$p.value
+      )
+    })
+    
+    res |> bind_rows()
+    
+  }) |>
+  as_tibble() |>
   mutate(p_adj = p.adjust(p_val, method = "BH"))
+
+
 
 hist(all_tests$p_val)
 hist(all_tests$p_adj)
 
+
+all_tests |>
+  summarize(nb_tests = n(),
+            nb_signif = sum(p_adj < .05),
+            .by = cell_type)
+
+#####
 
 table(all_tests$p_adj < .05)
 
@@ -150,51 +189,65 @@ all_tests |>
   split(all_tests$cell_type) |>
   map(~table(.x[["p_adj"]] < .05))
 
-list(
-  ILso = all_tests |>
-    filter(cell_type == "ILso",
-           p_adj < 0.05) |>
-    pull(source_name),
-  AM_PHso = all_tests |>
-    filter(cell_type == "AM_PHso",
-           p_adj < 0.05) |>
-    pull(source_name),
-  pharyngeal_muscle = all_tests |>
-    filter(cell_type == "pharyngeal_muscle",
-           p_adj < 0.05) |>
-    pull(source_name),
-  pharynx_epithelial = all_tests |>
-    filter(cell_type == "pharynx_epithelial",
-           p_adj < 0.05) |>
-    pull(source_name)
-) |>
-  eulerr::euler() |>
-  plot(quantities = TRUE)
+all_tests |>
+  summarize(nb_tests = n(),
+            nb_signif = sum(p_adj < .05),
+            .by = cell_type)
 
+# TFs enriched
 xx <- all_tests |>
-  filter(p_adj < 0.05) |>
-  filter(! cell_type %in% c("mechanosensory",
-                            "ACh_motoneuron","AIN",
-                            "ASK","PVD","RMH","VD_DD"
-                            ))
+  filter(p_adj < 0.05)
 
 split(xx, xx$cell_type) |>
   map(~ .x |> pull(source_name)) |>
   UpSetR::fromList() |>
   UpSetR::upset(nsets = 50, nintersects = 200)
 
-# are these TFs spiky themselves?
+
+all_tests |>
+  filter(p_adj < 0.05) |>
+  summarize(TFs = list(source_name),
+            .by = cell_type) |>
+  pull(TFs)
+
+
+df <- all_tests |>
+  filter(p_adj < 0.1) |>
+  select(cell_type, source_name) |>
+  pivot_wider(id_cols = cell_type,
+              names_from = source_name,
+              values_from = source_name,
+              values_fill = "")
+
+df[order(rowSums(df == "")),order(colSums(df == ""))] |> as.data.frame() ##|> View()
+
+
+
+
+# are these TFs pulsatile themselves?
 all_tests |>
   filter(p_adj < 0.05) |>
   select(cell_type, source_name) |>
   left_join(all_genes,
             by = c("cell_type", source_name = "gene_name")) |>
   summarize(nrows = n(),
-            nb_tested = sum(!is.na(peaky)),
-            nb_peaky = sum(peaky == "peak", na.rm = TRUE),
+            nb_tested = sum(!is.na(shape)),
+            nb_peaky = sum(shape == "pulsatile", na.rm = TRUE),
             .by = cell_type) |>
   arrange(nb_tested)
 
+all_tests |>
+  filter(p_adj < 0.1) |>
+  select(cell_type, source_name) |>
+  left_join(all_genes,
+            by = c("cell_type", source_name = "gene_name")) |>
+  select(source_name, shape) |>
+  distinct() |>
+  View()
+
+
+
+####
 
 cell_types_info |>
   filter(p_adj < 0.05) |>
@@ -209,13 +262,13 @@ cell_types_info |>
 
 
 all_tests |>
-  filter(p_adj < 0.05) |>
+  filter(p_adj < 0.1) |>
   select(cell_type, source_name) |>
   left_join(all_genes,
             by = c("cell_type", source_name = "gene_name")) |>
   filter(cell_type == "ILso") %>%
-  (\(.x) set_names(x = .x[["source_name"]], nm = .x[["peaky"]]))()
-  
+  (\(.x) set_names(x = .x[["source_name"]], nm = .x[["shape"]]))()
+
 
 
 
@@ -223,8 +276,12 @@ all_tests |>
 
 library(igraph)
 
-adj_list_ilso <- cellest_filt |>
-  mutate(source_name = wb_clean_gene_names(source) |> i2s(gids, warn_missing = TRUE)) |>
+## TODO
+# adj_list_ilso <- 
+celest |>
+  filter(source_name %in% all_tests$source_name[all_tests$cell_type == "ILso"],
+         target_name %in% all_genes$gene_name[all_genes$cell_type == "ILso"])
+mutate(source_name = wb_clean_gene_names(source) |> i2s(gids, warn_missing = TRUE)) |>
   filter(source_name %in% xx$source_name[xx$cell_type == "ILso"]) |>
   select(source_name, target_name = gene_name) |>
   left_join(all_genes |> filter(cell_type == "ILso") |> select(gene_name, peaky),
