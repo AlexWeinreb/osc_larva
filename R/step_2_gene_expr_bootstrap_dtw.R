@@ -239,7 +239,7 @@ run_once <- function(mat, i){
     theme_classic() +
     scale_linewidth_manual(values = c(1,2,3))
   
-  gg_int_cca_circlepath 
+  # gg_int_cca_circlepath 
   
   # ggsave(paste0(cell_type,"_circlepath.png"), gg_int_cca_circlepath,
   #        path = params$out_dir,
@@ -367,13 +367,58 @@ sessionInfo()
 
 
 # list.files("intermediates/2502/250401_step2_boot")
-# bootstraps <- qs::qread(file.path("intermediates/2502/250401_step2_boot", "250409_bootstraps_AM_PHso.qs"))
+# bootstraps <- qs::qread(file.path("intermediates/2502/250401_step2_boot", "250409_bootstraps_pharyngeal_muscle.qs"))
 # 
-# ct <- "AM_PHso"
+# ct <- "pharyngeal_muscle"
 # boot_ci <- qs::qread(file.path("intermediates/2502/250401_step2_boot",
 #                                paste0("250409_bootstraps_ci_",ct,".qs")))
 # 
 # 
+# boot_ci |>
+#   dplyr::arrange(upper) |>
+#   dplyr::mutate(gene_name = forcats::fct_inorder(gene_name)) |>
+#   ggplot() +
+#   theme_classic() +
+#   coord_flip() +
+#   geom_errorbar(aes(x = gene_name,
+#                     ymin = lower, ymax = upper),
+#                 alpha = .1) +
+#   geom_point(aes(x = gene_name, y = t0)) +
+#   geom_hline(yintercept = 70,
+#              linetype = 'dotted')
+# 
+# table(up = boot_ci$upper <= 70)
+# 
+# 
+# 
+# boot_ci |>
+#   mutate(guess = case_when(
+#     str_detect(gene_name, "col\\-[0-9]+") ~ "puls",
+#     str_detect(gene_name, "cutl\\-[0-9]+") ~ "puls",
+#     str_detect(gene_name, "grl\\-[0-9]+") ~ "puls",
+#     str_detect(gene_name, "rps\\-[0-9]+") ~ "nonpuls",
+#     str_detect(gene_name, "rpl\\-[0-9]+") ~ "nonpuls"
+#   )) |>
+#   dplyr::arrange(upper) |>
+#   dplyr::mutate(gene_name = forcats::fct_inorder(gene_name)) |>
+#   ggplot() +
+#   theme_classic() +
+#   coord_flip() +
+#   scale_alpha_manual(values = c(`TRUE` = 1, `FALSE` = .5)) +
+#   scale_size_manual(values = c(`TRUE` = 1.5, `FALSE` = .5)) +
+#   scale_color_manual(values = c(`NA` = 'grey', "puls" = "green3", "nonpuls" = "red3")) +
+#   geom_errorbar(aes(x = gene_name,
+#                     ymin = lower, ymax = upper),
+#                 alpha = .1) +
+#   geom_point(aes(x = gene_name, y = t0,
+#                  color = guess,
+#                  alpha = !is.na(guess),
+#                  size =  !is.na(guess))) +
+#   geom_hline(yintercept = 75,
+#              linetype = 'dotted')
+# 
+# 
+# # for AM/PHso with manual annot
 # boot_ci |>
 #   left_join(manual |> filter(cell_type == ct),
 #             by = join_by(gene_name)) |>
@@ -387,8 +432,7 @@ sessionInfo()
 #   geom_point(aes(x = gene_name, y = t0, color = manual)) +
 #   coord_flip()
 # 
-# library(dplyr)
 # 
 # manual <- readxl::read_excel("intermediates/2502/250330_step2/manual_annotation.xlsx") |>
-#   select(-amplitude, -dev_expl)
+#   dplyr::select(-amplitude, -dev_expl)
 

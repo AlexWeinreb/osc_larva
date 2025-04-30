@@ -347,6 +347,11 @@ Run with:
 ml dSQ; dsq --job-file joblists/step_2_gam_boot_nb.dsq.txt  --cpus-per-task 1 --mem 15G --time 20:00:00 --partition day; ml unload dSQ
 ```
 
+Fail for ILso, pha epith, hyp. Rerun:
+```
+ml dSQ; dsq --job-file joblists/step_2_gam_boot_nb.dsq.txt  --cpus-per-task 1 --mem 15G --time 3-20:00:00 --partition week; ml unload dSQ
+```
+
 
 Third alternative: fit with NB,
 ```

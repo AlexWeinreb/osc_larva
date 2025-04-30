@@ -100,6 +100,9 @@ all_preds <- list.files(dir_step2,
 
 
 all_preds_centered <- circ_perm(all_preds)
+
+# qs::qsave(all_preds_centered, file.path(dir_step2, "all_preds_centered.qs"))
+
 # printMat::matimage(log1p(all_preds))
 # printMat::matimage(log1p(all_preds_centered))
 
@@ -124,43 +127,102 @@ stopifnot(all(paste0("AM_PHso|", pred_manual$gene_name) %in% colnames(all_preds_
 
 # Prepare features ----
 
+# note this part is slow, we can skip to cached
+
 # all_res <- list.files(dir_step2,
 #                       pattern = "_res_gam\\.qs$") |>
 #   map_dfr(~qs::qread(file.path(dir_step2, .x)))
 # 
 # qs::qsave(all_res, file.path(dir_step2, "all_res.qs"))
+# 
+# all_res <- qs::qread(file.path(dir_step2, "all_res.qs"))
+# 
+# 
+# mat_coefs <- vapply(all_res$gam_fit,
+#                     \(.mod){
+#                       coef(.mod) |>  c(mean( residuals(.mod)^2 ))
+#                     },
+#                     double(6L))
+# mat_coefs <- t(mat_coefs)
+# colnames(mat_coefs) <- c("intercept", "s1", "s2", "s3", "s4", "mse")
+# 
+# rownames(mat_coefs) <- paste0(all_res$cell_type, "|", all_res$gene_name)
+# qs::qsave(mat_coefs, file.path(dir_step2, "mat_gam_coefs.qs"))
+# 
+# mat_coefs <- qs::qread(file.path(dir_step2, "mat_gam_coefs.qs"))
+# 
+# 
+# # Summarize s1, s2, s3 (quite correlated)
+# mat_coefs <- cbind(
+#   mat_coefs,
+#   var_s = matrixStats::rowVars(mat_coefs[,c("s1","s2","s3", "s4")]),
+#   max_s = matrixStats::rowMaxs(mat_coefs[,c("s1","s2","s3", "s4")])
+# )
+# # mat_coefs <- mat_coefs[,c("intercept", "var_s", "max_s", "mse")]
+# 
+# 
+# 
+# 
+# # from bootstrap
+# dir_step2_boot <- "intermediates/2502/250424_step2_boot_nb/"
+# 
+# boot_ci <- list.files(dir_step2_boot,
+#                       pattern = "^250424_bootstraps_ci_.*\\.qs$") |>
+#   map_dfr(\(.ct){
+#     
+#     ct_name <- str_match(.ct, "^250424_bootstraps_ci_(.*)\\.qs$")[,2]
+#     
+#     qs::qread(file.path(
+#       dir_step2_boot,
+#       paste0("250424_bootstraps_ci_",ct_name,".qs")
+#     )) |>
+#       add_column(cell_type = ct_name, .before = 1)
+#   })
+# 
+# 
+# 
+# # some tissues (mechanosensory) were not processed by bootstrap
+# 
+# setdiff(
+#   rownames(mat_coefs),
+#   paste0(boot_ci$cell_type, "|", boot_ci$gene_name) 
+# ) |> str_split_i(fixed("|"), i = 1) |> table()
+# 
+# 
+# boot_ci <- rownames(mat_coefs) |>
+#   str_split_fixed(fixed("|"), 2) |>
+#   as.data.frame() |>
+#   as_tibble() |>
+#   set_names(c("cell_type", "gene_name")) |>
+#   left_join(
+#     boot_ci,
+#     by = c("cell_type", "gene_name")
+#   )
+# 
+# stopifnot(all.equal(
+#   paste0(boot_ci$cell_type, "|", boot_ci$gene_name) ,
+#   rownames(mat_coefs)
+# ))
+# 
+# 
+# 
+# # build feature matrix
+# 
+# stopifnot(all.equal(
+#   paste0(all_res$cell_type, "|", all_res$gene_name),
+#   rownames(mat_coefs)
+# ))
+# 
+# mat <- cbind(mat_coefs,
+#              dev_expl = all_res$dev_expl,
+#              amplitude = all_res$amplitude,
+#              auc = all_res$area_under_curve,
+#              dtw = boot_ci$t0,
+#              dtw_ci = boot_ci$upper)
+# 
+# qs::qsave(mat, file.path(dir_step2, "mat_predictors.qs"))
+mat <- qs::qread(file.path(dir_step2, "mat_predictors.qs"))
 
-all_res <- qs::qread(file.path(dir_step2, "all_res.qs"))
-
-
-mat_coefs <- vapply(all_res$gam_fit,
-                    \(.mod){
-                      coef(.mod) |>  c(mean( residuals(.mod)^2 ))
-                    },
-                    double(6L))
-mat_coefs <- t(mat_coefs)
-colnames(mat_coefs) <- c("intercept", "s1", "s2", "s3", "s4", "mse")
-
-# Summarize s1, s2, s3 (quite correlated)
-mat_coefs <- cbind(
-  mat_coefs,
-  var_s = matrixStats::rowVars(mat_coefs[,c("s1","s2","s3", "s4")]),
-  max_s = matrixStats::rowMaxs(mat_coefs[,c("s1","s2","s3", "s4")])
-)
-mat_coefs <- mat_coefs[,c("intercept", "var_s", "max_s", "mse")]
-
-
-mat <- cbind(mat_coefs,
-             dev_expl = all_res$dev_expl,
-             amplitude = all_res$amplitude,
-             auc = all_res$area_under_curve)
-
-
-stopifnot(all.equal(
-  all_res$gene_name,
-  rownames(mat)
-))
-rownames(mat) <- paste0(all_res$cell_type, "|", all_res$gene_name)
 
 rm(all_res); rm(mat_coefs)
 
@@ -168,7 +230,7 @@ mat[1:3,]
 
 
 # check scales
-par(mfrow = c(4,2), mar = c(3, 2, 2, 1) + 0.1)
+par(mfrow = c(3,3), mar = c(3, 2, 2, 1) + 0.1)
 
 for(i in seq_len(ncol(mat))){
   hist(mat[,i], main = colnames(mat)[[i]])
@@ -176,12 +238,12 @@ for(i in seq_len(ncol(mat))){
 par(opar)
 
 
-mat_sc <- apply(mat, 2, DescTools::Winsorize) |> scale()
+mat_sc <- apply(mat, 2, DescTools::Winsorize, na.rm = TRUE) |> scale()
 
 
 
 # check scaling
-par(mfrow = c(4,2), mar = c(3, 2, 2, 1) + 0.1)
+par(mfrow = c(3,3), mar = c(3, 2, 2, 1) + 0.1)
 
 for(i in seq_len(ncol(mat))){
   hist(mat_sc[,i], main = colnames(mat_sc)[[i]])
@@ -190,23 +252,13 @@ par(opar)
 
 
 
-# # scale each feature
-# colnames(mat_sc)[[9]]
-# x <- mat[,9]
-# hist(x)
-# hist(scale(x))
-# hist(scale(log1p(DescTools::Winsorize(x))))
-# 
-# mat_sc <- cbind(
-#   apply(mat[,1:5], 2, DescTools::Winsorize) |> scale(),
-#   scale(mat[,6:7]),
-#   scale(log1p(DescTools::Winsorize(mat[,8:9])))
-# )
 
 
-# Correlated features?
+mat_sc_no_na <- mat_sc[!is.na(mat_sc[,"dtw"]),]
+mat_sc <- mat_sc_no_na
+# Correlated features? ----
 cor(mat_sc) |> abs() |> pheatmap::pheatmap()
-cor(mat_sc) |> pheatmap::pheatmap()
+cor(mat_sc_no_na) |> pheatmap::pheatmap()
 
 cor(mat) |> abs() |> pheatmap::pheatmap()
 cor(mat) |> pheatmap::pheatmap()
@@ -282,7 +334,7 @@ memberships <- km$cluster
 enframe(memberships,
         name = "gene_name",
         value = "cluster") |>
-  # filter(startsWith(gene_name, "AM_PHso")) |>
+  filter(startsWith(gene_name, "AM_PHso")) |>
   mutate(guess = case_when(
     str_detect(gene_name, "col\\-[0-9]+") ~ "puls",
     str_detect(gene_name, "cutl\\-[0-9]+") ~ "puls",
@@ -453,8 +505,8 @@ um$layout |>
 #~ heatmaps ----
 
 #~~ AM/PHso manually annotated only ----
-table(rownames(annot_pred_manual_amphso)  %in% rownames(mat))
-mat_am_phso <- mat_sc[ rownames(mat) %in% rownames(annot_pred_manual_amphso),  ]
+table(rownames(annot_pred_manual_amphso)  %in% rownames(mat_sc))
+mat_am_phso <- mat_sc[ rownames(mat_sc) %in% rownames(annot_pred_manual_amphso),  ]
 
 # self-cluster (hclust)
 pheatmap::pheatmap(t(mat_am_phso),
@@ -590,22 +642,22 @@ all_clustered_fits <- log1p(all_preds_centered) |>
   mutate(cluster = as.factor(cluster),
          time = as.numeric(time))
 
-all_clustered_fits |>
-  summarize(average_signal = mean(log_cnt),
-            sd_signal = sd(log_cnt),
-            .by = c(cluster, time)) |>
-  ggplot() +
-  theme_classic() +
-  facet_wrap(~cluster) +
-  geom_hline(aes(yintercept = 0),
-             linetype = 'dashed', color = 'grey80') +
-  geom_ribbon(aes(
-    x = time,
-    ymin = average_signal - sd_signal,
-    ymax = average_signal + sd_signal
-  ),
-  alpha = .2) +
-  geom_line(aes(x = time, y = average_signal))
+# all_clustered_fits |>
+#   summarize(average_signal = mean(log_cnt),
+#             sd_signal = sd(log_cnt),
+#             .by = c(cluster, time)) |>
+#   ggplot() +
+#   theme_classic() +
+#   facet_wrap(~cluster) +
+#   geom_hline(aes(yintercept = 0),
+#              linetype = 'dashed', color = 'grey80') +
+#   geom_ribbon(aes(
+#     x = time,
+#     ymin = average_signal - sd_signal,
+#     ymax = average_signal + sd_signal
+#   ),
+#   alpha = .2) +
+#   geom_line(aes(x = time, y = average_signal))
 
 
 selected <- all_clustered_fits |>
@@ -688,6 +740,50 @@ cluster_results |>
 
 
 
+# Compare clusterings ----
+
+cluster_results <- read_csv(file.path(dir_step2, "250424_cluster_results.csv")) |>
+  mutate(cellgene = paste0(cell_type, "|", gene_name)) |>
+  filter(cellgene %in% names(memberships))
+
+
+
+
+
+
+
+enframe(memberships,
+        name = "gene_name",
+        value = "cluster") |>
+  filter(startsWith(gene_name, "AM_PHso")) |>
+  mutate(guess = case_when(
+    str_detect(gene_name, "col\\-[0-9]+") ~ "puls",
+    str_detect(gene_name, "cutl\\-[0-9]+") ~ "puls",
+    str_detect(gene_name, "grl\\-[0-9]+") ~ "puls",
+    str_detect(gene_name, "rps\\-[0-9]+") ~ "nonpuls",
+    str_detect(gene_name, "rpl\\-[0-9]+") ~ "nonpuls"
+  )) |>
+  filter(!is.na(guess)) |>
+  count(cluster, guess) |>
+  pivot_wider(id_cols = guess, names_from = "cluster", values_from = "n",
+              values_fill = 0)
+
+
+cluster_results |>
+  filter(startsWith(cellgene, "AM_PHso")) |>
+  mutate(guess = case_when(
+    str_detect(gene_name, "col\\-[0-9]+") ~ "puls",
+    str_detect(gene_name, "cutl\\-[0-9]+") ~ "puls",
+    str_detect(gene_name, "grl\\-[0-9]+") ~ "puls",
+    str_detect(gene_name, "rps\\-[0-9]+") ~ "nonpuls",
+    str_detect(gene_name, "rpl\\-[0-9]+") ~ "nonpuls"
+  )) |>
+  filter(!is.na(guess)) |>
+  count(cluster, guess) |>
+  pivot_wider(id_cols = guess, names_from = "cluster", values_from = "n",
+              values_fill = 0)
+
+
 
 # Other clustering algorithms ----
 
@@ -767,7 +863,7 @@ remove_singletons <- function(ids, SNN){
     connectivity <- vapply(cluster_names,
                            \(cl){
                              
-                             subSNN <- adj_mat[i.cells, which(ids == cl)]
+                             subSNN <- SNN[i.cells, which(ids == cl)]
                              
                              mean(subSNN)
                            },
