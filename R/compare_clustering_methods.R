@@ -2,6 +2,28 @@
 # Inits ----
 library(tidyverse)
 
+
+library(getopt)
+
+
+if(! interactive()){
+  spec <- matrix(c(
+    'i', 'i', 1, 'integer'
+  ), byrow=TRUE, ncol=4)
+  
+  params <- getopt(spec)
+  
+} else{
+  # Options for interactive
+  params <- list(
+    i = 1
+  )
+}
+
+
+set.seed(params$i)
+
+
 dir_step2 <- "intermediates/2502/250422_step2_nb_centered/"
 
 mat <- qs::qread(file.path(dir_step2, "mat_predictors.qs"))
@@ -14,6 +36,66 @@ mat_sc <- apply(mat, 2, DescTools::Winsorize) |> scale()
 
 
 # Testing function ----
+get_knn_graph <- function(mat, k){
+  
+  # build Annoy index
+  ann <- new(RcppAnnoy::AnnoyEuclidean, ncol(mat))
+  
+  for(i in 1:nrow(mat)) ann$addItem(i - 1, mat[i,]) # RcppAnnoy 0-indexed
+  
+  ann$build(50)
+  
+  # get knns
+  ann.idx <- lapply(seq_len(nrow(mat)),
+                    \(i){
+                      res <- ann$getNNsByVectorList(mat[i,], k, -1, TRUE)
+                      # discard res$distance, only use res$item (+1 since 0-indexed)
+                      res$item + 1L
+                    })
+  
+  nns.idx <- do.call(rbind, ann.idx)
+  
+  # we have a matrix where each row = source (n rows), k columns = targets (k cols)
+  # we transform to edglist with one row for each pair (i.e. n*k rows)
+  row_idx <- rep(seq_len(nrow(nns.idx)), times = ncol(nns.idx))
+  col_idx <- as.vector(nns.idx)
+  
+  # keep only one direction and remove any self-loop
+  valid_edges <- row_idx < col_idx
+  
+  edge_matrix <- cbind(row_idx[valid_edges], col_idx[valid_edges])
+  
+  igraph::graph_from_edgelist(edge_matrix, directed = FALSE)
+  
+}
+
+# singleton detection adapted from Seurat
+remove_singletons <- function(ids, SNN){
+  
+  singletons <- names(which(table(ids) == 1))
+  cluster_names <- as.character(unique(ids)) |> setdiff(singletons)
+  for (i in singletons) {
+    i.cells <- which(ids == i)
+    
+    connectivity <- vapply(cluster_names,
+                           \(cl){
+                             
+                             subSNN <- SNN[i.cells, which(ids == cl)]
+                             
+                             mean(subSNN)
+                           },
+                           double(1L))
+    
+    
+    m <- max(connectivity, na.rm = T)
+    mi <- which(connectivity == m, arr.ind = TRUE)
+    closest_cluster <- names(connectivity[mi]) |> sample(1)
+    ids[i.cells] <- closest_cluster
+  }
+  ids
+}
+
+
 evaluate_clustering <- function(data, cols_nm, method = c("kmeans", "hclust", "leiden"),
                                 pca = FALSE,
                                 centers = 6, sil_sample_size = 1000,
@@ -101,6 +183,7 @@ subset_list <- list(
   no_coef =     c('intercept', 'mse', 'var_s', 'max_s', 'dev_expl', 'amplitude', 'auc', 'dtw', 'dtw_ci'),
   dtw_t0 =      c('intercept', 'mse', 'var_s', 'max_s', 'dev_expl', 'amplitude', 'auc', 'dtw'),
   dtw_ci =      c('intercept', 'mse', 'var_s', 'max_s', 'dev_expl', 'amplitude', 'auc',        'dtw_ci'),
+  no_dtw =      c('intercept', 'mse', 'var_s', 'max_s', 'dev_expl', 'amplitude', 'auc'),
   no_dev =      c('intercept', 'mse', 'var_s', 'max_s',             'amplitude', 'auc', 'dtw', 'dtw_ci'),
   no_mse =      c('intercept',        'var_s', 'max_s', 'dev_expl', 'amplitude', 'auc', 'dtw'),
   no_var_s =    c('intercept', 'mse',          'max_s', 'dev_expl', 'amplitude', 'auc', 'dtw'),
@@ -120,7 +203,7 @@ param_grid <- expand_grid(
   cols_nm = names(subset_list),
   method,
   pca,
-  replicate = 1:5,
+  replicate = params$i,
   centers = 2:10,
   leiden_res = seq(.1, 1.5, .2)
 )
@@ -139,7 +222,9 @@ results <- pmap_df(param_grid,
                                          verbose = TRUE)
                    })
 
-qs::qsave(results, file.path(dir_step2, "compare_clusterings.qs"))
+qs::qsave(results,
+          file.path(dir_step2,
+                    paste0("compare_clusterings", params$i, ".qs")))
 
 sessionInfo()
 

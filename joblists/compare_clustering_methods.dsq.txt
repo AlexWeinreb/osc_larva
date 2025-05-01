@@ -1,0 +1,10 @@
+module load R; Rscript R/compare_clustering_methods.R --i 1
+module load R; Rscript R/compare_clustering_methods.R --i 2
+module load R; Rscript R/compare_clustering_methods.R --i 3
+module load R; Rscript R/compare_clustering_methods.R --i 4
+module load R; Rscript R/compare_clustering_methods.R --i 5
+module load R; Rscript R/compare_clustering_methods.R --i 6
+module load R; Rscript R/compare_clustering_methods.R --i 7
+module load R; Rscript R/compare_clustering_methods.R --i 8
+module load R; Rscript R/compare_clustering_methods.R --i 9
+module load R; Rscript R/compare_clustering_methods.R --i 10

@@ -388,6 +388,21 @@ dsq --job-file joblists/step_2_gam_nb.dsq.txt --cpus-per-task 1 --mem 5G --time 
 
 
 
+Compare clusterings, 10 replicates, use replicate number as seed.
+
+```
+paste("module load R; Rscript R/compare_clustering_methods.R",
+      "--i", seq_len(10)
+      ) |>
+  writeLines("joblists/compare_clustering_methods.dsq.txt")
+```
+
+```
+ml dSQ; dsq --job-file joblists/compare_clustering_methods.dsq.txt --cpus-per-task 1 --mem 5G --time 20:10:00 --partition day; ml unload dSQ
+```
+
+
+
 ### Step 3: process cell types, curve shape, heatmaps
 
 On cluster, interactively, run `src/runR_step_3_process_celltypes`:
