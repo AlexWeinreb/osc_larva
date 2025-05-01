@@ -288,6 +288,33 @@ ml dSQ; dsq --job-file joblists/velocyto_samples.dsq.txt  --cpus-per-task 6 --me
 ```
 
 
+### Step 2b: scVelo
+
+
+
+For each cell type, call `step2b_scvelo_cell_type.R` on the velocyto results.
+
+Using joblist:
+
+
+```r
+paste(
+"module load R; Rscript R/step2b_scvelo_cell_type.R",
+"--dir_in_anndata 'intermediates/2502/250409_anndata'",
+"--dir_out_scvelo 'intermediates/2502/250501_scvelo'",
+"--i", seq_along(list.files(params$dir_in_anndata, pattern = "\\.h5ad$") |> str_subset("scvel", negate = TRUE))
+) |>
+  writeLines("joblists/step_2b_scvelo_ct.dsq.txt")
+```
+
+Job run with
+```
+ml dSQ; dsq --job-file joblists/step_2b_scvelo_ct.dsq.txt  --cpus-per-task 1 --mem 20G --time 00:40:00 --partition day; ml unload dSQ
+```
+
+Tests and manual version in `test_scVelo.R`.
+
+
 
 
 
