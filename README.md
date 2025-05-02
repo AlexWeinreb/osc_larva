@@ -369,7 +369,7 @@ paste("module load R; Rscript R/step_2a_gam_nb.R",
 
 Job prepared with:
 ```
-ml dSQ; dsq --job-file joblists/step_2a_gam.dsq.txt  --cpus-per-task 1 --mem 5G --time 00:10:00 --partition day
+ml dSQ; dsq --job-file joblists/step_2a_gam.dsq.txt  --cpus-per-task 1 --mem 5G --time 00:20:00 --partition day
 ```
 
 Notes:
