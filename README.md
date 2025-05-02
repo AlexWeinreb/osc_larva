@@ -268,54 +268,6 @@ In `assemble_osc.R` (interactive on cluster) assemble all cell types from L2 and
 
 
 
-# Velocyto (test)
-
-Reran `cr_count.sh` with saving bam (in scratch dir).
-
-Problem: velocyto will always read `filtered_feature_bc_matrix`. But my annotation has more cells. In `save_filtered_matrices_for_velocyto`, for each sample we rename the CellRanger `filtered_feature_bc_matrix` and replace it with an export of the Seurat object.
-
-Then we run velocyto on each samples (as dsq array). Joblist file in `joblists/velocyto.dsq.txt`
-
-Contents (one row per sample):
-```
-bash ./src/velocyto_sample.sh "200730_batch1_CHB3840b"
-bash ./src/velocyto_sample.sh "201013_batch2_CHB3840b_CEG_fqs"
-```
-
-dsq prepared with:
-```
-ml dSQ; dsq --job-file joblists/velocyto_samples.dsq.txt  --cpus-per-task 6 --mem 20G --time 1:50:00 --partition day
-```
-
-
-### Step 2b: scVelo
-
-
-
-For each cell type, call `step2b_scvelo_cell_type.R` on the velocyto results.
-
-Using joblist:
-
-
-```r
-paste(
-"module load R; Rscript R/step2b_scvelo_cell_type.R",
-"--dir_in_anndata 'intermediates/2502/250409_anndata'",
-"--dir_out_scvelo 'intermediates/2502/250501_scvelo'",
-"--i", seq_along(list.files(params$dir_in_anndata, pattern = "\\.h5ad$") |> str_subset("scvel", negate = TRUE))
-) |>
-  writeLines("joblists/step_2b_scvelo_ct.dsq.txt")
-```
-
-Job run with
-```
-ml dSQ; dsq --job-file joblists/step_2b_scvelo_ct.dsq.txt  --cpus-per-task 1 --mem 20G --time 00:40:00 --partition day; ml unload dSQ
-```
-
-Tests and manual version in `test_scVelo.R`.
-
-
-
 
 
 ### Step 1a: impute, preprocess for fit
@@ -383,6 +335,125 @@ Notes:
 
 
 
+### Step 1b: Velocyto
+
+Overview:
+* rerun CellRanger if needed,
+* replace filtered matrix,
+* Velocyto to quantify unspliced reads,
+* reorganize by cell type,
+* load in scVelo (step2b)
+
+
+#### CellRanger
+
+Reran `cr_count.sh` with saving bam (in scratch dir: `250331_align`).
+
+Notes the bams are often 10-20 GB, not easily stored on long term.
+
+
+#### Replace filtered matrix
+
+Problem: velocyto will always read `filtered_feature_bc_matrix`. But here I use a manual reannotation keeping more cells.
+
+In `R/save_filtered_matrices_for_velocyto.R`, for each sample we rename the CellRanger `filtered_feature_bc_matrix` and replace it with an export of the Seurat object.
+* inputs: `scratch/250331_align` bams and `250328_assembled/250329_seu_all_herma.qs`
+* for each sample,
+  * rename `filtered_...` to `cr_filtered_feature_bc_matrix`
+  * take the count matrix from `assembled` (subset sample), rename cell bc if needed
+* save this subset of "assembled" in `filtered_feature_bc_matrix`
+
+
+#### Velocyto quantification
+
+In `src/velocyto_sample.sh`
+* input: `250331_align/{sample}/outs/` for each sample (uses bam and filtered matrix)
+* run `velocyto run10x`
+* output in `250331_align/{sample}/velocyto/sample.loom`
+
+Run as dsq array; joblist file in `joblists/velocyto_samples.dsq.txt`
+
+Contents (one row per sample):
+```
+bash ./src/velocyto_sample.sh "200730_batch1_CHB3840b"
+bash ./src/velocyto_sample.sh "201013_batch2_CHB3840b_CEG_fqs"
+...
+```
+
+dsq prepared with:
+```
+ml dSQ; dsq --job-file joblists/velocyto_samples.dsq.txt  --cpus-per-task 6 --mem 20G --time 1:50:00 --partition day
+```
+
+
+
+#### Save copy of loom files
+
+
+Copy files out of scratch, work directly from them later.
+```
+cp -v /vast/palmer/scratch/hammarlund/aw853/250331_align/*/velocyto/*.loom intermediates/2502/250409_loom/
+```
+
+
+#### Reorganize by cell type
+
+Consistently with other approach, we split by cell type and process each cell type separately.
+
+In `R/velocyto.R`, run interactivley
+* inputs: `250409_loom/{sample}.loom`, `250328_assembled/250329_seu_all_herma.qs`
+* Process:
+  * read all loom files using velocyto.R
+  * combine into big "spliced" and "unspliced" matrices
+  * for each cell type annotated in "assembled", subset the corresponding cells, create AnnData object
+* output: `250409_anndata/{sample}.h5ad`
+
+
+At the end of `R/velocyto.R`, additional code for velocity estimate and plotting with velocyto.R (not used in practice).
+
+
+Note: previous attempts to use VeloCycle, in folder `ipynb/`. While it seems to work, it's not answering the questions I have here.
+
+
+### Step 2b: scVelo
+
+
+
+With `step_2b_scvelo_cell_type.R` run with dSQ:
+* input: `250409_anndata/{sample}.h5ad`
+* minimal filtering, recover_dynamics (not actually used), velocity with *stochastic* model, extract genes by fit_likelihood
+* outputs:
+  * `250501_scvelo/{sample}_velocity.png`
+  * `250501_scvelo/{sample}_scvelo_fit.qs` table of genes by fit_likelihood
+  * `250501_scvelo/{sample}_adata.pkl` with processed object (not used)
+
+Using joblist:
+
+
+```r
+paste(
+"module load R; Rscript R/step2b_scvelo_cell_type.R",
+"--dir_in_anndata 'intermediates/2502/250409_anndata'",
+"--dir_out_scvelo 'intermediates/2502/250501_scvelo'",
+"--i", seq_along(list.files(params$dir_in_anndata, pattern = "\\.h5ad$") |> str_subset("scvel", negate = TRUE))
+) |>
+  writeLines("joblists/step_2b_scvelo_ct.dsq.txt")
+```
+
+Job run with
+```
+ml dSQ; dsq --job-file joblists/step_2b_scvelo_ct.dsq.txt  --cpus-per-task 1 --mem 20G --time 00:40:00 --partition day; ml unload dSQ
+```
+
+Tests and manual version in `test_scVelo.R` (not used).
+
+
+
+
+
+### Clustering
+
+TO UPDATE with scVelo
 
 Compare clusterings, 10 replicates, use replicate number as seed.
 

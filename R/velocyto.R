@@ -6,8 +6,8 @@ library(tidyverse)
 
 reticulate::use_virtualenv("anndata")
 
-dir_alignements <- "/vast/palmer/scratch/hammarlund/aw853/250331_align"
 
+dir_loom <- "intermediates/2502/250409_loom/"
 dir_out_anndata <- "intermediates/2502/250409_anndata/"
 
 
@@ -15,7 +15,7 @@ seu <- qs::qread("intermediates/2502/250328_assembled/250329_seu_all_herma.qs")
 samples <- unique(seu$orig.ident)
 
 stopifnot(all(
-  samples %in% list.files(dir_alignements)
+  samples %in% (list.files(dir_loom) |> str_remove("\\.loom$"))
 ))
 
 # select "easy" sample for testing
@@ -37,9 +37,7 @@ bc_table <- seu[[]] |>
 
 mats_list <- map(samples,
                  \(samp){
-                   path <- file.path("/vast/palmer/scratch/hammarlund/aw853/250331_align",
-                                     samp,
-                                     "velocyto",
+                   path <- file.path(dir_loom,
                                      paste0(samp, ".loom"))
                    
                    read.loom.matrices(path)
