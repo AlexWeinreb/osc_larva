@@ -80,7 +80,6 @@ cell_type
 
 message(params$i,"/", length(cell_types), ": ", cell_type)
 
-log_content <- paste0(cell_type, "\n")
 
 
 message("---- load")
@@ -94,6 +93,15 @@ seu <- qs::qread(
   file.path(params$dir_step1,
             paste0(cell_type, "_seu.qs"))
 )
+
+message("Number of cells: ", ncol(seu))
+
+if(ncol(seu) < 25){
+  message("####   Not enough cells, skipping   ####")
+  quit()
+}
+
+
 
 
 # save the plot with phases
@@ -125,8 +133,13 @@ pos_high_genes <- which(
 
 high_genes <- gene_expressions$gene_name[pos_high_genes]
 
-length(high_genes)
 
+message("Number of genes: ", length(high_genes))
+
+if(length(high_genes) < 5){
+  message("####   No gene to test, skip   ####")
+  quit()
+}
 
 
 
@@ -362,7 +375,7 @@ res$area_under_curve <- apply( preds_centered, 2,
 #~~ dtw ----
 message("  ---- dtw")
 
-preds_scaled <- apply(preds_centered, 2, \(x) x/max(x))
+preds_scaled <- apply(preds_centered, 2, \(x) x/max(x) )
 
 # printMat::matimage(log1p(preds_centered))
 # printMat::matimage(preds_scaled)
