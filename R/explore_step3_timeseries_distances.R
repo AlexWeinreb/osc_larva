@@ -220,8 +220,35 @@ stopifnot(all(paste0("AM_PHso|", pred_manual$gene_name) %in% colnames(all_preds_
 #              dtw = boot_ci$t0,
 #              dtw_ci = boot_ci$upper)
 # 
+# 
+# dir_out_scvelo <- "intermediates/2502/250501_scvelo"
+# 
+# 
+# res_scvelo <- list.files(dir_out_scvelo, pattern = "_scvelo_fit\\.qs$") |>
+#   str_remove("_scvelo_fit\\.qs$") |>
+#   map_dfr(\(ct){
+#     qs::qread(file.path(dir_out_scvelo, paste0(ct, "_scvelo_fit.qs")))
+#   }) |>
+#   mutate(cellgene = paste0(cell_type, "|", gene_name))
+# 
+# list(mat = rownames(mat),
+#      scv = res_scvelo$cellgene) |>
+#   eulerr::euler() |>
+#   plot(quantities = TRUE)
+# 
+# scv_fit <- res_scvelo |> 
+#   select(name = cellgene,
+#          value = fit_likelihood) |>
+#   deframe()
+# 
+# mat <- cbind(mat,
+#              scvelo = scv_fit[rownames(mat)])
+# mat[,"scvelo"][is.na(mat[,"scvelo"])] <- 0
+
+
 # qs::qsave(mat, file.path(dir_step2, "mat_predictors.qs"))
 mat <- qs::qread(file.path(dir_step2, "mat_predictors.qs"))
+
 
 
 rm(all_res); rm(mat_coefs)
