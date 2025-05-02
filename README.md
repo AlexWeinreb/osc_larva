@@ -318,10 +318,10 @@ Tests and manual version in `test_scVelo.R`.
 
 
 
-### Step 1: impute, preprocess
+### Step 1a: impute, preprocess for fit
 
 
-In `R/step_1_preproc_ct.R`, called with `src/step_1_preproc_ct.sh`:
+In `R/step_1a_preproc_ct.R`, called with `src/step_1a_preproc_ct.sh`:
 * inputs: Seurat object `250328_assembled/250329_seu_all_herma.qs` from assembled
 * impute, run SCT, run PCA
 * outputs in `250502_step1` for each cell type
@@ -331,7 +331,7 @@ note: `250330_step1`: only kept cell types with cells from L2 and L4. `250502`: 
 
 
 
-### Step 2a
+### Step 2a: GAM fit and smooth curve processing
 
 
 We fit GAM twice in a row: once without centering, that we use for representations and timings.
