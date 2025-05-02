@@ -11,7 +11,7 @@ source("https://raw.githubusercontent.com/yanailab/knn-smoothing/refs/heads/mast
 
 
 dir_assembled <- "intermediates/2502/250328_assembled/"
-dir_out <- "intermediates/2502/250330_step1"
+dir_out <- "intermediates/2502/250502_step1"
 
 
 
@@ -31,7 +31,7 @@ cell_types <- seu[[]] |>
   summarize(nb_stages = n(),
             nb_cells = sum(nb_cells),
             .by = cell_type) |>
-  filter(nb_stages > 1,
+  filter(nb_stages >= 1,
          nb_cells > 20) |>
   pull(cell_type)
 

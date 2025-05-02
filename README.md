@@ -324,66 +324,62 @@ Tests and manual version in `test_scVelo.R`.
 In `R/step_1_preproc_ct.R`, called with `src/step_1_preproc_ct.sh`:
 * inputs: Seurat object `250328_assembled/250329_seu_all_herma.qs` from assembled
 * impute, run SCT, run PCA
-* outputs in `250330_step1` for each cell type
+* outputs in `250502_step1` for each cell type
+
+
+note: `250330_step1`: only kept cell types with cells from L2 and L4. `250502`: process all cell types with > 20 cells.
+
+
+
+### Step 2a
+
+
+We fit GAM twice in a row: once without centering, that we use for representations and timings.
+
+We use the peak of the uncentered to run a second fit, on a pre-centered curve. From this, we keep
+* coefficients of the GAM
+* descriptors of the smooth curve (amplitude, auc, ...)
+* similarity of smooth curve to thin peak (DTW distance)
+
+These are used for clustering, along with scVelo.
 
 
 
 
-### Step 2
 
-
-`step_2_gam_binom.R` is to be run on cluster as dsq jobarray, called from dSQ. Contents:
-* load intermediates from step 1, prefilter, run ElPiGraph and a GAM with binomial family, save the model along with curve amplitude and dev explained
-* save intermediates in "intermediates/2502/250330_step2"
+`step_2a_gam_binom.R` is to be run on cluster as dsq jobarray, called from dSQ. Contents:
+* load intermediates from step 1 `250502_step1`
+* prefilter, run ElPiGraph and a GAM with NB family, save the models, descriptors, smooth fits
+* save intermediates in "intermediates/2502/250502_step2"
 
 
 
 
 Jobfile created with:
 ```r
-paste("module load R; Rscript R/step_2_gam_binom.R",
-       "--batch_rmed_dir 'intermediates/2502/250330_step1'",
-      "--out_dir 'intermediates/2502/250330_step2'",
-      "--i", seq_along(list.files('intermediates/2502/250330_step1', pattern = "_seu\\.qs$")),
-      "--model 'auto' --prop_thres 0.05 --cnt_thres 20") |>
-  writeLines("joblists/step_2_gam_binom.dsq.txt")
+paste("module load R; Rscript R/step_2a_gam_nb.R",
+       "--dir_step1 'intermediates/2502/250502_step1'",
+      "--out_dir 'intermediates/2502/250502_step2'",
+      "--i", seq_along(list.files('intermediates/2502/250502_step1', pattern = "_seu\\.qs$")),
+      "--prop_thres 0.05 --cnt_thres 20",
+      "--nb_subsamples_ptDE 10") |>
+  writeLines("joblists/step_2a_gam.dsq.txt")
 ```
 
 
 Job prepared with:
 ```
-ml dSQ; dsq --job-file joblists/step_2_gam_binom.dsq.txt  --cpus-per-task 1 --mem 5G --time 00:10:00 --partition day
+ml dSQ; dsq --job-file joblists/step_2a_gam.dsq.txt  --cpus-per-task 1 --mem 5G --time 00:10:00 --partition day
 ```
 
-Note: previously used pseudotimeDE at this step, along with filtering on curve shape as step 3. No longer useful: most/all genes appear DE with pseudotime, replace with simple GAM and curve shape filtering. Keeping state of repo at that point in branch `pseudotimede`.
+Notes:
+* previously used pseudotimeDE at this step, along with filtering on curve shape as step 3. No longer useful: most/all genes appear DE with pseudotime, replace with simple GAM and curve shape filtering. Keeping state of repo at that point in branch `pseudotimede`.
+* used binomial fit in some versions
+* bootstraps on dtw in previous version: wasn't obviously a better predictor than the dtw distance itself
 
 
 
-Testing with bootstraps:
-```
-paste("module load R; Rscript R/step_2_gene_expr_nb_bootstrap_dtw.R",
-       "--batch_rmed_dir 'intermediates/2502/250330_step1'",
-      "--out_dir 'intermediates/2502/250424_step2_boot_nb'",
-      "--i", seq_along(list.files('intermediates/2502/250330_step1', pattern = "_seu\\.qs$")),
-      "--prop_thres 0.05 --cnt_thres 20") |>
-  writeLines("joblists/step_2_gam_boot_nb.dsq.txt")
-```
 
-Run with:
-```
-ml dSQ; dsq --job-file joblists/step_2_gam_boot_nb.dsq.txt  --cpus-per-task 1 --mem 15G --time 20:00:00 --partition day; ml unload dSQ
-```
-
-Fail for ILso, pha epith, hyp. Rerun:
-```
-ml dSQ; dsq --job-file joblists/step_2_gam_boot_nb.dsq.txt  --cpus-per-task 1 --mem 15G --time 3-20:00:00 --partition week; ml unload dSQ
-```
-
-
-Third alternative: fit with NB,
-```
-dsq --job-file joblists/step_2_gam_nb.dsq.txt --cpus-per-task 1 --mem 5G --time 00:10:00 --partition day
-```
 
 
 
