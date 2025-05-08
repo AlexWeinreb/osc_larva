@@ -35,16 +35,16 @@ osc_raw <- readxl::read_excel("../10x_grl18/data/oscillating/msb209498-sup-0003-
 
 
 
-dir_out <- "intermediates/2502/250328_assembled"
+dir_out <- "intermediates/2502/250508_assembled"
 dir_out_individual_cts <- file.path(dir_out, "250330_cell_types")
 
 dir_third_processed <- "intermediates/2502/250313_third_processed"
 
 
 # the result
-# seu <- qs::qread( file.path(dir_out, "250329_seu_all_herma.qs"))
+# seu <- qs::qread( file.path(dir_out, "250508_seu_all_herma.qs"))
 
-
+# FeaturePlot(seu, features = "nsIs198", pt.size = 2, alpha = .2, cols = c("bisque2", "green4"))
 
 
 
@@ -175,7 +175,8 @@ DimPlot(seu,
 # Oscillations ----
 osc_table <- osc_raw |>
   filter(gene_name %in% rownames(seu),
-         Class == "Osc") |>
+         Class == "Osc",
+         OscAmplitude > 1.5) |>
   select(gene_name, gene_id,
          osc_amplitude = OscAmplitude,
          peak_phase_deg = PeakPhase) |>
@@ -253,9 +254,9 @@ pvals_by_cell <- tibble(perm = 0:10000) |>
   mutate(FDR = p.adjust(p_val, method = "BH")) |>
   column_to_rownames("cell_bc")
 
-# qs::qsave(pvals_by_cell, file.path(dir_out, "250329_permutations_10000.qs"))
+# qs::qsave(pvals_by_cell, file.path(dir_out, "250508_permutations_10000.qs"))
 
-pvals_by_cell <- qs::qread(file.path(dir_out, "250329_permutations_10000.qs"))
+pvals_by_cell <- qs::qread(file.path(dir_out, "250508_permutations_10000.qs"))
 
 
 # hist(pvals_by_cell$p_val, breaks = 30, main = NULL, xlab = "Distribution of p-values")
@@ -263,7 +264,7 @@ pvals_by_cell <- qs::qread(file.path(dir_out, "250329_permutations_10000.qs"))
 
 table(pvals_by_cell$FDR < .05)
 #> FALSE  TRUE 
-#>  6348 15733 
+#>  8783 13298
 
 
 seu$length_FDR <- pvals_by_cell[rownames(FetchData(seu, vars = "ident")), "FDR"]
@@ -281,9 +282,8 @@ FetchData(seu,
   scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
                         limits = c(0, 360)) +
   geom_point(aes(x = umap_1, y = umap_2,
-                 color = cell_phase_masked,
-                 alpha = cell_rho),
-             alpha = .1)
+                 color = cell_phase_masked),
+             alpha = .3)
 
 
 
@@ -320,10 +320,9 @@ dotprod_by_cell <- cells_phases |>
                                   k = 20))
 
 
-# qs::qsave(dotprod_by_cell, file.path(dir_out, "250329_dotprod_by_cell.qs"))
-dotprod_by_cell <- qs::qread(file.path(dir_out, "250329_dotprod_by_cell.qs"))
+# qs::qsave(dotprod_by_cell, file.path(dir_out, "250508_dotprod_by_cell.qs"))
+dotprod_by_cell <- qs::qread(file.path(dir_out, "250508_dotprod_by_cell.qs"))
 
-# dotprod_by_cell$tissue[dotprod_by_cell$cell_type == "pharyngeal"] <- "neuron"
 
 
 # Plot by cell type and cluster
@@ -345,8 +344,8 @@ dotprod_by_cell |>
              size = 2)
 
 
-# qs::qsave(seu, file.path(dir_out, "250329_seu_all_herma.qs"))
-# seu <- qs::qread( file.path(dir_out, "250329_seu_all_herma.qs"))
+# qs::qsave(seu, file.path(dir_out, "250508_seu_all_herma.qs"))
+# seu <- qs::qread( file.path(dir_out, "250508_seu_all_herma.qs"))
 
 
 
@@ -424,9 +423,9 @@ mean_dotprod_by_celltype_res_perm <- map_dfr(0:10000,
                                              run_permutation_test_by_celltype_rand_phase,
                                              .progress = TRUE)
 # qs::qsave(mean_dotprod_by_celltype_res_perm,
-#           file.path(dir_out, "250330_coherence_perm10000.qs"))
+#           file.path(dir_out, "250508_coherence_perm10000.qs"))
 
-# mean_dotprod_by_celltype_res_perm <- qs::qread(file.path(dir_out, "250330_coherence_perm10000.qs"))
+# mean_dotprod_by_celltype_res_perm <- qs::qread(file.path(dir_out, "250508_coherence_perm10000.qs"))
 
 
 mean_dotprod_by_celltype_res_perm |>
@@ -456,6 +455,7 @@ p_vals <- mean_dotprod_by_celltype_res_perm |>
 
 
 hist(p_vals$p_val)
+hist(p_vals$p_adj)
 
 
 # filter on nb of cells
@@ -486,20 +486,22 @@ gg_dotprod_by_cell <- dotprod_by_cell |>
   theme_classic() +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
   ylab("Local phase coherence") + xlab(NULL) +
-  coord_cartesian(ylim = c(-.1,.7)) +
+  # geom_hline(aes(yintercept = -.2)) + geom_hline(aes(yintercept = .9)) +
+  coord_cartesian(ylim = c(-.2,.9)) +
+  geom_tile(aes(x = cell_type, y = .35,
+                fill = p_adj < .05 ),
+            height = 1.2,
+            alpha = .1,
+            data = dotprod_agg_by_ct) +
   ggbeeswarm::geom_quasirandom(aes(x = cell_type, y = coherence, color = tissue),
                                alpha = .2,
                                shape = 16) +
-  geom_tile(aes(x = cell_type, y = .3,
-                fill = p_adj < .05 ),
-            height = .9,
-            alpha = .1,
-            data = dotprod_agg_by_ct) +
   geom_point(aes(x = cell_type, y = mean_coherence),
              data = dotprod_agg_by_ct)
 
 gg_dotprod_by_cell
 # gg copy: 1000x550
+# 1300 x 450
 
 # ggsave("local_phase_coherence.png", plot = gg_dotprod_by_cell,
 #        path = "presentations/",
@@ -520,35 +522,10 @@ local_coherence_by_ct <- dotprod_by_cell |>
   as_tibble()
 
 # qs::qsave(local_coherence_by_ct,
-#           file.path(dir_out, "250330_coherence_by_ct.qs"))
+#           file.path(dir_out, "250508_coherence_by_ct.qs"))
 
 
 
-
-
-# Export cell types ----
-
-
-# seu <- qs::qread( file.path(dir_out, "250329_seu_all_herma.qs"))
-
-
-
-levels(Idents(seu)) |>
-  walk(~{
-    filename <- file.path(dir_out_individual_cts,
-                          paste0(.x, ".qs"))
-    
-    sub <- subset(seu, idents = .x)
-    
-    
-    if(!file.exists(filename)){
-      qs::qsave(sub,
-                filename)
-      message("saved")
-    } else{
-      stop("exists!")
-    }
-  })
 
 
 
