@@ -10,7 +10,8 @@ rho_from_mat <- function(mat_expression, phases){
   
   rho <- sqrt( sines^2 + cosines^2 )
   rho[sum_ws == 0] <- 0
-  rho
+  
+  rho * log10(sum_ws + 1)
   
 }
 

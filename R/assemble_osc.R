@@ -12,7 +12,6 @@ source("R/mean_phase_rho.R")
 options(future.globals.maxSize = 1.5 * 1024^3)
 
 
-gids_230 <- wb_load_gene_ids(230)
 
 gids <- wb_load_gene_ids(295) |>
   tibble::add_row(X = NA, gene_id = "nsIs198",
@@ -35,14 +34,14 @@ osc_raw <- readxl::read_excel("../10x_grl18/data/oscillating/msb209498-sup-0003-
 
 
 
-dir_out <- "intermediates/2502/250508_assembled"
+dir_out <- "intermediates/2502/250509_assembled"
 dir_out_individual_cts <- file.path(dir_out, "250330_cell_types")
 
 dir_third_processed <- "intermediates/2502/250313_third_processed"
 
 
 # the result
-# seu <- qs::qread( file.path(dir_out, "250508_seu_all_herma.qs"))
+# seu <- qs::qread( file.path(dir_out, "250509_seu_all_herma.qs"))
 
 # FeaturePlot(seu, features = "nsIs198", pt.size = 2, alpha = .2, cols = c("bisque2", "green4"))
 
@@ -182,7 +181,8 @@ osc_table <- osc_raw |>
          peak_phase_deg = PeakPhase) |>
   group_by(gene_name) |>
   slice_sample(n = 1) |>
-  ungroup()
+  ungroup() |>
+  arrange(factor(gene_name, levels = rownames(seu)))
 
 # there are duplicated gene names, removed with slice_sample(); to look at them:
 # duplicated_genes <- osc_table$gene_name[duplicated(osc_table$gene_name)]
@@ -195,18 +195,36 @@ osc_table <- osc_raw |>
 #~ average phase and rho ----
 
 
-mat <- LayerData(seu, layer = "data", features = osc_table$gene_name)
+mat <- LayerData(seu, assay = "SCT", layer = "data", features = osc_table$gene_name)
 
 
+# normalize by max across all cells
+# (doesn't seem to make a difference in practice, but in principle,
+# a gene could "look" high in a cell it's not expressed in if it's much higher
+# in other cells)
+genes_max <- sparseMatrixStats::rowMaxs(mat)
+genes_max[genes_max == 0] <- 1
 
-stopifnot(identical(rownames(mat),
-                    osc_table$gene_name))
-stopifnot(identical(colnames(mat),
-                    rownames(seu[[]])))
+mat <- mat / genes_max
+
+
+stopifnot(identical(
+  rownames(mat),
+  osc_table$gene_name
+))
+stopifnot(identical(
+  colnames(mat),
+  rownames(seu[[]])
+))
 
 
 seu$cell_phase <- angle_from_mat(mat, osc_table$peak_phase_deg)
 seu$cell_rho <- rho_from_mat(mat, osc_table$peak_phase_deg)
+
+
+
+
+
 
 
 
@@ -254,9 +272,9 @@ pvals_by_cell <- tibble(perm = 0:10000) |>
   mutate(FDR = p.adjust(p_val, method = "BH")) |>
   column_to_rownames("cell_bc")
 
-# qs::qsave(pvals_by_cell, file.path(dir_out, "250508_permutations_10000.qs"))
+qs::qsave(pvals_by_cell, file.path(dir_out, "250509_permutations_10000.qs"))
 
-pvals_by_cell <- qs::qread(file.path(dir_out, "250508_permutations_10000.qs"))
+pvals_by_cell <- qs::qread(file.path(dir_out, "250509_permutations_10000.qs"))
 
 
 # hist(pvals_by_cell$p_val, breaks = 30, main = NULL, xlab = "Distribution of p-values")
@@ -264,7 +282,7 @@ pvals_by_cell <- qs::qread(file.path(dir_out, "250508_permutations_10000.qs"))
 
 table(pvals_by_cell$FDR < .05)
 #> FALSE  TRUE 
-#>  8783 13298
+#>  9791 12290
 
 
 seu$length_FDR <- pvals_by_cell[rownames(FetchData(seu, vars = "ident")), "FDR"]
@@ -292,7 +310,8 @@ FetchData(seu,
 
 
 
-#~ Coherence within cell type ----
+
+#~ Local coherence index ----
 
 
 
@@ -320,8 +339,8 @@ dotprod_by_cell <- cells_phases |>
                                   k = 20))
 
 
-# qs::qsave(dotprod_by_cell, file.path(dir_out, "250508_dotprod_by_cell.qs"))
-dotprod_by_cell <- qs::qread(file.path(dir_out, "250508_dotprod_by_cell.qs"))
+# qs::qsave(dotprod_by_cell, file.path(dir_out, "250509_dotprod_by_cell.qs"))
+dotprod_by_cell <- qs::qread(file.path(dir_out, "250509_dotprod_by_cell.qs"))
 
 
 
@@ -344,11 +363,44 @@ dotprod_by_cell |>
              size = 2)
 
 
-# qs::qsave(seu, file.path(dir_out, "250508_seu_all_herma.qs"))
-# seu <- qs::qread( file.path(dir_out, "250508_seu_all_herma.qs"))
+# qs::qsave(seu, file.path(dir_out, "250509_seu_all_herma.qs"))
+# seu <- qs::qread( file.path(dir_out, "250509_seu_all_herma.qs"))
 
 
 
+
+
+
+# fancier plot
+cell_types_to_plot <- dotprod_by_cell |>
+  summarize(nb_cells = n(),
+            .by = cell_type) |>
+  filter(nb_cells >= 30) |>
+  pull(cell_type) |>
+  setdiff("reproductive")
+
+
+dotprod_agg_by_ct <- dotprod_by_cell |>
+  filter(cell_type %in% cell_types_to_plot) |>
+  summarize(mean_coherence = mean(coherence),
+            .by = c(tissue, cell_type)) |>
+  arrange(tissue, desc(mean_coherence)) |>
+  mutate(cell_type = fct_inorder(cell_type))
+
+dotprod_by_cell |>
+  filter(cell_type %in% cell_types_to_plot) |>
+  mutate(cell_type = factor(cell_type, levels = levels(dotprod_agg_by_ct$cell_type))) |>
+  ggplot() +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  ylab("Local phase coherence") + xlab(NULL) +
+  # geom_hline(aes(yintercept = -.2)) + geom_hline(aes(yintercept = .9)) +
+  # coord_cartesian(ylim = c(0,.9)) +
+  ggbeeswarm::geom_quasirandom(aes(x = cell_type, y = coherence, color = tissue),
+                               alpha = .2,
+                               shape = 16) +
+  geom_point(aes(x = cell_type, y = mean_coherence),
+             data = dotprod_agg_by_ct)
 
 
 
@@ -423,23 +475,23 @@ mean_dotprod_by_celltype_res_perm <- map_dfr(0:10000,
                                              run_permutation_test_by_celltype_rand_phase,
                                              .progress = TRUE)
 # qs::qsave(mean_dotprod_by_celltype_res_perm,
-#           file.path(dir_out, "250508_coherence_perm10000.qs"))
+#           file.path(dir_out, "250509_coherence_perm10000.qs"))
 
-# mean_dotprod_by_celltype_res_perm <- qs::qread(file.path(dir_out, "250508_coherence_perm10000.qs"))
+# mean_dotprod_by_celltype_res_perm <- qs::qread(file.path(dir_out, "250509_coherence_perm10000.qs"))
 
 
-mean_dotprod_by_celltype_res_perm |>
-  arrange(tissue) |> mutate(cell_type = fct_inorder(cell_type)) |>
-  mutate(`permutated` = !(permutation == 0)) |>
-  ggplot() +
-  theme_classic() +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  theme(legend.position = "none") +
-  scale_color_manual(values = c('red3','grey')) +
-  scale_alpha_manual(values = c(1,.01)) +
-  ylab("Mean (in cell type) of mean (with neighbors) dot product") + xlab(NULL) +
-  geom_point(aes(x = cell_type, y = mean_coherence, color = permutated, alpha = permutated),
-             size = 2)
+# mean_dotprod_by_celltype_res_perm |>
+#   arrange(tissue) |> mutate(cell_type = fct_inorder(cell_type)) |>
+#   mutate(`permutated` = !(permutation == 0)) |>
+#   ggplot() +
+#   theme_classic() +
+#   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+#   theme(legend.position = "none") +
+#   scale_color_manual(values = c('red3','grey')) +
+#   scale_alpha_manual(values = c(1,.01)) +
+#   ylab("Mean (in cell type) of mean (with neighbors) dot product") + xlab(NULL) +
+#   geom_point(aes(x = cell_type, y = mean_coherence, color = permutated, alpha = permutated),
+#              size = 2)
 
 
 
@@ -487,10 +539,10 @@ gg_dotprod_by_cell <- dotprod_by_cell |>
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
   ylab("Local phase coherence") + xlab(NULL) +
   # geom_hline(aes(yintercept = -.2)) + geom_hline(aes(yintercept = .9)) +
-  coord_cartesian(ylim = c(-.2,.9)) +
-  geom_tile(aes(x = cell_type, y = .35,
+  # coord_cartesian(ylim = c(-.2,.9)) +
+  geom_tile(aes(x = cell_type, y = .8713012,
                 fill = p_adj < .05 ),
-            height = 1.2,
+            height = 2.212274,
             alpha = .1,
             data = dotprod_agg_by_ct) +
   ggbeeswarm::geom_quasirandom(aes(x = cell_type, y = coherence, color = tissue),
@@ -522,7 +574,18 @@ local_coherence_by_ct <- dotprod_by_cell |>
   as_tibble()
 
 # qs::qsave(local_coherence_by_ct,
-#           file.path(dir_out, "250508_coherence_by_ct.qs"))
+#           file.path(dir_out, "250509_coherence_by_ct.qs"))
+
+
+
+
+
+
+
+
+
+
+
 
 
 
