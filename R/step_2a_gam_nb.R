@@ -38,7 +38,7 @@ if(! interactive()){
   # Options for interactive
   params <- list(
     dir_step1 = "intermediates/2502/250502_step1",
-    out_dir = "intermediates/2502/250502_step2_nb",
+    out_dir = "intermediates/2502/250512_step2_nb",
     i = 8,
     prop_thres = 0.1,
     cnt_thres = 30,
@@ -212,7 +212,8 @@ pseudotime <- getPseudotime(ProjStruct = ProjStruct, NodeSeq = names(subgraph))[
 #~  GAM uncentered ----
 message("---- fit GAM uncentered")
 
-mat_cnt <- GetAssayData(seu, assay = "RNA", layer = "count")[high_genes,]
+# mat_cnt <- GetAssayData(seu, assay = "RNA", layer = "count")[high_genes,]
+mat_sct <- GetAssayData(seu, assay = "SCT", layer = "data")[high_genes,]
 
 
 mods_uncentered <- lapply(
@@ -220,13 +221,14 @@ mods_uncentered <- lapply(
   \(.gene){
     
     dat <- data.frame(
-      prob = mat_cnt[.gene,],
+      expr = mat_sct[.gene,],
       pseudotime = pseudotime/max(pseudotime)
     )
     
     
-    mgcv::gam(prob ~ s(pseudotime, k = 6, bs = 'cc'),
-              data = dat, family = mgcv::nb(link = "log"))
+    mgcv::gam(expr ~ s(pseudotime, k = 6, bs = 'cc'),
+              data = dat,
+              family = gaussian())
     
   }) |>
   setNames(high_genes)
@@ -245,6 +247,7 @@ message("---- fit GAM centered")
 
 pos_peak <- apply(preds_uncentered, 2, which.max) / len
 
+# preds_uncentered <- preds_uncentered[,1:20]
 # ngenes <- ncol(preds_uncentered)
 # printMat::matimage(log1p(preds_uncentered))
 # points((1:ngenes - 1)/(ngenes - 1), (1 - pos_peak), pch = "-", cex = 3.5, col = 'purple')
@@ -255,21 +258,22 @@ mods_centered <- lapply(
   \(.gene){
     
     dat <- data.frame(
-      prob = mat_cnt[.gene,],
+      expr = mat_sct[.gene,],
       pseudotime = pseudotime/max(pseudotime)
     )
     
     # shift pseudotime
     dat$pseudotime_centered <- ( .5 + dat$pseudotime - pos_peak[[.gene]] ) %% 1
     
-    # plot(dat$pseudotime, log1p(dat$prob)); abline(v = pos_peak[[.gene]])
+    # plot(dat$pseudotime, log1p(dat$expr)); abline(v = pos_peak[[.gene]])
     # lines((0:(len-1))/len , log1p(preds_uncentered[,.gene]))
     # 
-    # plot(dat$pseudotime_centered, dat$prob, lab = c(10,5,7)); abline(v = .5)
+    # plot(dat$pseudotime_centered, dat$expr, lab = c(10,5,7)); abline(v = .5)
     
     
-    mgcv::gam(prob ~ s(pseudotime_centered, k = 6, bs = 'cc'),
-              data = dat, family = mgcv::nb(link = "log"))
+    mgcv::gam(expr ~ s(pseudotime_centered, k = 6, bs = 'cc'),
+              data = dat,
+              family = gaussian())
     
   }) |>
   setNames(high_genes)

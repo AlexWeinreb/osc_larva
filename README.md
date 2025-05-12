@@ -301,8 +301,8 @@ These are used for clustering, along with scVelo.
 
 `step_2a_gam_binom.R` is to be run on cluster as dsq jobarray, called from dSQ. Contents:
 * load intermediates from step 1 `250502_step1`
-* prefilter, run ElPiGraph and a GAM with NB family, save the models, descriptors, smooth fits
-* save intermediates in "intermediates/2502/250502_step2"
+* prefilter, run ElPiGraph and a GAM with Gaussian family (on SCT), save the models, descriptors, smooth fits
+* save intermediates in "intermediates/2502/250512_step2"
 
 
 
@@ -311,7 +311,7 @@ Jobfile created with:
 ```r
 paste("module load R; Rscript R/step_2a_gam_nb.R",
        "--dir_step1 'intermediates/2502/250502_step1'",
-      "--out_dir 'intermediates/2502/250502_step2'",
+      "--out_dir 'intermediates/2502/250512_step2'",
       "--i", seq_along(list.files('intermediates/2502/250502_step1', pattern = "_seu\\.qs$")),
       "--prop_thres 0.05 --cnt_thres 20",
       "--nb_subsamples_ptDE 10") |>
@@ -325,8 +325,10 @@ ml dSQ; dsq --job-file joblists/step_2a_gam.dsq.txt  --cpus-per-task 1 --mem 5G 
 ```
 
 Notes:
+* i=60, cell_type="sperm" failed, was rerun manually (same parameters, unclear why it failed)
 * previously used pseudotimeDE at this step, along with filtering on curve shape as step 3. No longer useful: most/all genes appear DE with pseudotime, replace with simple GAM and curve shape filtering. Keeping state of repo at that point in branch `pseudotimede`.
 * used binomial fit in some versions
+* later used NB-GAM on raw counts: it seems prefereable to use Gaussian GAM on SCTransformed data (the difference is not obvious)
 * bootstraps on dtw in previous version: wasn't obviously a better predictor than the dtw distance itself
 
 
@@ -453,9 +455,10 @@ Tests and manual version in `test_scVelo.R` (not used).
 
 ### Clustering
 
-TO UPDATE with scVelo
 
 Compare clusterings, 10 replicates, use replicate number as seed.
+
+Test different combinations
 
 ```
 paste("module load R; Rscript R/compare_clustering_methods.R",
@@ -465,7 +468,7 @@ paste("module load R; Rscript R/compare_clustering_methods.R",
 ```
 
 ```
-ml dSQ; dsq --job-file joblists/compare_clustering_methods.dsq.txt --cpus-per-task 1 --mem 5G --time 20:10:00 --partition day; ml unload dSQ
+ml dSQ; dsq --job-file joblists/compare_clustering_methods.dsq.txt --cpus-per-task 1 --mem 40G --time 20:10:00 --partition day; ml unload dSQ
 ```
 
 
