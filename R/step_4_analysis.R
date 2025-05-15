@@ -25,7 +25,7 @@ opar <- par(no.readonly = TRUE)
 out_dir <- "presentations/2503_figures/"
 
 
-dir_assembled <- "intermediates/2502/250328_assembled/"
+dir_assembled <- "intermediates/2502/250508_assembled/"
 
 
 dir_step3 <- "intermediates/2502/250425_step3_genes_by_celltype/"
@@ -36,7 +36,7 @@ dir_step2_clust <- "intermediates/2502/250422_step2_nb_centered/"
 
 
 # Clusters and whether they are phasic according to bulk
-bulk_cat <- qs::qread(file.path(dir_assembled, "250330_coherence_by_ct.qs")) |>
+bulk_cat <- qs::qread(file.path(dir_assembled, "250508_coherence_by_ct.qs")) |>
   mutate(bulk = case_when(
     p_adj < .05 & mean_coherence > 0.15 ~ "phasic",
     p_adj >= .05 | mean_coherence <= 0.15 ~ "nonphasic"
@@ -1049,6 +1049,285 @@ Seurat::FeaturePlot(amphso_subseu,
                     pt.size = 2, #min.cutoff = 0,max.cutoff = 1,
                     alpha = .5) +
   ggtitle(goi, "AM/PHso")
+
+
+
+
+# Illustrate GAM ----
+dir_step2 <- "intermediates/2502/250512_step2/"
+
+
+
+
+smooth_preds <- list.files(dir_step2,
+                           pattern = "_preds\\.qs$") |>
+  enframe(value = "filename",
+          name = NULL) |>
+  separate_wider_regex(filename,
+                       patterns = c(
+                         cell_type = "^.+",
+                         "_preds\\.qs"
+                       ),
+                       cols_remove = FALSE) |>
+  pmap(\(cell_type, filename){
+    mat_preds <- qs::qread(file.path(dir_step2,
+                                     filename))
+    colnames(mat_preds) <- paste0(cell_type, "|", colnames(mat_preds))
+    
+    mat_preds
+  }) |>
+  do.call(cbind, args = _)
+
+
+
+matplot(smooth_preds[,1:200], type = "l")
+
+
+mods_uncentered <- qs::qread(file.path(dir_step2, paste0("ILso", "_mods_uncentered.qs")))
+
+
+plot(mods_uncentered[[goi]])
+
+goi <- "pugs-11"
+mod <- mods_uncentered[[goi]]
+
+ggplot() +
+  theme_classic() +
+  ylab("Expression (SCT)") +
+  geom_point(aes(x = pseudotime,
+                 y = count),
+             data = tibble(pseudotime = mod$model$pseudotime,
+                           count = mod$y),
+             alpha = .2,
+             size = 3,
+             shape = 16) +
+  geom_line(aes(x = pseudotime,
+                y = prediction),
+            data = tibble(pseudotime = mod$model$pseudotime,
+                          prediction = mod$fitted.values),
+            color = 'red3') +
+  ggtitle(goi)
+
+# ggsave(paste0("gam_ILso_", goi, ".pdf"),
+#        path = "presentations/250514_gams",
+#        width = 30, height = 30, units = "mm",
+#        scale = 5)
+
+
+
+
+
+dat <- data.frame(
+  expr = mat_sct[goi,],
+  pseudotime = pseudotime/max(pseudotime)
+)
+
+
+mod2 <- mgcv::gam(expr ~ s(pseudotime, k = 4, bs = 'cc'),
+          data = mod$model,
+          family = gaussian())
+
+
+
+ggplot() +
+  theme_classic() +
+  ylab("Expression (SCT)") +
+  geom_point(aes(x = pseudotime,
+                 y = count),
+             data = tibble(pseudotime = mod2$model$pseudotime,
+                           count = mod2$y),
+             alpha = .2,
+             size = 3,
+             shape = 16) +
+  geom_line(aes(x = pseudotime,
+                y = prediction),
+            data = tibble(pseudotime = mod2$model$pseudotime,
+                          prediction = mod2$fitted.values),
+            color = 'red3') +
+  ggtitle(goi)
+
+
+
+
+
+
+mod2 <- mgcv::gam(expr ~ s(pseudotime, k = 6, bs = 'cc'),
+          data = data.frame(
+            expr = mat_sct[.gene,],
+            pseudotime = pseudotime/max(pseudotime)
+          ),
+          family = gaussian())
+
+
+ggplot() +
+  theme_classic() +
+  ylab("Expression (SCT)") +
+  geom_point(aes(x = pseudotime,
+                 y = count),
+             data = tibble(pseudotime = mod2$model$pseudotime,
+                           count = mod2$y),
+             alpha = .2,
+             size = 3,
+             shape = 16) +
+  geom_line(aes(x = pseudotime,
+                y = prediction),
+            data = tibble(pseudotime = mod2$model$pseudotime,
+                          prediction =  mod2$fitted.values ),
+            color = 'red3') +
+  ggtitle(.gene)
+
+# NB-GAM
+mod2 <- mgcv::gam(expr ~ s(pseudotime, k = 6, bs = 'cc'),
+                  data = data.frame(
+                    expr = GetAssayData(seu, assay = "SCT", layer = "data")[.gene,],
+                    pseudotime = pseudotime/max(pseudotime)
+                  ),
+                  family = mgcv::nb(link = "log"))
+
+mod2 <- mgcv::gam(expr ~ s(pseudotime, k = 6, bs = 'cc'),
+                  data = data.frame(
+                    expr = GetAssayData(seu, assay = "RNA", layer = "counts")[.gene,],
+                    pseudotime = pseudotime/max(pseudotime)
+                  ),
+                  family = mgcv::nb(link = "log"))
+
+
+
+ggplot() +
+  theme_classic() +
+  ylab("Expression (log-count)") +
+  geom_point(aes(x = pseudotime,
+                 y = count),
+             data = tibble(pseudotime = mod2$model$pseudotime,
+                           count = log10(1 + mod2$model$expr  )),
+             alpha = .2,
+             size = 3,
+             shape = 16) +
+  geom_line(aes(x = pseudotime,
+                y = prediction),
+            data = tibble(pseudotime = mod2$model$pseudotime,
+                          prediction = log10( 1 + mod2$fitted.values  )),
+            color = 'red3') +
+  ggtitle(.gene)
+
+
+goi <- names(mods_uncentered)[[1]]
+# with size factors
+nf <- edgeR::calcNormFactors(mat_cnt)
+size_factors <- colSums(mat_cnt) * nf
+
+# goi<- sample(high_genes,1)
+# goi
+
+mod2 <- mgcv::gam(expr ~ s(pseudotime, k = 6, bs = 'cc') + offset(log(size_factors)),
+          data = data.frame(
+            expr = mat_cnt[goi,],
+            pseudotime = pseudotime/max(pseudotime)
+          ),
+          family = mgcv::nb(link = "log"))
+
+
+
+ggplot() +
+  theme_classic() +
+  ylab("Expression (log-count)") +
+  geom_point(aes(x = pseudotime,
+                 y = count),
+             data = tibble(pseudotime = mod2$model$pseudotime,
+                           count = log10(1 + mod2$model$expr / exp(mod2$model$`offset(log(size_factors))`) )),
+             alpha = .2,
+             size = 3,
+             shape = 16) +
+  geom_line(aes(x = pseudotime,
+                y = prediction),
+            data = tibble(pseudotime = mod2$model$pseudotime,
+                          prediction = log10( 1 + mod2$fitted.values / exp(mod2$model$`offset(log(size_factors))`) )),
+            color = 'red3') +
+  ggtitle(goi)
+
+
+
+
+ggplot() +
+  theme_classic() +
+  ylab("Expression (log-count)") +
+  geom_point(aes(x = pseudotime,
+                 y = count),
+             data = tibble(pseudotime = mod2$model$pseudotime,
+                           count = log10(1 + mod2$model$expr / exp(mod2$model$`offset(log(size_factors))`) )),
+             alpha = .2,
+             size = 3,
+             shape = 16) +
+  geom_line(aes(x = pseudotime,
+                y = prediction),
+            data = tibble(
+              pseudotime = (0:(len-1))/len,
+              prediction = log10(1 + preds_uncentered[,goi] / mean_sf)
+            ),
+            color = 'red3')
+
+
+
+
+
+
+
+# offset as argument
+mod2 <- mgcv::gam(expr ~ s(pseudotime, k = 6, bs = 'cc'),
+                  offset = offset(log(size_factors)),
+                  data = data.frame(
+                    expr = mat_cnt[goi,],
+                    pseudotime = pseudotime/max(pseudotime)
+                  ),
+                  family = mgcv::nb(link = "log"))
+
+
+
+ggplot() +
+  theme_classic() +
+  ylab("Expression (log-count)") +
+  geom_point(aes(x = pseudotime,
+                 y = count),
+             data = tibble(pseudotime = mod2$model$pseudotime,
+                           count = log10(1 + mod2$model$expr / exp(mod2$model$`(offset)`) )),
+             alpha = .2,
+             size = 3,
+             shape = 16) +
+  geom_line(aes(x = pseudotime,
+                y = prediction),
+            data = tibble(pseudotime = mod2$model$pseudotime,
+                          prediction = log10( 1 + mod2$fitted.values / exp(mod2$model$`(offset)`) )),
+            color = 'red3')
+
+
+
+ggplot() +
+  theme_classic() +
+  ylab("Expression (log-count)") +
+  geom_point(aes(x = pseudotime,
+                 y = count),
+             data = tibble(pseudotime = mod2$model$pseudotime,
+                           count = log10(1 + mod2$model$expr / exp(mod2$model$`(offset)`) )),
+             alpha = .2,
+             size = 3,
+             shape = 16) +
+  geom_line(aes(x = pseudotime,
+                y = prediction),
+            data = tibble(
+              pseudotime = (0:(len-1))/len,
+              prediction = preds_uncentered[,goi] / mean(size_factors)
+            ),
+            color = 'red3')
+
+
+
+
+goi <- names(mods_uncentered)[[1]]
+
+
+
+
+
 
 
 

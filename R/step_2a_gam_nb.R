@@ -16,7 +16,7 @@ suppressPackageStartupMessages( library(Seurat) )
 library("ElPiGraph.R")
 
 
-source("R/utils_fit.R") # -> circ_perm_i()
+source("R/utils_fit.R") # -> circ_perm_mat()
 
 library(getopt)
 
@@ -38,7 +38,7 @@ if(! interactive()){
   # Options for interactive
   params <- list(
     dir_step1 = "intermediates/2502/250502_step1",
-    out_dir = "intermediates/2502/250512_step2_nb",
+    out_dir = "intermediates/2502/250514_step2_nb",
     i = 8,
     prop_thres = 0.1,
     cnt_thres = 30,
@@ -212,8 +212,10 @@ pseudotime <- getPseudotime(ProjStruct = ProjStruct, NodeSeq = names(subgraph))[
 #~  GAM uncentered ----
 message("---- fit GAM uncentered")
 
-# mat_cnt <- GetAssayData(seu, assay = "RNA", layer = "count")[high_genes,]
-mat_sct <- GetAssayData(seu, assay = "SCT", layer = "data")[high_genes,]
+mat_cnt <- GetAssayData(seu, assay = "RNA", layer = "count")[high_genes,]
+
+nf <- edgeR::calcNormFactors(mat_cnt)
+size_factors <- colSums(mat_cnt) * nf
 
 
 mods_uncentered <- lapply(
@@ -221,23 +223,28 @@ mods_uncentered <- lapply(
   \(.gene){
     
     dat <- data.frame(
-      expr = mat_sct[.gene,],
+      expr = mat_cnt[.gene,],
       pseudotime = pseudotime/max(pseudotime)
     )
     
     
-    mgcv::gam(expr ~ s(pseudotime, k = 6, bs = 'cc'),
+    mgcv::gam(expr ~ s(pseudotime, k = 6, bs = 'cc') + offset(log(size_factors)),
               data = dat,
-              family = gaussian())
+              family = mgcv::nb(link = "log"))
     
   }) |>
   setNames(high_genes)
 
 # predictions
+mean_sf <- exp(mean(log(size_factors)))
+
 preds_uncentered <- vapply(mods_uncentered,
                     \(.mod) predict(.mod,
                                     type = "response",
-                                    newdata = data.frame(pseudotime = (0:(len-1))/len )),
+                                    newdata = data.frame(
+                                      pseudotime = (0:(len-1))/len ,
+                                      size_factors = rep(mean_sf, len))
+                                    ),
                     FUN.VALUE = double(len))
 
 
@@ -247,10 +254,11 @@ message("---- fit GAM centered")
 
 pos_peak <- apply(preds_uncentered, 2, which.max) / len
 
-# preds_uncentered <- preds_uncentered[,1:20]
-# ngenes <- ncol(preds_uncentered)
-# printMat::matimage(log1p(preds_uncentered))
-# points((1:ngenes - 1)/(ngenes - 1), (1 - pos_peak), pch = "-", cex = 3.5, col = 'purple')
+# preds_uncentered1 <- preds_uncentered[,1:20]
+# pos_peak1 <- pos_peak[1:20]
+# ngenes <- ncol(preds_uncentered1)
+# printMat::matimage(log1p(preds_uncentered1))
+# points((1:ngenes - 1)/(ngenes - 1), (1 - pos_peak1), pch = "-", cex = 3.5, col = 'purple')
 
 
 mods_centered <- lapply(
@@ -258,7 +266,7 @@ mods_centered <- lapply(
   \(.gene){
     
     dat <- data.frame(
-      expr = mat_sct[.gene,],
+      expr = mat_cnt[.gene,],
       pseudotime = pseudotime/max(pseudotime)
     )
     
@@ -271,9 +279,9 @@ mods_centered <- lapply(
     # plot(dat$pseudotime_centered, dat$expr, lab = c(10,5,7)); abline(v = .5)
     
     
-    mgcv::gam(expr ~ s(pseudotime_centered, k = 6, bs = 'cc'),
+    mgcv::gam(expr ~ s(pseudotime_centered, k = 6, bs = 'cc') + offset(log(size_factors)),
               data = dat,
-              family = gaussian())
+              family = mgcv::nb(link = "log"))
     
   }) |>
   setNames(high_genes)
@@ -283,12 +291,15 @@ mods_centered <- lapply(
 preds_centered <- vapply(mods_centered,
                            \(.mod) predict(.mod,
                                            type = "response",
-                                           newdata = data.frame(pseudotime_centered = (0:(len-1))/len )),
+                                           newdata = data.frame(
+                                             pseudotime_centered = (0:(len-1))/len ,
+                                             size_factors = rep(mean_sf, len))
+                           ),
                            FUN.VALUE = double(len))
 
 
 
-# apply(preds_centered, 2, which.max)
+# apply(preds_centered, 2, which.max) |> hist(breaks = 128)
 # len / 2
 
 # ngenes <- ncol(preds_centered)
@@ -297,6 +308,12 @@ preds_centered <- vapply(mods_centered,
 #        y = (1 - apply(preds_centered, 2, which.max) / len), pch = "-", cex = 3.5, col = 'purple')
 
 
+# xx <- which( apply(preds_centered, 2, which.max) - len/2 > .3*len )
+# xx <- sort(c(xx-1, xx))
+# printMat::matimage(log1p(preds_centered[,xx]))
+# points((1:length(xx) - 1)/(length(xx) - 1),
+#        y = (1 - apply(preds_centered, 2, which.max) / len)[xx],
+#        pch = "-", cex = 3.5, col = 'purple')
 
 
 
@@ -326,6 +343,10 @@ stopifnot(
 )
 
 
+preds_scaled <- apply(preds_centered, 2, \(x) x/max(x) )
+
+# printMat::matimage(log1p(preds_centered))
+# printMat::matimage(preds_scaled)
 
 
 
@@ -361,6 +382,8 @@ res$mse <- vapply(
 #~~ curve descriptors ----
 message("  ---- curve descriptors")
 
+res$max_peak <- matrixStats::colMaxs(preds_centered)
+
 res$amplitude <- apply( preds_centered, 2,
                         \(.x) diff(range(.x)) )
 
@@ -374,15 +397,17 @@ res$area_under_curve <- apply( preds_centered, 2,
                                \(.y) pracma::trapz(seq_along(.y), .y) )
 
 
+res$asymmetry <- apply(
+  preds_scaled, 2,
+  \(x) sum( ( x-rev(x) )^2 )
+)
+
 
 
 #~~ dtw ----
 message("  ---- dtw")
 
-preds_scaled <- apply(preds_centered, 2, \(x) x/max(x) )
 
-# printMat::matimage(log1p(preds_centered))
-# printMat::matimage(preds_scaled)
 
 
 # reference curve
