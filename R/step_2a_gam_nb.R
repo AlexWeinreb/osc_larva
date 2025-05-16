@@ -239,13 +239,13 @@ mods_uncentered <- lapply(
 mean_sf <- exp(mean(log(size_factors)))
 
 preds_uncentered <- vapply(mods_uncentered,
-                    \(.mod) predict(.mod,
-                                    type = "response",
-                                    newdata = data.frame(
-                                      pseudotime = (0:(len-1))/len ,
-                                      size_factors = rep(mean_sf, len))
-                                    ),
-                    FUN.VALUE = double(len))
+                           \(.mod) predict(.mod,
+                                           type = "response",
+                                           newdata = data.frame(
+                                             pseudotime = (0:(len-1))/len ,
+                                             size_factors = rep(mean_sf, len))
+                           ),
+                           FUN.VALUE = double(len))
 
 
 
@@ -289,13 +289,13 @@ mods_centered <- lapply(
 
 
 preds_centered <- vapply(mods_centered,
-                           \(.mod) predict(.mod,
-                                           type = "response",
-                                           newdata = data.frame(
-                                             pseudotime_centered = (0:(len-1))/len ,
-                                             size_factors = rep(mean_sf, len))
-                           ),
-                           FUN.VALUE = double(len))
+                         \(.mod) predict(.mod,
+                                         type = "response",
+                                         newdata = data.frame(
+                                           pseudotime_centered = (0:(len-1))/len ,
+                                           size_factors = rep(mean_sf, len))
+                         ),
+                         FUN.VALUE = double(len))
 
 
 
@@ -306,7 +306,7 @@ preds_centered <- vapply(mods_centered,
 # printMat::matimage(log1p(preds_centered))
 # points((1:ngenes - 1)/(ngenes - 1),
 #        y = (1 - apply(preds_centered, 2, which.max) / len), pch = "-", cex = 3.5, col = 'purple')
-
+# abline(h = .5, lty = 'dotted')
 
 # xx <- which( apply(preds_centered, 2, which.max) - len/2 > .3*len )
 # xx <- sort(c(xx-1, xx))
@@ -314,6 +314,46 @@ preds_centered <- vapply(mods_centered,
 # points((1:length(xx) - 1)/(length(xx) - 1),
 #        y = (1 - apply(preds_centered, 2, which.max) / len)[xx],
 #        pch = "-", cex = 3.5, col = 'purple')
+
+
+
+#~ transformations ----
+
+preds_recentered <- circ_perm_mat(preds_centered)
+
+# ngenes <- ncol(preds_recentered)
+# printMat::matimage(log1p(preds_recentered))
+# points((1:ngenes - 1)/(ngenes - 1),
+#        y = (1 - apply(preds_recentered, 2, which.max) / len), pch = "-", cex = 3.5, col = 'purple')
+# abline(h = .5, lty = 'dotted')
+
+
+
+
+preds_scaled <- apply(preds_recentered, 2, \(x) x/max(x) )
+
+# printMat::matimage(log1p(preds_recentered))
+# printMat::matimage(preds_scaled)
+
+
+
+
+max_measured <- MatrixGenerics::rowMaxs(mat_cnt)
+
+stopifnot(all.equal(
+  names(max_measured),
+  colnames(preds_recentered)
+))
+
+preds_clipped <- matrix(NA_real_, nrow = nrow(preds_recentered), ncol = ncol(preds_recentered))
+
+for(i in 1:ncol(preds_recentered)) {
+  preds_clipped[,i] <- pmin(preds_recentered[,i],
+                            1.1 * max_measured[[i]])
+}
+
+# printMat::matimage(log1p(preds_recentered))
+# printMat::matimage(log1p(preds_clipped))
 
 
 
@@ -330,7 +370,7 @@ stopifnot(
   ) &&
     identical(
       high_genes,
-      colnames(preds_centered)
+      colnames(preds_recentered)
     ) &&
     identical(
       high_genes,
@@ -342,11 +382,6 @@ stopifnot(
     )
 )
 
-
-preds_scaled <- apply(preds_centered, 2, \(x) x/max(x) )
-
-# printMat::matimage(log1p(preds_centered))
-# printMat::matimage(preds_scaled)
 
 
 
@@ -382,9 +417,9 @@ res$mse <- vapply(
 #~~ curve descriptors ----
 message("  ---- curve descriptors")
 
-res$max_peak <- matrixStats::colMaxs(preds_centered)
+res$max_peak <- matrixStats::colMaxs(preds_recentered)
 
-res$amplitude <- apply( preds_centered, 2,
+res$amplitude <- apply( preds_recentered, 2,
                         \(.x) diff(range(.x)) )
 
 res$dev_expl <- vapply(
@@ -393,7 +428,7 @@ res$dev_expl <- vapply(
   FUN.VALUE = double(1L)
 )
 
-res$area_under_curve <- apply( preds_centered, 2,
+res$area_under_curve <- apply( preds_recentered, 2,
                                \(.y) pracma::trapz(seq_along(.y), .y) )
 
 
@@ -401,6 +436,22 @@ res$asymmetry <- apply(
   preds_scaled, 2,
   \(x) sum( ( x-rev(x) )^2 )
 )
+
+
+res$baseline <- apply(
+  preds_recentered, 2,
+  \(expr){
+    
+    starts <- seq_len(.1*len)
+    ends <- rev(len - starts + 1)
+    
+    x <- c(starts, ends)
+    y <- expr[x]
+    
+    mean(y)
+  }
+)
+
 
 
 
@@ -443,6 +494,8 @@ qs::qsave(res,
 qs::qsave(preds_uncentered,
           file.path(params$out_dir, paste0(cell_type, "_preds.qs")))
 
+qs::qsave(preds_clipped,
+          file.path(params$out_dir, paste0(cell_type, "_preds_cent_clipped.qs")))
 
 
 # in case

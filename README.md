@@ -304,6 +304,10 @@ These are used for clustering, along with scVelo.
 * prefilter, run ElPiGraph and a NB-GAM (with size factors), save the models, descriptors, smooth fits
 * save intermediates in "intermediates/2502/250512_step2"
 
+Outputs:
+* `{cell_type}_descriptors.qs` used for clustering (step 3)
+* `{cell_type}_preds.qs` (uncentered smooth) and `{cell_type}_preds_cent_clipped.qs` (centered, clipped smooth), for plotting
+* the model objects from `mgcv::gam` (shouldn't be needed)
 
 
 
@@ -311,7 +315,7 @@ Jobfile created with:
 ```r
 paste("module load R; Rscript R/step_2a_gam_nb.R",
        "--dir_step1 'intermediates/2502/250502_step1'",
-      "--out_dir 'intermediates/2502/250514_step2'",
+      "--out_dir 'intermediates/2502/250516_step2'",
       "--i", seq_along(list.files('intermediates/2502/250502_step1', pattern = "_seu\\.qs$")),
       "--prop_thres 0.05 --cnt_thres 20",
       "--nb_subsamples_ptDE 10") |>
@@ -329,6 +333,7 @@ Notes:
 * previously used pseudotimeDE at this step, along with filtering on curve shape as step 3. No longer useful: most/all genes appear DE with pseudotime, replace with simple GAM and curve shape filtering. Keeping state of repo at that point in branch `pseudotimede`.
 * used binomial fit in some versions, later used NB-GAM on raw counts without offset, and Gaussian GAM on SCT data
 * bootstraps on dtw in previous version: wasn't obviously a better predictor than the dtw distance itself
+
 
 
 
