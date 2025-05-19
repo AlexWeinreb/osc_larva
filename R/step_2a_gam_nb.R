@@ -212,10 +212,11 @@ pseudotime <- getPseudotime(ProjStruct = ProjStruct, NodeSeq = names(subgraph))[
 #~  GAM uncentered ----
 message("---- fit GAM uncentered")
 
-mat_cnt <- GetAssayData(seu, assay = "RNA", layer = "count")[high_genes,]
+mat_cnt_all <- GetAssayData(seu, assay = "RNA", layer = "count")
+mat_cnt <- mat_cnt_all[high_genes,]
 
-nf <- edgeR::calcNormFactors(mat_cnt)
-size_factors <- colSums(mat_cnt) * nf
+nf <- edgeR::calcNormFactors(mat_cnt_all)
+size_factors <- colSums(mat_cnt_all) * nf
 
 
 mods_uncentered <- lapply(
@@ -345,7 +346,10 @@ stopifnot(all.equal(
   colnames(preds_recentered)
 ))
 
-preds_clipped <- matrix(NA_real_, nrow = nrow(preds_recentered), ncol = ncol(preds_recentered))
+preds_clipped <- matrix(NA_real_,
+                        nrow = nrow(preds_recentered),
+                        ncol = ncol(preds_recentered),
+                        dimnames = dimnames(preds_recentered))
 
 for(i in 1:ncol(preds_recentered)) {
   preds_clipped[,i] <- pmin(preds_recentered[,i],

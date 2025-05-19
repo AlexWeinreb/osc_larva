@@ -315,7 +315,7 @@ Jobfile created with:
 ```r
 paste("module load R; Rscript R/step_2a_gam_nb.R",
        "--dir_step1 'intermediates/2502/250502_step1'",
-      "--out_dir 'intermediates/2502/250516_step2'",
+      "--out_dir 'intermediates/2502/250519_step2'",
       "--i", seq_along(list.files('intermediates/2502/250502_step1', pattern = "_seu\\.qs$")),
       "--prop_thres 0.05 --cnt_thres 20",
       "--nb_subsamples_ptDE 10") |>
@@ -325,7 +325,7 @@ paste("module load R; Rscript R/step_2a_gam_nb.R",
 
 Job prepared with:
 ```
-ml dSQ; dsq --job-file joblists/step_2a_gam.dsq.txt  --cpus-per-task 1 --mem 5G --time 00:20:00 --partition day
+ml dSQ; dsq --job-file joblists/step_2a_gam.dsq.txt  --cpus-per-task 1 --mem 15G --time 00:20:00 --partition day
 ```
 
 Notes:
