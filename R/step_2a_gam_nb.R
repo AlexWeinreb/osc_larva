@@ -442,21 +442,27 @@ res$asymmetry <- apply(
 )
 
 
-res$baseline <- apply(
-  preds_recentered, 2,
-  \(expr){
-    
-    starts <- seq_len(.1*len)
-    ends <- rev(len - starts + 1)
-    
-    x <- c(starts, ends)
-    y <- expr[x]
-    
-    mean(y)
-  }
-)
+# res$baseline <- apply(
+#   preds_recentered, 2,
+#   \(expr){
+#     
+#     starts <- seq_len(.1*len)
+#     ends <- rev(len - starts + 1)
+#     
+#     x <- c(starts, ends)
+#     y <- expr[x]
+#     
+#     mean(y)
+#   }
+# )
 
-
+res$baseline <- apply(smooth_centered, 2,
+                      \(x){
+                        x |>
+                          sort() |>
+                          head(.2 * len) |>
+                          mean()
+                      })
 
 
 #~~ dtw ----
