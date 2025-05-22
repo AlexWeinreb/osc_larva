@@ -1,0 +1,4 @@
+#module load R; Rscript R/compare_kmeans_script.R --which methods
+module load R; Rscript R/compare_kmeans_script.R --which nb_clust_pca
+module load R; Rscript R/compare_kmeans_script.R --which nb_clust_som
+#module load R; Rscript R/compare_kmeans_script.R --which columns

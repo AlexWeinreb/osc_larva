@@ -4,7 +4,7 @@
 
 library(tidyverse)
 
-dir_step2 <- "intermediates/2502/250422_step2_nb_centered/"
+dir_step2 <- "intermediates/2502/250502_step2/"
 
 results <- list.files(dir_step2, pattern = "compare_clusterings") |>
   map_dfr(~{
@@ -22,26 +22,113 @@ results <- list.files(dir_step2, pattern = "compare_clusterings") |>
 
 results
 
-
+# show everything
 results |>
-  mutate(centers = as.factor(centers),
-         leiden_res = as.factor(leiden_res),
-         param = if_else(method == "leiden",
-                         leiden_res,
-                         centers)) |>
-  pivot_longer(cols = 6:8,
-               names_to = "metric") |>
-  filter(metric == "silhouette") |>
+  mutate(nb_clust = as.factor(nb_clust),
+         nb_pcs = as.factor(nb_pcs)) |>
+  pivot_longer(cols = starts_with("m_"),
+               names_to = "metric",
+               names_prefix = "m_") |>
+  # filter(metric == "silhouette") |>
   ggplot() +
   theme_classic() +
   theme(axis.text.x = element_text(angle = 40, vjust = 1, hjust=1)) +
-  facet_grid(rows = vars(pca),
-             cols = vars(columns),
+  facet_grid(rows = vars(metric),
+             cols = vars(method),
              scales = "free_y") +
-  geom_boxplot(aes(x = param, y = value, fill = method))
+  geom_boxplot(aes(x = nb_clust, y = value, fill = nb_pcs))
+
+# single method and metric
+results |>
+  mutate(nb_clust = as.factor(nb_clust),
+         nb_pcs = as.factor(nb_pcs)) |>
+  pivot_longer(cols = starts_with("m_"),
+               names_to = "metric",
+               names_prefix = "m_") |>
+  filter(metric == "silhouette",
+         method == "kmeans") |>
+  ggplot() +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 40, vjust = 1, hjust=1)) +
+  geom_boxplot(aes(x = nb_clust, y = value, fill = nb_pcs))
+
+
+# single method and metric
+results |>
+  mutate(nb_clust = as.factor(nb_clust),
+         nb_pcs = as.factor(nb_pcs)) |>
+  pivot_longer(cols = starts_with("m_"),
+               names_to = "metric",
+               names_prefix = "m_") |>
+  filter(metric == "davies_bouldin",
+         method == "kmeans") |>
+  summarize(mean_val = mean(value),
+            sd_val = sd(value),
+            .by = c(nb_clust, nb_pcs)) |>
+  ggplot() +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 40, vjust = 1, hjust=1)) +
+  geom_point(aes(x = nb_clust, y = mean_val, color = nb_pcs),
+             position = position_dodge(.8)) +
+  geom_errorbar(aes(x = nb_clust,
+                    ymin = mean_val-sd_val,
+                    ymax = mean_val+sd_val,
+                    color = nb_pcs),
+                position = position_dodge(.8)) +
+  geom_line(aes(x = nb_clust, y = mean_val, color = nb_pcs,
+                group = nb_pcs),
+             position = position_dodge(.8))
 
 
 
+
+# 3d
+
+results |>
+  mutate(nb_clust = as.factor(nb_clust),
+         nb_pcs = as.factor(nb_pcs)) |>
+  pivot_longer(cols = starts_with("m_"),
+               names_to = "metric",
+               names_prefix = "m_") |>
+  filter(metric == "silhouette") |>
+  plotly::plot_ly(x = ~nb_clust, y = ~nb_pcs, z = ~value,
+                  type = "scatter3d",
+                  mode = "markers",
+                  opacity = .2)
+
+results |>
+  mutate(nb_clust = as.factor(nb_clust),
+         nb_pcs = as.factor(nb_pcs)) |>
+  pivot_longer(cols = starts_with("m_"),
+               names_to = "metric",
+               names_prefix = "m_") |>
+  filter(metric == "silhouette",
+         method == "kmeans") |>
+  summarize(mean_val = mean(value),
+            .by = c(nb_clust, nb_pcs)) |>
+  plotly::plot_ly(x = ~nb_clust, y = ~nb_pcs, z = ~mean_val,
+                  type = "scatter3d",
+                  mode = "markers",
+                  opacity = .2)
+
+
+results |>
+  mutate(nb_clust = as.factor(nb_clust),
+         nb_pcs = as.factor(nb_pcs)) |>
+  pivot_longer(cols = starts_with("m_"),
+               names_to = "metric",
+               names_prefix = "m_") |>
+  filter(metric == "silhouette",
+         method == "kmeans") |>
+  summarize(mean_val = mean(value),
+            .by = c(nb_clust, nb_pcs)) |>
+  plotly::plot_ly(x = ~nb_clust, y = ~nb_pcs, z = ~mean_val,
+                  intensity  = ~mean_val,
+                  colors = colorRamp(c("blue", "green", "red")),
+                  type = "mesh3d")
+
+
+#####
 results |>
   mutate(centers = as.factor(centers),
          leiden_res = as.factor(leiden_res),
