@@ -4,14 +4,16 @@ library(tidyverse) |> suppressPackageStartupMessages()
 library(Seurat) |> suppressPackageStartupMessages()
 
 
-source("https://raw.githubusercontent.com/yanailab/knn-smoothing/refs/heads/master/knn_smooth.R")
+# cloned for reproducibility
+# source("https://raw.githubusercontent.com/yanailab/knn-smoothing/refs/heads/master/knn_smooth.R")
+source("https://raw.githubusercontent.com/AlexWeinreb/knn-smoothing/refs/heads/master/knn_smooth.R")
 
 
-# library(wbData)
 
 
-dir_assembled <- "intermediates/2502/250328_assembled/"
-dir_out <- "intermediates/2502/250502_step1"
+
+dir_assembled <- "intermediates/2502/250509_assembled/"
+dir_out <- "intermediates/2502/250522_step1"
 
 
 
@@ -21,7 +23,7 @@ dir_out <- "intermediates/2502/250502_step1"
 
 # Load ----
 
-seu <- qs::qread( file.path(dir_assembled, "250329_seu_all_herma.qs"))
+seu <- qs::qread( file.path(dir_assembled, "250509_seu_all_herma.qs"))
 
 
 
@@ -42,12 +44,12 @@ for(.ct in cell_types ){
   
   message("---------  ", .ct, "  ---------")
   
-  sub <- subset(seu, idents = .ct)
+  subseu <- subset(seu, cell_type == .ct)
   
   
   
   #~ gene expression ----
-  cnts_raw <- GetAssayData(sub, assay = "RNA", layer = "counts")
+  cnts_raw <- GetAssayData(subseu, assay = "RNA", layer = "counts")
   
   gene_expressions <- data.frame(
     gene_name = rownames(cnts_raw),
@@ -58,29 +60,76 @@ for(.ct in cell_types ){
   
   
   
+  #~ unsmoothed ----
+  
+  message("    --- unsmoothed")
+  sub_unsmoothed <- SCTransform(subseu)|>
+    RunPCA(npcs = 2, verbose = FALSE)
+  
+  
+  gg_batch_unsmoothed <- DimPlot(sub_unsmoothed,
+                      reduction = "pca",
+                      group.by = "orig.ident",
+                      pt.size = 2,
+                      alpha = .2) +
+    NoLegend()
+  
+  
+  ggsave(paste0(.ct,"_batch_unsmoothed.png"), gg_batch_unsmoothed,
+         path = dir_out,
+         width = 7, height = 5, units = "in")
+  
+  
+  gg_phase_unsmoothed <- ggplot(FetchData(sub_unsmoothed,
+                               vars = c("PC_1", "PC_2",
+                                        "cell_phase_masked", "cell_rho"))) +
+    theme_classic() +
+    theme(legend.position = "none") +
+    scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
+                          limits = c(0, 360)) +
+    geom_point(aes(x = PC_1, y = PC_2,
+                   color = cell_phase_masked),
+               alpha = .7, size = 3, shape = 16)
+  
+  ggsave(paste0(.ct,"_phase_unsmoothed.png"), gg_phase_unsmoothed,
+         path = dir_out,
+         width = 7, height = 5, units = "in")
+  
+  
+  
+  qs::qsave(
+    sub_unsmoothed,
+    file.path(dir_out,
+              paste0(.ct, "_seu_unsmoothed.qs"))
+  )
+  
+  
+  
+  
+  
   
   #~ smooth ----
   
-  smoothed <- knn_smoothing(cnts_raw,
+  message("    --- smoothed")
+  cnts_smoothed <- knn_smoothing(cnts_raw,
                             k = 5)
   
   
-  sub <- CreateSeuratObject(smoothed |> as("dgCMatrix"),
-                            meta.data = sub[[]])
+  sub_smoothed <- CreateSeuratObject(cnts_smoothed |> as("dgCMatrix"),
+                                     meta.data = subseu[[]])
   
   
   
   
   #~ PCA ----
-  sub <- SCTransform(sub)
-  
-  sub <- RunPCA(sub, npcs = 2, verbose = FALSE)
+  sub_smoothed <- SCTransform(sub_smoothed)|>
+    RunPCA(npcs = 2, verbose = FALSE)
   
   
   
   #~ save ----
   
-  gg_batch <- DimPlot(sub,
+  gg_batch <- DimPlot(sub_smoothed,
                       reduction = "pca",
                       group.by = "orig.ident",
                       pt.size = 2,
@@ -107,36 +156,23 @@ for(.ct in cell_types ){
   #        width = 7, height = 5, units = "in")
   
   
-  gg_phase <- ggplot(FetchData(sub,
+  gg_phase <- ggplot(FetchData(sub_smoothed,
                                vars = c("PC_1", "PC_2",
                                         "cell_phase_masked", "cell_rho"))) +
     theme_classic() +
+    theme(legend.position = "none") +
     scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
                           limits = c(0, 360)) +
     geom_point(aes(x = PC_1, y = PC_2,
-                   color = cell_phase_masked,
-                   alpha = cell_rho))
+                   color = cell_phase_masked),
+               alpha = .7, size = 3, shape = 16)
   
   ggsave(paste0(.ct,"_phase.png"), gg_phase,
          path = dir_out,
          width = 7, height = 5, units = "in")
   
   
-  # gg_phase <- ggplot(FetchData(sub,
-  #                              vars = c("PC_1", "PC_2",
-  #                                       "cell_phase_masked", "cell_rho"))) +
-  #   theme_classic() +
-  #   scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
-  #                         limits = c(0, 360)) +
-  #   geom_point(aes(x = PC_1, y = PC_2,
-  #                  color = cell_phase_masked),
-  #              size = 3,
-  #              shape = 16,
-  #              alpha = .5)
-  # 
-  # ggsave(paste0(.ct,"_phase.png"), gg_phase,
-  #        path = "presentations/",
-  #        width = 7, height = 5, units = "in")
+  
   
   # # same with a continuous alpha scale
   # gg_phase_with_legend <- ggplot(FetchData(sub,

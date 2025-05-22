@@ -261,10 +261,10 @@ In `assemble_osc.R` (interactive on cluster) assemble all cell types from L2 and
 * inputs: `250313_third_processed/230318_g(1|2)_{cell_type}.qs` for each cell type and each stage
 * assemble into single big Seurat object, re-umap
 * Compute cell phases, permutation tests, add as columns in Seurat object
-  * produces several plots (copied out), several intermediates (saved in `250328_assembled`)
+  * produces several plots (copied out), several intermediates (saved in `250509_assembled`)
 * outputs:
-  * Main Seurat object saved as `250328_assembled/250329_seu_all_herma.qs`
-  * Re-exporting individual cell types in `250328_assembled/250330_cell_types/{cell_type.qs}`
+  * Main Seurat object saved as `250509_assembled/250509_seu_all_herma.qs`
+  * Re-exporting individual cell types in `250509_assembled/250330_cell_types/{cell_type.qs}`
 
 
 
@@ -274,9 +274,9 @@ In `assemble_osc.R` (interactive on cluster) assemble all cell types from L2 and
 
 
 In `R/step_1a_preproc_ct.R`, called with `src/step_1a_preproc_ct.sh`:
-* inputs: Seurat object `250328_assembled/250329_seu_all_herma.qs` from assembled
-* impute, run SCT, run PCA
-* outputs in `250502_step1` for each cell type
+* inputs: Seurat object `250509_assembled/250509_seu_all_herma.qs` from assembled
+* impute or not, run SCT, run PCA; save plots and objects
+* outputs in `250522_step1` for each cell type
 
 
 note: `250330_step1`: only kept cell types with cells from L2 and L4. `250502`: process all cell types with > 20 cells.
@@ -293,7 +293,7 @@ We use the peak of the uncentered to run a second fit, on a pre-centered curve. 
 * descriptors of the smooth curve (amplitude, auc, ...)
 * similarity of smooth curve to thin peak (DTW distance)
 
-These are used for clustering, along with scVelo.
+These are used for clustering.
 
 
 
