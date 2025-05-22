@@ -14,17 +14,12 @@ dir_step2 <- "intermediates/2502/250519_step2/"
 predictors <- list.files(dir_step2,
                          pattern = "_descriptors\\.qs$") |>
   map_dfr(~qs::qread(file.path(dir_step2, .x))) |>
-  as_tibble()
+  as_tibble() |>
+  mutate(cellgene = paste0(cell_type, "|", gene_name))
 
 
-message("Selecting cell-genes")
-std_cutoff <- .2
-hist(predictors$dev_expl); abline(v = std_cutoff, lty = 'dashed', lwd = 2)
-table(predictors$dev_expl > std_cutoff)
 
-predictors_sel <- predictors |>
-  mutate(cellgene = paste0(cell_type, "|", gene_name)) |>
-  filter(dev_expl > std_cutoff)
+
 
 
 
@@ -44,26 +39,29 @@ message("Scaling predictors")
 # plot(predictors_sel$dist_dtw, exp(-.05 * predictors_sel$dist_dtw))
 # 
 # 
-# # we don't want asymmetric curves. Looks like above 1 is displaying quite a bit of asymmetry
+# # avoid asymmetric curves
 # hist(predictors_sel$asymmetry)
 # plot(predictors_sel$asymmetry, exp(- .2 * predictors_sel$asymmetry), log = "x")
+## > not using: the more highly expressed genes can have quite a bit of asymmetry
+
+# we want a fit where pseudotime is a good predictor of expression
+# hist(predictors$dev_expl)
 
 
 
-predictors_transformed <- predictors_sel |>
+predictors_transformed <- predictors |>
   mutate(low_baseline = exp(-log1p(baseline)),
          peak_amplitude = DescTools::Winsorize(log10(1 + max_peak)),
          shape = exp(-.05 * dist_dtw),
-         symmetry = exp(- .2 * asymmetry))
+         dev_expl = dev_expl)
 
 
 mat_pred_trans <- predictors_transformed |>
-  select(cellgene, low_baseline, peak_amplitude, shape, symmetry) |>
+  select(cellgene, low_baseline, peak_amplitude, shape, dev_expl) |>
   column_to_rownames("cellgene") |>
   as.matrix()
 
 
-message("Scale")
 
 # par(mfrow = c(2,2), mar = c(3, 2, 2, 1) + 0.1)
 # 
@@ -73,8 +71,24 @@ message("Scale")
 # par(opar)
 
 
-mat_pred <- scale(mat_pred_trans)
 
+message("Scale")
+
+
+mat_pred <- apply(mat_pred_trans, 2,
+      \(col){
+        
+        bc <- MASS::boxcox(col ~ 1, plotit=FALSE)
+        lambda <- bc$x[which.max(bc$y)]
+        
+        message(lambda)
+        
+        (col^lambda - 1) / lambda
+      })
+
+
+
+mat_pred <- scale(mat_pred)
 
 
 # par(mfrow = c(2,2), mar = c(3, 2, 2, 1) + 0.1)
@@ -91,14 +105,27 @@ qs::qsave(mat_pred, file.path(dir_step2, "250519_mat_predictors.qs"))
 
 
 
-message("Clustering!")
+message("Clustering Manhattan")
 
 set.seed(123)
-hc <- fastcluster::hclust(dist(mat_pred, method = "euclidean"), method = "ward.D2")
+hc <- fastcluster::hclust(dist(mat_pred, method = "manhattan"), method = "ward.D2")
+
 
 message("Done. Saving...")
 
-qs::qsave(hc, file.path(dir_step2, "250519_hclust.qs"))
+qs::qsave(hc, file.path(dir_step2, "250519_hclust_manhattan.qs"))
+
+
+
+message("Clustering Euclidean")
+set.seed(123)
+hc <- fastcluster::hclust(dist(mat_pred, method = "euclidean"), method = "ward.D2")
+
+
+message("Done. Saving...")
+
+qs::qsave(hc, file.path(dir_step2, "250519_hclust_euclidean.qs"))
+
 
 message("-----------------")
 

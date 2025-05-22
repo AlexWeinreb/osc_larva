@@ -5,70 +5,18 @@
 
 library(tidyverse)
 
+source("R/utils_fit.R")
 
 
 opar <- par(no.readonly = TRUE)
 
-#~ functions ----
-
-
-circ_perm <- function(preds){
-  
-  peak_loc <- apply(preds, 2, which.max)
-  
-  preds_permuted <- matrix(nrow = nrow(preds), ncol = ncol(preds))
-  t_tot <- nrow(preds)
-  t_cent <- floor(t_tot/2)
-  
-  for(i in seq_len(ncol(preds))){
-    
-    if(peak_loc[[i]] == t_cent){
-      
-      preds_permuted[, i] <- preds[,i]
-      
-    } else if(peak_loc[[i]] == t_tot){
-      
-      preds_permuted[, i] <- c(preds[ (t_cent+1):t_tot, i],
-                               preds[ 1:t_cent ,i])
-      
-    } else if(peak_loc[[i]] < t_cent){
-      
-      #  1     a      t_c     b      t_t
-      #  |_____|_______|______|______|
-      
-      
-      a <- peak_loc[[i]]
-      b <- t_cent + a
-      
-      preds_permuted[, i] <- c(preds[ (b+1):t_tot, i],
-                               preds[ 1:b, i])
-      
-    } else{
-      
-      #  1     a      t_c     b      t_t
-      #  |_____|_______|______|______|
-      
-      
-      b <- peak_loc[[i]]
-      a <- 1 + b - (t_cent+1)
-      
-      
-      preds_permuted[, i] <- c(preds[ (a+1):b, i],
-                               preds[ (b+1):t_tot, i],
-                               preds[ 1:a, i])
-    }
-    
-  }
-  
-  colnames(preds_permuted) <- colnames(preds)
-  rownames(preds_permuted) <- rownames(preds)
-  
-  preds_permuted
-}
-
 
 #~ load ----
-dir_step2 <- "intermediates/2502/250422_step2_nb_centered/"
+dir_step2 <- "intermediates/2502/250514_step2/"
+
+dir_out_scvelo <- "intermediates/2502/250501_scvelo"
+
+
 
 
 pred_manual <- readxl::read_excel("intermediates/2502/250330_step2/manual_AMPHso.xlsx")
@@ -78,9 +26,16 @@ annot_pred_manual_amphso <- pred_manual |>
   mutate(gene_name = paste0("AM_PHso|", gene_name)) |>
   column_to_rownames("gene_name")
 
+manual_amphso <- readxl::read_excel("intermediates/2502/250330_step2/manual_AMPHso.xlsx")
 
-all_preds <- list.files(dir_step2,
-                        pattern = "_preds\\.qs$") |>
+manual_several <- readxl::read_excel("intermediates/2502/250330_step2/manual_annotation.xlsx") |>
+  dplyr::select(-amplitude, -dev_expl)
+
+
+
+
+smooth_preds <- list.files(dir_step2,
+                           pattern = "_preds\\.qs$") |>
   enframe(value = "filename",
           name = NULL) |>
   separate_wider_regex(filename,
@@ -99,23 +54,26 @@ all_preds <- list.files(dir_step2,
   do.call(cbind, args = _)
 
 
-all_preds_centered <- circ_perm(all_preds)
+smooth_centered <- circ_perm_mat(smooth_preds)
 
-# qs::qsave(all_preds_centered, file.path(dir_step2, "all_preds_centered.qs"))
 
-# printMat::matimage(log1p(all_preds))
-# printMat::matimage(log1p(all_preds_centered))
 
-stopifnot(all(paste0("AM_PHso|", pred_manual$gene_name) %in% colnames(all_preds_centered)))
+# matplot(log1p(smooth_preds)[,1:200], type = "l")
+# matplot(log1p(smooth_centered)[,1:200], type = "l")
+# printMat::matimage(log1p(smooth_preds)[,1:100])
+# printMat::matimage(log1p(smooth_centered)[,1:100])
 
-# pheatmap::pheatmap(log1p(all_preds_centered),
+stopifnot(all(paste0("AM_PHso|", pred_manual$gene_name) %in% colnames(smooth_centered)))
+
+# pheatmap::pheatmap(log1p(smooth_centered)[,paste0("AM_PHso|", pred_manual$gene_name)],
 #                    cluster_rows = FALSE,
 #                    cluster_cols = TRUE,
 #                    # scale = "column",
 #                    # clustering_distance_cols = as.dist(dist_mat),
 #                    annotation_col = pred_manual |>
-#                      dplyr::select(manual, gene_name) |>
-#                      column_to_rownames("gene_name"))
+#                      mutate(cellgene = paste0(cell_type,"|",gene_name)) |>
+#                      dplyr::select(manual, cellgene) |>
+#                      column_to_rownames("cellgene"))
 
 
 
@@ -129,166 +87,122 @@ stopifnot(all(paste0("AM_PHso|", pred_manual$gene_name) %in% colnames(all_preds_
 
 # note this part is slow, we can skip to cached
 
-# all_res <- list.files(dir_step2,
-#                       pattern = "_res_gam\\.qs$") |>
-#   map_dfr(~qs::qread(file.path(dir_step2, .x)))
-# 
-# qs::qsave(all_res, file.path(dir_step2, "all_res.qs"))
-# 
-# all_res <- qs::qread(file.path(dir_step2, "all_res.qs"))
-# 
-# 
-# mat_coefs <- vapply(all_res$gam_fit,
-#                     \(.mod){
-#                       coef(.mod) |>  c(mean( residuals(.mod)^2 ))
-#                     },
-#                     double(6L))
-# mat_coefs <- t(mat_coefs)
-# colnames(mat_coefs) <- c("intercept", "s1", "s2", "s3", "s4", "mse")
-# 
-# rownames(mat_coefs) <- paste0(all_res$cell_type, "|", all_res$gene_name)
-# qs::qsave(mat_coefs, file.path(dir_step2, "mat_gam_coefs.qs"))
-# 
-# mat_coefs <- qs::qread(file.path(dir_step2, "mat_gam_coefs.qs"))
-# 
-# 
-# # Summarize s1, s2, s3 (quite correlated)
-# mat_coefs <- cbind(
-#   mat_coefs,
-#   var_s = matrixStats::rowVars(mat_coefs[,c("s1","s2","s3", "s4")]),
-#   max_s = matrixStats::rowMaxs(mat_coefs[,c("s1","s2","s3", "s4")])
-# )
-# # mat_coefs <- mat_coefs[,c("intercept", "var_s", "max_s", "mse")]
-# 
-# 
-# 
-# 
-# # from bootstrap
-# dir_step2_boot <- "intermediates/2502/250424_step2_boot_nb/"
-# 
-# boot_ci <- list.files(dir_step2_boot,
-#                       pattern = "^250424_bootstraps_ci_.*\\.qs$") |>
-#   map_dfr(\(.ct){
-#     
-#     ct_name <- str_match(.ct, "^250424_bootstraps_ci_(.*)\\.qs$")[,2]
-#     
-#     qs::qread(file.path(
-#       dir_step2_boot,
-#       paste0("250424_bootstraps_ci_",ct_name,".qs")
-#     )) |>
-#       add_column(cell_type = ct_name, .before = 1)
-#   })
-# 
-# 
-# 
-# # some tissues (mechanosensory) were not processed by bootstrap
-# 
-# setdiff(
-#   rownames(mat_coefs),
-#   paste0(boot_ci$cell_type, "|", boot_ci$gene_name) 
-# ) |> str_split_i(fixed("|"), i = 1) |> table()
-# 
-# 
-# boot_ci <- rownames(mat_coefs) |>
-#   str_split_fixed(fixed("|"), 2) |>
-#   as.data.frame() |>
-#   as_tibble() |>
-#   set_names(c("cell_type", "gene_name")) |>
-#   left_join(
-#     boot_ci,
-#     by = c("cell_type", "gene_name")
-#   )
+predictors <- list.files(dir_step2,
+                      pattern = "_descriptors\\.qs$") |>
+  map_dfr(~qs::qread(file.path(dir_step2, .x))) |>
+  as_tibble()
+
+
+
+
+# Summarize s1, s2, s3 (quite correlated)
+predictors <- predictors |>
+  mutate(cellgene = paste0(cell_type, "|", gene_name),
+         .before = 3) |>
+  rowwise() |>
+  mutate(var_s = var(c(s1, s2, s3, s4)),
+         max_s = max(c(s1, s2, s3, s4))) |>
+  ungroup()
+
+predictors
+
+
+stopifnot(all.equal(predictors$cellgene,
+                    colnames(smooth_centered)))
+
+len <- nrow(smooth_centered)
+predictors$baseline <- apply(smooth_centered, 2,
+                   \(expr){
+                     
+                     starts <- seq_len(.1*len)
+                     ends <- rev(len - starts + 1)
+                     
+                     x <- c(starts, ends)
+                     y <- expr[x]
+                     
+                     mean(y)
+                   })
+
+
+#~ add scVelo ----
+
+res_scvelo <- list.files(dir_out_scvelo, pattern = "_scvelo_fit\\.qs$") |>
+  str_remove("_scvelo_fit\\.qs$") |>
+  map_dfr(\(ct){
+    qs::qread(file.path(dir_out_scvelo, paste0(ct, "_scvelo_fit.qs")))
+  }) |>
+  select(-gene_id)
+
+
+
+predictors <- predictors |>
+  left_join(res_scvelo,
+            by = join_by(cell_type, gene_name)) |>
+  mutate(fit_likelihood = replace_na(fit_likelihood, 0))
+
+
+#~ add autoencoder ----
+
+# res_autoencoder <- qs::qread(file.path(dir_step2, "250515_autoencoder.qs"))
+# colnames(res_autoencoder) <- paste0("ae_", 1:ncol(res_autoencoder))
 # 
 # stopifnot(all.equal(
-#   paste0(boot_ci$cell_type, "|", boot_ci$gene_name) ,
-#   rownames(mat_coefs)
+#   predictors$cellgene,
+#   rownames(res_autoencoder)
 # ))
 # 
-# 
-# 
-# # build feature matrix
-# 
-# stopifnot(all.equal(
-#   paste0(all_res$cell_type, "|", all_res$gene_name),
-#   rownames(mat_coefs)
-# ))
-# 
-# mat <- cbind(mat_coefs,
-#              dev_expl = all_res$dev_expl,
-#              amplitude = all_res$amplitude,
-#              auc = all_res$area_under_curve,
-#              dtw = boot_ci$t0,
-#              dtw_ci = boot_ci$upper)
-# 
-# 
-# dir_out_scvelo <- "intermediates/2502/250501_scvelo"
-# 
-# 
-# res_scvelo <- list.files(dir_out_scvelo, pattern = "_scvelo_fit\\.qs$") |>
-#   str_remove("_scvelo_fit\\.qs$") |>
-#   map_dfr(\(ct){
-#     qs::qread(file.path(dir_out_scvelo, paste0(ct, "_scvelo_fit.qs")))
-#   }) |>
-#   mutate(cellgene = paste0(cell_type, "|", gene_name))
-# 
-# list(mat = rownames(mat),
-#      scv = res_scvelo$cellgene) |>
-#   eulerr::euler() |>
-#   plot(quantities = TRUE)
-# 
-# scv_fit <- res_scvelo |> 
-#   select(name = cellgene,
-#          value = fit_likelihood) |>
-#   deframe()
-# 
-# mat <- cbind(mat,
-#              scvelo = scv_fit[rownames(mat)])
-# mat[,"scvelo"][is.na(mat[,"scvelo"])] <- 0
+# predictors <- cbind(predictors,
+#                     res_autoencoder) |>
+#   remove_rownames()
 
 
-# qs::qsave(mat, file.path(dir_step2, "mat_predictors.qs"))
-mat <- qs::qread(file.path(dir_step2, "mat_predictors.qs"))
+#as matrix
 
+mat_predictors <- predictors |>
+  select(-gene_name, -cell_type) |>
+  column_to_rownames("cellgene") |>
+  as.matrix()
 
-
-rm(all_res); rm(mat_coefs)
-
-mat[1:3,]
+head(mat_predictors)
+mat_predictors[1:2,]
 
 
 # check scales
-par(mfrow = c(3,3), mar = c(3, 2, 2, 1) + 0.1)
+par(mfrow = c(4,4), mar = c(3, 2, 2, 1) + 0.1)
 
-for(i in seq_len(ncol(mat))){
-  hist(mat[,i], main = colnames(mat)[[i]])
+for(i in seq_len(ncol(mat_predictors))){
+  hist(mat_predictors[,i], main = colnames(mat_predictors)[[i]])
 }
 par(opar)
 
 
-mat_sc <- apply(mat, 2, DescTools::Winsorize, na.rm = TRUE) |> scale()
-
+mat_sc <- apply(mat_predictors, 2, DescTools::Winsorize, na.rm = TRUE) |> scale()
 
 
 # check scaling
-par(mfrow = c(3,3), mar = c(3, 2, 2, 1) + 0.1)
+par(mfrow = c(4,4), mar = c(3, 2, 2, 1) + 0.1)
 
-for(i in seq_len(ncol(mat))){
+for(i in seq_len(ncol(mat_sc))){
   hist(mat_sc[,i], main = colnames(mat_sc)[[i]])
 }
 par(opar)
 
 
 
+stopifnot( !any(is.na(mat_sc)) )
+
+# for comparisons
+# qs::qsave(mat_sc,
+#           file.path(dir_step2, "250516_mat_predictors_scaled.qs"))
 
 
-mat_sc_no_na <- mat_sc[!is.na(mat_sc[,"dtw"]),]
-mat_sc <- mat_sc_no_na
+
 # Correlated features? ----
 cor(mat_sc) |> abs() |> pheatmap::pheatmap()
-cor(mat_sc_no_na) |> pheatmap::pheatmap()
+cor(mat_sc) |> pheatmap::pheatmap()
 
-cor(mat) |> abs() |> pheatmap::pheatmap()
-cor(mat) |> pheatmap::pheatmap()
+cor(mat_predictors) |> abs() |> pheatmap::pheatmap()
+cor(mat_predictors) |> pheatmap::pheatmap()
 
 
 
@@ -350,46 +264,95 @@ cor(mat) |> pheatmap::pheatmap()
 
 set.seed(123)
 
-km <- kmeans(mat_sc, centers = 6)
+# mat_sc1 <- mat_sc[ sample(nrow(mat_sc), .05*nrow(mat_sc)), subset_list[[cols]] ]
+pca_res <- prcomp(mat_sc)
+pcs_preds <- pca_res$x[,seq_len(4)]
 
-table(km$cluster)
+km <- kmeans(pcs_preds, centers = 7, nstart = 100)
+
+# table(km$cluster)
 
 memberships <- km$cluster
 
+acc(memberships)
+acc3(memberships)
+acc4(memberships)
+
+
+
+# Check
+
+
+cluster_labels <- enframe(memberships,
+        name = "cell_gene",
+        value = "cluster") |>
+  separate_wider_delim(cell_gene,
+                       delim = "|",
+                       names = c("cell_type", "gene_name")) |>
+  right_join(manual,
+             by = join_by(cell_type, gene_name)) |>
+  summarise(predicted_label = names(which.max(table(manual))),
+            .by = cluster)
+
+enframe(memberships,
+        name = "cell_gene",
+        value = "cluster") |>
+  separate_wider_delim(cell_gene,
+                       delim = "|",
+                       names = c("cell_type", "gene_name")) |>
+  filter(cluster %in% cluster_labels$cluster[cluster_labels$predicted_label == "yes"]) |>
+  count(gene_name) |>
+  pull(n) |>
+  hist()
 
 
 enframe(memberships,
         name = "gene_name",
         value = "cluster") |>
-  filter(startsWith(gene_name, "AM_PHso")) |>
+  filter(startsWith(gene_name, "AM_PHso") |
+         startsWith(gene_name, "ILso")) |>
   mutate(guess = case_when(
     str_detect(gene_name, "col\\-[0-9]+") ~ "puls",
     str_detect(gene_name, "cutl\\-[0-9]+") ~ "puls",
     str_detect(gene_name, "grl\\-[0-9]+") ~ "puls",
+    str_detect(gene_name, "nas\\-[0-9]+") ~ "puls",
     str_detect(gene_name, "rps\\-[0-9]+") ~ "nonpuls",
     str_detect(gene_name, "rpl\\-[0-9]+") ~ "nonpuls"
   )) |>
   filter(!is.na(guess)) |>
   count(cluster, guess) |>
   pivot_wider(id_cols = guess, names_from = "cluster", values_from = "n",
-              values_fill = 0)
+              values_fill = 0) |>
+  arrange(desc(guess))
 
 
-
-
-
+enframe(memberships,
+        name = "gene_name",
+        value = "cluster") |>
+  filter(startsWith(gene_name, "pharyngeal_muscle") |
+           startsWith(gene_name, "pharynx_epithelial")) |>
+  mutate(guess = case_when(
+    str_detect(gene_name, "abu\\-[0-9]+") ~ "puls",
+    str_detect(gene_name, "rps\\-[0-9]+") ~ "nonpuls",
+    str_detect(gene_name, "rpl\\-[0-9]+") ~ "nonpuls"
+  )) |>
+  filter(!is.na(guess)) |>
+  count(cluster, guess) |>
+  pivot_wider(id_cols = guess, names_from = "cluster", values_from = "n",
+              values_fill = 0) |>
+  arrange(desc(guess))
 
 
 
 
 #~ PCA/UMAP ----
 
-pca <- prcomp(mat_sc)
-plot(pca$x[,c(1,2)])
+pca_res <- prcomp(mat_sc)
+plot(pca_res$x[,c(1,2)])
 
 
 
-pca$x |>
+pca_res$x |>
   as.data.frame() |>
   rownames_to_column("cellgene") |>
   as_tibble() |>
@@ -406,7 +369,7 @@ pca$x |>
                  color = manual))
 
 
-pca$x |>
+pca_res$x |>
   as.data.frame() |>
   rownames_to_column("cellgene") |>
   as_tibble() |>
@@ -420,7 +383,7 @@ pca$x |>
 
 
 
-pca$x |>
+pca_res$x |>
   as.data.frame() |>
   rownames_to_column("cellgene") |>
   as_tibble() |>
@@ -560,8 +523,8 @@ pheatmap::pheatmap(t(mat_am_phso_memberships),
                                                        maybe = "blue3",
                                                        `NA` = "grey")))
 
-all_preds_amph <- all_preds_centered[, rownames(annot_pred_manual_amphso_membs |> arrange(memb))]
-pheatmap::pheatmap(log1p(all_preds_amph),
+smooth_amph <- smooth_centered[, rownames(annot_pred_manual_amphso_membs |> arrange(memb))]
+pheatmap::pheatmap(log1p(smooth_amph),
                    cluster_rows = FALSE,
                    cluster_cols = FALSE,
                    # scale = "row",
@@ -608,8 +571,8 @@ pheatmap::pheatmap(t(mat_sc1_ordered),
                                                        maybe = "blue3",
                                                        `NA` = "grey")))
 
-all_preds_amph <- all_preds_centered[, rownames(annot_amphso_all |> arrange(cluster))]
-pheatmap::pheatmap(log1p(all_preds_amph),
+smooth_amph <- smooth_centered[, rownames(annot_amphso_all |> arrange(cluster))]
+pheatmap::pheatmap(log1p(smooth_amph),
                    cluster_rows = FALSE,
                    cluster_cols = FALSE,
                    # scale = "row",
@@ -652,7 +615,7 @@ pheatmap::pheatmap(log1p(all_preds_amph),
 # }
 
 #~ plot average ----
-all_clustered_fits <- log1p(all_preds_centered) |>
+all_clustered_fits <- log1p(smooth_centered) |>
   as.data.frame() |>
   rownames_to_column("time") |>
   as_tibble() |>
@@ -995,15 +958,140 @@ memberships <- cl_louv |> set_names(rownames(mat_sc))
 
 
 
+#~ kohonen ----
+
+som <- kohonen::som(mat_sc1, grid = kohonen::somgrid(6,6,topo = "hexagonal"))
+
+som$unit.classif |> table()
+# 
+# cl <- cutree(hclust(dist(som$codes[[1]])), k = 5)
+# 
+# plot(som, type = "mapping", bgcol = rainbow(5)[cl])
+# kohonen::add.cluster.boundaries(som, cl)
+
+cl <- kmeans(som$codes[[1]], centers = 3)
+plot(som, type = "mapping", bgcol = rainbow(5)[cl$cluster])
+kohonen::add.cluster.boundaries(som, cl$cluster)
+
+
+memberships <- som$unit.classif |> set_names(rownames(mat_sc1))
+# memberships <- cl$cluster[som$unit.classif] |> set_names(rownames(mat_sc))
+
+table(memberships)
+
+
+
+
+
+all_clustered_fits |>
+  inner_join(selected) |>
+  ggplot() +
+  theme_classic() +
+  scale_color_brewer(type = "qual", palette = "Set2") +
+  scale_fill_brewer(type = "qual", palette = "Set2") +
+  facet_wrap(~cluster,nrow = 6, ncol = 6) +
+  geom_hline(aes(yintercept = 0),
+             linetype = 'dashed', color = 'grey80') +
+  geom_ribbon(
+    aes(x = time, ymin = average_signal - sd_signal, ymax = average_signal + sd_signal),
+    alpha = .2,
+    fill = "orange2",
+    data = all_clustered_fits |>
+      summarize(average_signal = mean(log_cnt),
+                sd_signal = sd(log_cnt),
+                .by = c(cluster, time))
+  ) +
+  geom_line(
+    aes(x = time, y = log_cnt, group = interaction(cell_type, gene_name)),
+    alpha = .4,
+    linewidth = .2
+  ) +
+  geom_line(
+    aes(x = time, y = average_signal),
+    linewidth = 1,
+    color = "orange2",
+    data = all_clustered_fits |>
+      summarize(average_signal = mean(log_cnt),
+                sd_signal = sd(log_cnt),
+                .by = c(cluster, time))
+  )
 
 
 
 
 
 
+guesses <- enframe(memberships,
+        name = "gene_name",
+        value = "cluster") |>
+  # filter() |>
+  mutate(guess = case_when(
+    (startsWith(gene_name, "AM_PHso") |
+      startsWith(gene_name, "ILso")) & str_detect(gene_name, "col\\-[0-9]+") ~ "puls",
+    (startsWith(gene_name, "AM_PHso") |
+       startsWith(gene_name, "ILso")) & str_detect(gene_name, "cutl\\-[0-9]+") ~ "puls",
+    (startsWith(gene_name, "AM_PHso") |
+       startsWith(gene_name, "ILso")) & str_detect(gene_name, "grl\\-[0-9]+") ~ "puls",
+    (startsWith(gene_name, "AM_PHso") |
+       startsWith(gene_name, "ILso")) & str_detect(gene_name, "nas\\-[0-9]+") ~ "puls",
+    str_detect(gene_name, "rps\\-[0-9]+") ~ "nonpuls",
+    str_detect(gene_name, "rpl\\-[0-9]+") ~ "nonpuls",
+    (startsWith(gene_name, "pharyngeal_muscle") |
+       startsWith(gene_name, "pharynx_epithelial")) &str_detect(gene_name, "abu\\-[0-9]+") ~ "puls"
+  )) |>
+  mutate(color = case_match(guess,
+                            "puls" ~ "green3",
+                            "nonpuls" ~ "red3",
+                            .default = alpha("grey", .01)))
+
+plot(som, type = "mapping", col = guesses$color)
 
 
+#manually annotated
+guesses <- enframe(memberships,
+                   name = "gene_name",
+                   value = "cluster") |>
+  separate_wider_delim(gene_name, delim = "|",
+                       names = c("cell_type","gene_name")) |>
+  left_join(manual_several) |>
+  mutate(color = case_match(manual,
+                            "yes" ~ "green3",
+                            "no" ~ "red3",
+                            .default = alpha("grey", .01)))
 
+plot(som, type = "mapping", col = guesses$color)
+text(som$grid$pts[,1], som$grid$pts[,2],
+     labels = 1:nrow(som$grid$pts),
+     adj = c(0,0))
+
+
+guesses |>
+  filter(!is.na(manual),
+         cluster == 24)
+
+plot(som, type = "mapping", col = 'grey90')
+text(som$grid$pts[,1], som$grid$pts[,2], labels = 1:nrow(som$grid$pts))
+
+
+guesses |>
+  filter(!is.na(guess),
+         cluster == 17)
+
+enframe(memberships,
+        name = "gene_name",
+        value = "cluster") |>
+  filter(startsWith(gene_name, "pharyngeal_muscle") |
+           startsWith(gene_name, "pharynx_epithelial")) |>
+  mutate(guess = case_when(
+    str_detect(gene_name, "abu\\-[0-9]+") ~ "puls",
+    str_detect(gene_name, "rps\\-[0-9]+") ~ "nonpuls",
+    str_detect(gene_name, "rpl\\-[0-9]+") ~ "nonpuls"
+  )) |>
+  filter(!is.na(guess)) |>
+  count(cluster, guess) |>
+  pivot_wider(id_cols = guess, names_from = "cluster", values_from = "n",
+              values_fill = 0) |>
+  arrange(desc(guess))
 
 
 
@@ -1015,19 +1103,19 @@ memberships <- cl_louv |> set_names(rownames(mat_sc))
 #~ Embedding AE ----
 
 
-
-len <- nrow(all_preds_centered)
+library(keras)
+len <- nrow(smooth_centered)
 
 clusters <- map(1:10,
                 ~{
                   
-                  genes <- colnames(all_preds_centered) |> sample(10000)
+                  genes <- colnames(smooth_centered) |> sample(10000)
                   
-                  x_train <- all_preds_centered[, sample(genes, .8*length(genes))] |> t()
-                  x_test <- all_preds_centered[, setdiff(genes, rownames(x_train))] |> t()
+                  x_train <- smooth_centered[, sample(genes, .8*length(genes))] |> t()
+                  x_test <- smooth_centered[, setdiff(genes, rownames(x_train))] |> t()
                   
-                  x_train <- x_train |> log1p()
-                  x_test <- x_test |> log1p()
+                  x_train <- x_train
+                  x_test <- x_test
                   
                   stopifnot(all.equal(
                     genes |> sort(),
@@ -1071,7 +1159,7 @@ clusters <- map(1:10,
                   # extract the bottleneck layer
                   intermediate_layer_model <- keras_model(inputs = autoencoder$input,
                                                           outputs = get_layer(autoencoder, "bottleneck")$output)
-                  intermediate_output <- predict(intermediate_layer_model, t(all_preds_centered))
+                  intermediate_output <- predict(intermediate_layer_model, t(smooth_centered))
                   
                   kmeans(apply(intermediate_output, 1, \(x) x/max(x)) |> t(), centers = 5)
                 },
@@ -1085,7 +1173,7 @@ cons <- clue::cl_consensus(clusters,
 
 
 clusters <- tibble(
-  names = colnames(all_preds_centered),
+  names = colnames(smooth_centered),
   cluster = apply(cons, 1, function(row_vals) which(row_vals == 1))
 ) |>
   separate_wider_delim(names,
@@ -1112,34 +1200,33 @@ clusters |>
 # extract the bottleneck layer
 intermediate_layer_model <- keras_model(inputs = autoencoder$input,
                                         outputs = get_layer(autoencoder, "bottleneck")$output)
-intermediate_output <- predict(intermediate_layer_model, t(all_preds_centered))
+intermediate_output <- predict(intermediate_layer_model, t(smooth_centered))
 
-# when conv layers, we have more dimensions
-# reconstructed <- predict(autoencoder, t(all_preds_centered))[,,1]
-reconstructed <- predict(autoencoder, t(all_preds_centered))
+reconstructed <- predict(autoencoder, t(smooth_centered))
 
 
-rownames(intermediate_output) <- rownames(reconstructed) <- colnames(all_preds_centered)
+rownames(intermediate_output) <- rownames(reconstructed) <- colnames(smooth_centered)
 
-intermediate_output <- intermediate_output[rownames(intermediate_output) %in% paste0("AM_PHso_", pred_manual$gene_name),]
-reconstructed <- reconstructed[rownames(reconstructed) %in% paste0("AM_PHso_", pred_manual$gene_name),]
-preds_cent <- all_preds_centered[,colnames(all_preds_centered) %in% paste0("AM_PHso_", pred_manual$gene_name)]
+# intermediate_output <- intermediate_output[rownames(intermediate_output) %in% paste0("AM_PHso|", pred_manual$gene_name),]
+# reconstructed <- reconstructed[rownames(reconstructed) %in% paste0("AM_PHso|", pred_manual$gene_name),]
+# preds_cent <- smooth_centered[,colnames(smooth_centered) %in% paste0("AM_PHso|", pred_manual$gene_name)]
 
 # opar <- par(no.readonly = TRUE)
 
-par(mfrow = c(1,2), mar = c(3, 2, 2, 1) + 0.1)
+par(mfrow = c(1,3), mar = c(3, 2, 2, 1) + 0.1)
+layout(matrix(c(1,3,2,3), nrow = 2))
 exple <- sample(rownames(x_train), 5)
 
 
 matplot(t(x_train)[,exple], type = "l")
 matplot(t(reconstructed)[,exple], type = "l")
+matplot(t(intermediate_output)[,exple], type = "p")
 par(opar)
-matplot(t(intermediate_output)[,exple], type = "l")
 
 
 hc <- hclust(dist(apply(intermediate_output, 1, \(x) x/max(x)) |> t()))
 
-pheatmap::pheatmap(log1p(preds_cent),
+pheatmap::pheatmap(smooth_centered,
                    cluster_rows = FALSE,
                    cluster_cols = hc,
                    # scale = "column",
