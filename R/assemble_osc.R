@@ -43,7 +43,61 @@ dir_third_processed <- "intermediates/2502/250313_third_processed"
 # the result
 # seu <- qs::qread( file.path(dir_out, "250509_seu_all_herma.qs"))
 
+# old
+# ##seu <- qs::qread( "intermediates/2502/250328_assembled_old/250329_seu_all_herma.qs" )
+
+samples_table <- read_tsv("data/samples_table.tsv")
+
+# Plot GFP ----
+
+
+# two ways to plot same thing
+
 # FeaturePlot(seu, features = "nsIs198", pt.size = 2, alpha = .2, cols = c("bisque2", "green4"))
+
+dat <- FetchData(seu, vars = c("orig.ident", "nsIs198", "umap_1", "umap_2"))
+
+
+
+ggplot(dat) +
+  theme_classic() +
+  scale_color_gradient(low = "bisque2", high = "green4") +
+  geom_point(aes(x = umap_1, y = umap_2, color = nsIs198),
+             alpha = .2, size = 2)
+
+dat2 <- left_join(dat, samples_table,
+          by = c(orig.ident = "sample_name"))
+  
+ggplot() +
+  theme_classic() +
+  scale_color_gradient(low = "lightsalmon", high = "darkolivegreen") +
+  scale_fill_gradient(low = "khaki", high = "seagreen4") +
+  geom_point(aes(x = umap_1, y = umap_2, color = nsIs198),
+             alpha = .1, size = 2,
+             data = filter(dat2, promoter == "grl-18")) +
+  geom_point(aes(x = umap_1, y = umap_2, fill = nsIs198),
+             alpha = .1, size = 3, shape = 21, stroke = NA,
+             data = filter(dat2, promoter != "grl-18"))
+
+# 650 x 500
+
+dat2 |>
+  filter(promoter == "grl-18") |>
+  ggplot() +
+  theme_classic() +
+  scale_color_gradient(low = "bisque2", high = "green4") +
+  geom_point(aes(x = umap_1, y = umap_2, color = nsIs198),
+             alpha = .2, size = 2)
+
+
+dat2 |>
+  filter(promoter != "grl-18") |>
+  ggplot() +
+  theme_classic() +
+  scale_color_gradient(low = "bisque2", high = "green4") +
+  geom_point(aes(x = umap_1, y = umap_2, color = nsIs198),
+             alpha = .2, size = 2)
+
 
 
 
@@ -167,6 +221,13 @@ DimPlot(seu,
 # ggsave("UMAP_tissue.png", path = "presentations/",
 #        width = 110, height = 120, units = "mm",
 #        scale = 2)
+
+
+FetchData(seu, vars = c("tissue2", "umap_1", "umap_2")) |>
+  ggplot() +
+  theme_classic() +
+  geom_point(aes(x = umap_1, y = umap_2, color = tissue2),
+             alpha = .2, size = 2)
 
 
 
@@ -641,45 +702,75 @@ FetchData(sub,
 # ____________ ----
 # Illustrations ----
 
-#~ Individual cells ----
-# seu <- sub
-mat <- GetAssayData(seu)
+#~ Individual cells ILso ----
+sub <- subset(seu, cell_type == "ILso") |>
+  SCTransform() |>
+  RunPCA(npcs = 2, verbose = FALSE)
 
-DimPlot(seu,
-        reduction = "umap",
+
+mat <- GetAssayData(sub, assay = "SCT", layer = "data")
+
+
+# PCA
+DimPlot(sub,
+        reduction = "pca",
         label = FALSE,
         pt.size = .8,
         alpha = .3,
-        cells.highlight = colnames(mat)[c(10, 23, 6)],
+        cells.highlight = colnames(mat)[c(4,242)],
         sizes.highlight = 3,
         cols.highlight = 'red') +
   NoLegend()
 
 
-dat <- FetchData(seu,
-          vars = c("umap_1", "umap_2")) |>
+dat <- FetchData(sub,
+                 vars = c("PC_1", "PC_2", "cell_phase_masked")) |>
   mutate(selected = FALSE,
-         selected = {x <- selected; x[c(10, 23, 6)] <- TRUE; x})
+         selected = {x <- selected; x[c(4,242)] <- TRUE; x})
 dat |> 
   ggplot() +
   theme_classic() +
   theme(legend.position = "none") +
-  geom_point(aes(x = umap_1, y = umap_2),
-             alpha = .1, color = "grey") +
-  geom_point(aes(x = umap_1, y = umap_2),
+  geom_point(aes(x = PC_1, y = PC_2),
+             alpha = .4, color = "grey") +
+  geom_point(aes(x = PC_1, y = PC_2),
              data = dat |> filter(selected),
              size = 3, color = 'red3')
 
+# ggsave("phases_ILso_cells_4-242_pca.pdf", path = "presentations/",
+#        width = 6, height = 6, units = "in")
 
 
-#~ cell 18 ----
-# 10, 23, 6
-dat_1_cell <- enframe(mat[,242],
+# ggsave("phases_ILso_cells_4-242_pca.png", path = "presentations/",
+#        width = 6, height = 6, units = "in")
+
+
+dat |> 
+  ggplot() +
+  theme_classic() +
+  theme(legend.position = "none") +
+  scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50)) +
+  geom_point(aes(x = PC_1, y = PC_2, color = cell_phase_masked),
+             size = 2,
+             alpha = .7)
+
+# ggsave("pca_ILso_color.png", path = "presentations/",
+#        width = 6, height = 6, units = "in")
+
+
+#~ cell, radial ----
+
+# cells 4, 242
+
+cell_nb <- 242
+dat_1_cell <- enframe(mat[,cell_nb],
                       name = "gene_name",
                       value = "expression") |>
   left_join(osc_table,
             by = "gene_name") |>
   filter(!is.na(osc_amplitude))
+
+
 
 dat_1_cell |>
   ggplot() +
@@ -692,20 +783,19 @@ dat_1_cell |>
                    y = 0,
                    yend = expression),
                linewidth = .25) +
-  geom_segment(aes(x = mean_angle %% (360),
-                   xend = mean_angle %% (360),
+  geom_segment(aes(x = mean_angle,
+                   xend = mean_angle,
                    y = 0,
                    yend = mean_rho),
-               data = dat_1_cell |>
-                 summarize(mean_angle = circhelp::weighted_circ_mean(peak_phase_deg*pi/180, expression)*180/pi,
-                           mean_rho = max(expression)*circhelp::weighted_circ_rho(peak_phase_deg*pi/180, expression)),
+               data = tibble(mean_angle = sub$cell_phase[[cell_nb]],
+                             mean_rho = sub$cell_rho[[cell_nb]]),
                linewidth = 1,
                color = 'red3')
 
 
-
-ggsave("phases_ILso_cell_242.pdf", path = "presentations/",
-       width = 6, height = 6, units = "in")
+# ggsave(paste0("phases_ILso_cell_",cell_nb,".pdf"),
+#        path = "presentations/",
+#        width = 6, height = 6, units = "in")
 
 
 dat_1_cell |>
@@ -725,71 +815,147 @@ dat_1_cell |>
                    xend = mean_angle %% (360),
                    y = 0,
                    yend = mean_rho),
-               data = dat_1_cell |>
-                 summarize(mean_angle = circhelp::weighted_circ_mean(peak_phase_deg*pi/180, expression)*180/pi,
-                           mean_rho = max(expression)*circhelp::weighted_circ_rho(peak_phase_deg*pi/180, expression)),
+               data = tibble(mean_angle = sub$cell_phase[[cell_nb]],
+                             mean_rho = sub$cell_rho[[cell_nb]]),
                linewidth = 1,
                color = 'black') #+theme(legend.position = 'none')
 
 
-ggsave("phases_ILso_cell_242_col.pdf", path = "presentations/",
-       width = 6, height = 6, units = "in")
+# ggsave(paste0("phases_ILso_cell_",cell_nb,"_col.pdf"),
+#        path = "presentations/",
+#        width = 6, height = 6, units = "in")
+
+tibble(mean_angle = sub$cell_phase[[cell_nb]],
+       mean_rho = sub$cell_rho[[cell_nb]],
+       FDR = sub$length_FDR[[cell_nb]])
 
 
 
-# same on PCA instead of UMAP
-
-# seu <- sub
-mat <- GetAssayData(seu)
-
-DimPlot(seu,
-        reduction = "pca",
-        label = FALSE,
-        pt.size = .8,
-        alpha = .3,
-        cells.highlight = colnames(mat)[c(1,242)],
-        sizes.highlight = 3,
-        cols.highlight = 'red') +
-  NoLegend()
 
 
-dat <- FetchData(seu,
-                 vars = c("PC_1", "PC_2")) |>
+
+
+
+
+#~ BWM ----
+sub <- subset(seu, cell_type == "BWM") |>
+  SCTransform() |>
+  RunPCA(npcs = 2, verbose = FALSE)
+
+cell_nb <- 14
+
+
+# note we need the full matrix here to ensure same normalization
+mat <- LayerData(seu, assay = "SCT", layer = "data", features = osc_table$gene_name)
+genes_max <- sparseMatrixStats::rowMaxs(mat)
+genes_max[genes_max == 0] <- 1
+mat <- mat / genes_max
+
+mat <- mat[,colnames(sub)]
+
+
+# PCA
+
+dat <- FetchData(sub,
+                 vars = c("PC_1", "PC_2", "cell_phase_masked")) |>
   mutate(selected = FALSE,
-         selected = {x <- selected; x[c(4,242)] <- TRUE; x})
+         selected = {x <- selected; x[c(cell_nb)] <- TRUE; x})
 dat |> 
   ggplot() +
   theme_classic() +
   theme(legend.position = "none") +
   geom_point(aes(x = PC_1, y = PC_2),
-             alpha = .1, color = "grey") +
+             alpha = .4, color = "grey") +
   geom_point(aes(x = PC_1, y = PC_2),
              data = dat |> filter(selected),
              size = 3, color = 'red3')
 
-# ggsave("phases_ILso_cells_4-242_pca.pdf", path = "presentations/",
+# ggsave(paste0("phases_BWM_cells_",cell_nb,"_pca.pdf"),
+#        path = "presentations/",
 #        width = 6, height = 6, units = "in")
+
+
+# ggsave(paste0("phases_BWM_cells_",cell_nb,"_pca.png"),
+#        path = "presentations/",
+#        width = 6, height = 6, units = "in")
+
+
+dat |> 
+  ggplot() +
+  theme_classic() +
+  theme(legend.position = "none") +
+  scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50)) +
+  geom_point(aes(x = PC_1, y = PC_2, color = cell_phase_masked),
+             size = 2,
+             alpha = .7)
+
+# ggsave("pca_BWM_color.png", path = "presentations/",
+#        width = 6, height = 6, units = "in")
+
+
+
+# 1 cell
+cell_nb <- 14
+dat_1_cell <- enframe(mat[,cell_nb],
+                      name = "gene_name",
+                      value = "expression") |>
+  left_join(osc_table,
+            by = "gene_name") |>
+  filter(!is.na(osc_amplitude))
+
+
+dat_1_cell |>
+  ggplot() +
+  theme_bw() +
+  coord_polar() +
+  scale_x_continuous(limits = c(0,360), n.breaks = 15) +
+  scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50)) +
+  ylab("expression") +
+  geom_segment(aes(x = peak_phase_deg,
+                   xend = peak_phase_deg,
+                   y = 0,
+                   yend = expression,
+                   color = peak_phase_deg),
+               linewidth = .25) +
+  geom_segment(aes(x = mean_angle %% (360),
+                   xend = mean_angle %% (360),
+                   y = 0,
+                   yend = mean_rho),
+               data = tibble(mean_angle = sub$cell_phase[[cell_nb]],
+                             mean_rho = sub$cell_rho[[cell_nb]]),
+               linewidth = 1,
+               color = 'black') #+theme(legend.position = 'none')
+
+
+# ggsave(paste0("phases_BWM_cell_",cell_nb,"_col.pdf"),
+#        path = "presentations/",
+#        width = 6, height = 6, units = "in")
+
 
 
 
 # permutation test result illustr ----
 
+stopifnot(all.equal(
+  rownames(mat),
+  osc_table$gene_name
+))
 
-mat2 <- mat[,colnames(sub)[[7]], drop = FALSE]
+mat2 <- mat[, cell_nb, drop = FALSE]
 
-stopifnot(identical(rownames(mat2),
-                    osc_table$gene_name))
 
-sub$cell_rho[[7]]
 
 empirical <- rho_from_mat(mat2, osc_table$peak_phase_deg)
+
+stopifnot( empirical == sub$cell_rho[cell_nb] )
+
 perms <- replicate(n = 10000,
                    rho_from_mat(mat2, sample(osc_table$peak_phase_deg)))
 
 as_tibble(perms) |>
   ggplot() +
   theme_classic() +
-  scale_x_continuous(limits = c(0, 1)) +
+  # scale_x_continuous(limits = c(0, 1)) +
   xlab("Average phase length") +
   geom_histogram(aes(x = value),
                  bins = 50,
@@ -799,11 +965,79 @@ as_tibble(perms) |>
              color = 'red3',
              linewidth = 1.5)
 
-ggsave("perm_BWM_cell_7.pdf", path = "presentations/",
-       width = 120, height = 75, units = "mm")
+# ggsave(paste0("perm_BWM_cell_",cell_nb,".pdf"),
+#        path = "presentations/",
+#        width = 100, height = 95, units = "mm")
 
-sum(perms >= empirical)
+sum(c(empirical,perms) >= empirical)
 length(perms)
+
+
+
+
+tibble(mean_angle = sub$cell_phase[[cell_nb]],
+       mean_rho = sub$cell_rho[[cell_nb]],
+       pval = sum(c(empirical,perms) >= empirical) / length(perms),
+       FDR = sub$length_FDR[[cell_nb]])
+
+
+#~ ILso permutations ----
+
+sub <- subset(seu, cell_type == "ILso") |>
+  SCTransform() |>
+  RunPCA(npcs = 2, verbose = FALSE)
+
+# note we need the full matrix here to ensure same normalization
+mat <- LayerData(seu, assay = "SCT", layer = "data", features = osc_table$gene_name)
+genes_max <- sparseMatrixStats::rowMaxs(mat)
+genes_max[genes_max == 0] <- 1
+mat <- mat / genes_max
+
+mat <- mat[,colnames(sub)]
+
+
+
+stopifnot(all.equal(
+  rownames(mat),
+  osc_table$gene_name
+))
+
+
+cell_nb <- 4
+
+mat2 <- mat[, cell_nb, drop = FALSE]
+
+
+
+empirical <- rho_from_mat(mat2, osc_table$peak_phase_deg)
+
+stopifnot( empirical == sub$cell_rho[cell_nb] )
+
+perms <- replicate(n = 10000,
+                   rho_from_mat(mat2, sample(osc_table$peak_phase_deg)))
+
+as_tibble(perms) |>
+  ggplot() +
+  theme_classic() +
+  # scale_x_continuous(limits = c(0, 1)) +
+  xlab("Average phase length") +
+  geom_histogram(aes(x = value),
+                 bins = 50,
+                 color = 'white',
+                 linewidth = .3) +
+  geom_vline(xintercept = empirical,
+             color = 'red3',
+             linewidth = 1.5)
+
+# ggsave(paste0("perm_ILso_cell_",cell_nb,".pdf"),
+#        path = "presentations/",
+#        width = 100, height = 95, units = "mm")
+
+tibble(mean_angle = sub$cell_phase[[cell_nb]],
+       mean_rho = sub$cell_rho[[cell_nb]],
+       pval = sum(c(empirical,perms) >= empirical) / length(perms),
+       FDR = sub$length_FDR[[cell_nb]])
+
 
 
 
