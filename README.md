@@ -300,9 +300,9 @@ These are used for clustering.
 
 
 `step_2a_gam_binom.R` is to be run on cluster as dsq jobarray, called from dSQ. Contents:
-* load intermediates from step 1 `250502_step1`
+* load intermediates from step 1 `250522_step1`
 * prefilter, run ElPiGraph and a NB-GAM (with size factors), save the models, descriptors, smooth fits
-* save intermediates in "intermediates/2502/250512_step2"
+* save intermediates in "intermediates/2502/250522_step2"
 
 Outputs:
 * `{cell_type}_descriptors.qs` used for clustering (step 3)
@@ -314,9 +314,9 @@ Outputs:
 Jobfile created with:
 ```r
 paste("module load R; Rscript R/step_2a_gam_nb.R",
-       "--dir_step1 'intermediates/2502/250502_step1'",
-      "--out_dir 'intermediates/2502/250519_step2'",
-      "--i", seq_along(list.files('intermediates/2502/250502_step1', pattern = "_seu\\.qs$")),
+       "--dir_step1 'intermediates/2502/250522_step1'",
+      "--out_dir 'intermediates/2502/250522_step2'",
+      "--i", seq_along(list.files('intermediates/2502/250522_step1', pattern = "_seu\\.qs$")),
       "--prop_thres 0.05 --cnt_thres 20",
       "--nb_subsamples_ptDE 10") |>
   writeLines("joblists/step_2a_gam.dsq.txt")
@@ -347,8 +347,8 @@ Overview:
 * rerun CellRanger if needed,
 * replace filtered matrix,
 * Velocyto to quantify unspliced reads,
-* reorganize by cell type,
-* load in scVelo (step2b)
+* reorganize by cell type (based on step 1a),
+* plot each cell type
 
 
 #### CellRanger
@@ -406,11 +406,44 @@ cp -v /vast/palmer/scratch/hammarlund/aw853/250331_align/*/velocyto/*.loom inter
 
 Consistently with other approach, we split by cell type and process each cell type separately.
 
-In `R/velocyto.R`, run interactivley
-* inputs: `250409_loom/{sample}.loom`, `250328_assembled/250329_seu_all_herma.qs`
+In `R/velocyto_load_loom.R`, called from `src/runR_velocyto_load_loom.sh`
+* inputs: `250409_loom/{sample}.loom`, `250509_assembled/250509_seu_all_herma.qs``
 * Process:
   * read all loom files using velocyto.R
   * combine into big "spliced" and "unspliced" matrices
+* output: matrices in `250522_velocyto/emat_tot.qs` and `nmat_tot.qs`
+
+
+#### Plot velocyto
+
+`velocyto_cell_type.R`
+  
+  
+Using joblist:
+
+
+```r
+paste(
+"module load R; Rscript R/velocyto_cell_type.R",
+"--dir_step1 'intermediates/2502/250522_step1'",
+"--dir_velocyto 'intermediates/2502/250522_velocyto'",
+"--i", seq_along(list.files(params$dir_step1, pattern = "_seu_unsmoothed\\.qs$"))
+) |>
+  writeLines("joblists/velocyto_cell_type.dsq.txt")
+```
+
+Job run with
+```
+ml dSQ; dsq --job-file joblists/velocyto_cell_type.dsq.txt  --cpus-per-task 1 --mem 35G --time 00:40:00 --partition day; ml unload dSQ
+```
+
+
+
+
+###### older
+
+Note: older version
+instead, interactively ran `R/velocyto.R`
   * for each cell type annotated in "assembled", subset the corresponding cells, create AnnData object
 * output: `250409_anndata/{sample}.h5ad`
 
@@ -421,7 +454,7 @@ At the end of `R/velocyto.R`, additional code for velocity estimate and plotting
 Note: previous attempts to use VeloCycle, in folder `ipynb/`. While it seems to work, it's not answering the questions I have here.
 
 
-### Step 2b: scVelo
+then step 2b: scVelo
 
 
 
@@ -463,6 +496,23 @@ Tests and manual version in `test_scVelo.R` (not used).
 
 ### Clustering
 
+In `R/cluster_cellgenes.R`, called from `runR_cluster_hclust.sh`:
+* load descriptors from step 2a
+* transformations (exp(-a*x)), normalize (box-cox), scale; cluster with fastclust::hclust
+* save
+
+In `R/hclust_results.R`, load this clustering, cutree and cluster identification.
+
+
+All results saved in `250519_step2`.
+
+
+In `explore_step3_timeseries_distances.R`, temporary explorations, to delete later.
+
+
+
+##### older version
+
 
 Jobfile created with:
 ```r
@@ -480,8 +530,7 @@ ml dSQ; dsq --job-file joblists/compare_kmeans.dsq.txt  --cpus-per-task 1 --mem 
 First run kmeans with PCA or SOM, select nb clusters.
 
 
-
-##### older version
+Even older version:
 Compare clusterings, 10 replicates, use replicate number as seed.
 
 Test different combinations

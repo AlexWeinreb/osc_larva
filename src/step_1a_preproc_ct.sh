@@ -12,7 +12,7 @@ set -ue
 echo "Loading R script, $(date)"
 ml R
 
-Rscript R/step_1_preproc_ct.R
+Rscript R/step_1a_preproc_ct.R
 
 echo "~~~~ done ~~~~"
 

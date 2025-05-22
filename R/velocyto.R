@@ -4,14 +4,12 @@ library(Seurat)
 library("velocyto.R")
 library(tidyverse)
 
-reticulate::use_virtualenv("anndata")
 
 
 dir_loom <- "intermediates/2502/250409_loom/"
-dir_out_anndata <- "intermediates/2502/250409_anndata/"
+dir_velocyto <- "intermediates/2502/250522_velocyto"
 
-
-seu <- qs::qread("intermediates/2502/250328_assembled/250329_seu_all_herma.qs")
+seu <- qs::qread("intermediates/2502/250509_assembled/250509_seu_all_herma.qs")
 samples <- unique(seu$orig.ident)
 
 stopifnot(all(
@@ -57,40 +55,49 @@ stopifnot(all.equal( colnames(emat_tot), colnames(nmat_tot) ))
 colnames(emat_tot) <- column_to_rownames(bc_table, "bc_velocyto")[colnames(emat_tot), "bc_seu"] 
 colnames(nmat_tot) <- column_to_rownames(bc_table, "bc_velocyto")[colnames(nmat_tot), "bc_seu"] 
 
+# qs::qsave(emat_tot,
+#           file.path(dir_velocyto, "emat_tot.qs"))
+# qs::qsave(nmat_tot,
+#           file.path(dir_velocyto, "nmat_tot.qs"))
 
 
 
-# by cell type
-cell_types <- unique(seu$cell_type)
+# # by cell type, annData
+# dir_out_anndata <- "intermediates/2502/250521_anndata/"
+# 
+# cell_types <- unique(seu$cell_type)
+# 
+# length(cell_types)
+# for (ct in cell_types){
+#   
+#   message("---- Cell type: ", ct)
+#   
+#   
+#   sub <- subset(seu,
+#                 cell_type == ct)
+#   
+#   
+#   
+#   
+#   emat <- emat_tot[,colnames(sub)]
+#   nmat <- nmat_tot[,colnames(sub)]
+#   
+#   
+#   dim(emat)
+#   
+#   emat[1:3,1:4]
+#   
+#   anndata::AnnData(X = t(emat),
+#                    layers = list(spliced = t(emat),
+#                                  unspliced = t(nmat))) |>
+#     anndata::write_h5ad(filename = file.path(dir_out_anndata,
+#                                              paste0(ct,".h5ad")))
+#   
+#   message("done...")
+#   
+# }
 
-for (ct in cell_types){
-  
-  message("---- Cell type: ", ct)
-  
-  
-  sub <- subset(seu,
-                cell_type == ct)
-  
-  
-  
-  
-  emat <- emat_tot[,colnames(sub)]
-  nmat <- nmat_tot[,colnames(sub)]
-  
-  
-  dim(emat)
-  
-  emat[1:3,1:4]
-  
-  anndata::AnnData(X = t(emat),
-                   layers = list(spliced = t(emat),
-                                 unspliced = t(nmat))) |>
-    anndata::write_h5ad(filename = file.path(dir_out_anndata,
-                                             paste0(ct,".h5ad")))
-  
-  message("done...")
-  
-}
+
 
 
 
@@ -100,19 +107,83 @@ for (ct in cell_types){
 
 
 # explore example cell type ----
-# which(cell_types == "BWM")
-ct <- cell_types[[81]]
 
+library(Seurat)
+library("velocyto.R")
+library(tidyverse)
+library(wbData)
+
+gids <- wb_load_gene_ids(295) |>
+  tibble::add_row(X = NA, gene_id = "nsIs198",
+                  symbol = "nsIs198", sequence = "nsIs198",
+                  status = "Live", biotype = "protein_coding_gene",
+                  name = "nsIs198") |>
+  mutate(name = if_else(name == "E_BE45912.2",
+                        "E-BE45912.2",
+                        name))
+
+# reticulate::use_virtualenv("anndata")
+
+
+# dir_loom <- "intermediates/2502/250409_loom/"
+
+dir_step1 <- "intermediates/2502/250522_step1"
+dir_velocyto <- "intermediates/2502/250521_velocyto"
+
+
+emat_tot <- qs::qread(file.path(dir_velocyto, "emat_tot.qs"))
+nmat_tot <- qs::qread(file.path(dir_velocyto, "nmat_tot.qs"))
+
+rownames(emat_tot) <- i2s(rownames(emat_tot), gids, warn_missing = TRUE)
+rownames(nmat_tot) <- i2s(rownames(nmat_tot), gids, warn_missing = TRUE)
+
+
+# cell_types <- unique(seu$cell_type)
+
+
+
+# which(cell_types == "ILso")
+# ct <- cell_types[[45]]
+
+ct <- "ILso"
 ct
 
-sub <- subset(seu,
-              cell_type == ct)
+sub <- qs::qread(file.path(dir_step1,
+                           paste0(ct, "_seu_unsmoothed.qs")) )
+
+stopifnot(all(
+  rownames(sub) %in% rownames(emat_tot)
+))
+stopifnot(all(
+  colnames(sub) %in% colnames(emat_tot)
+))
 
 
-emat <- emat_tot[,colnames(sub)]
-nmat <- nmat_tot[,colnames(sub)]
+emat <- emat_tot[rownames(sub), colnames(sub)]
+nmat <- nmat_tot[rownames(sub), colnames(sub)]
 
-#~ filter genes ----
+
+# mat_cnt <- GetAssayData(sub, assay = "RNA", layer = "counts")
+# 
+# ex_rows <- sample(rownames(emat), 100)
+# ex_cols <- sample(colnames(emat), 100)
+# tibble(
+#   emat = as.numeric(emat[ex_rows,ex_cols]),
+#   seu = as.numeric(mat_cnt[ex_rows,ex_cols])
+# ) |>
+#   ggplot() +
+#   theme_classic() +
+#   scale_x_continuous(transform = "log1p") +
+#   scale_y_continuous(transform = "log1p") +
+#   geom_abline(slope = 1, intercept = 0) +
+#   geom_point(aes(x = emat, y = seu),
+#               alpha = .1)
+#   # geom_jitter(aes(x = emat, y = seu),
+#   #            alpha = .1,width = .01, height = 0)
+
+
+
+# #~ filter genes ----
 dim(emat); dim(nmat)
 
 emat |> rowMeans() |> log10() |> hist(breaks = 50); abline(v = log10(.02), col = 'red3')
@@ -128,14 +199,19 @@ length(intersect(rownames(nmat_f),rownames(nmat_f)))
 
 
 #~ process PCA ----
-sub <- SCTransform(sub)
-sub <- RunPCA(sub, npcs = 2, verbose = FALSE)
 
 dat <- FetchData(sub, vars = c("PC_1","PC_2","cell_phase_masked", "cell_rho"))
+
+# for ILso, invert axes for easier interpretation
+if(ct == "ILso"){
+  dat$PC_1 <- -dat$PC_1
+}
+
 
 dat |>
   ggplot() +
   theme_classic() +
+  theme(legend.position = "none") +
   scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
                         limits = c(0, 360)) +
   geom_point(aes(x = PC_1, y = PC_2,
@@ -146,48 +222,73 @@ dat |>
 
 #~ Process velocity ----
 
-rvel.cd <- gene.relative.velocity.estimates(emat_f,
-                                            nmat_f)
+rvel.cd <- gene.relative.velocity.estimates(emat,
+                                            nmat)
 
+# qs::qsave(rvel.cd, file.path(dir_velocyto, "rvel.cd.qs"))
+rvel.cd <- qs::qread(file.path(dir_velocyto, "rvel.cd.qs"))
 
-stopifnot(all.equal(rownames(dat), colnames(rvel.cd$current)))
-
-
-
-# color-code cell phase per cell
-phase_per_bc <- dat[["cell_phase_masked"]]
-ref_cols <- pals::kovesi.cyclic_mrybm_35_75_c68(50) |> colorRamp()
+stopifnot(identical(rownames(dat), colnames(rvel.cd$current)))
 
 
 
-phase_per_bc[!is.na(phase_per_bc)] <- (phase_per_bc / 360) |>
-  na.exclude() |>
-  ref_cols() |>
-  (\(x) x / 255 )() |>
-  rgb()
+# # color-code cell phase per cell
+# phase_per_bc <- dat[["cell_phase_masked"]]
+# ref_cols <- pals::kovesi.cyclic_mrybm_35_75_c68(50) |> colorRamp()
+# 
+# 
+# 
+# phase_per_bc[!is.na(phase_per_bc)] <- (phase_per_bc / 360) |>
+#   na.exclude() |>
+#   ref_cols() |>
+#   (\(x) x / 255 )() |>
+#   rgb()
+# 
+# phase_per_bc[is.na(phase_per_bc)] <- 'grey'
+# 
+# names(phase_per_bc) <- rownames(dat)
 
-phase_per_bc[is.na(phase_per_bc)] <- 'grey'
 
-names(phase_per_bc) <- rownames(dat)
 
-show.velocity.on.embedding.cor(as.matrix(dat[,1:2]),
+
+#~ plots ----
+
+res <- show.velocity.on.embedding.cor(as.matrix(dat[,1:2]),
                                rvel.cd,
-                               n = 300,
-                               scale = 'sqrt',
-                               cex = 0.8,
-                               arrow.scale = 2,
+                               arrow.scale = 3,
                                show.grid.flow = TRUE,
-                               cell.colors = phase_per_bc,
-                               min.grid.cell.mass = 0.5,
                                grid.n = 40,
-                               arrow.lwd = 1,
-                               do.par = F,
+                               arrow.lwd = 1.5,
+                               do.par = T,
                                cell.border.alpha = 0.1)
 
+# opar <- par(no.readonly = T)
+pdf(file.path(dir_velocyto, paste0(ct, "_velocity.pdf")),
+    width = 6, height = 6)
+show.velocity.on.embedding.cor(as.matrix(dat[,1:2]),
+                               rvel.cd,
+                               cc = res$cc,
+                               arrow.scale = 3,
+                               show.grid.flow = TRUE,
+                               grid.n = 40,
+                               arrow.lwd = 1.5,
+                               do.par = T,
+                               cell.border.alpha = 0.1)
+dev.off()
 
-
-
-
+png(file.path(dir_velocyto, paste0(ct, "_velocity.png")),
+    width = 6, height = 6, units = "in",
+    res = 300)
+show.velocity.on.embedding.cor(as.matrix(dat[,1:2]),
+                               rvel.cd,
+                               cc = res$cc,
+                               arrow.scale = 3,
+                               show.grid.flow = TRUE,
+                               grid.n = 40,
+                               arrow.lwd = 1.5,
+                               do.par = T,
+                               cell.border.alpha = 0.1)
+dev.off()
 
 
 
