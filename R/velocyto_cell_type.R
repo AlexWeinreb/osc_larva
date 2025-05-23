@@ -80,7 +80,7 @@ nmat <- nmat_tot[rownames(sub), colnames(sub)]
 
 
 
-#~ process PCA ----
+#~ save PCA ----
 
 dat <- FetchData(sub, vars = c("PC_1","PC_2","cell_phase_masked", "cell_rho"))
 
@@ -118,13 +118,17 @@ gg_phase <- dat |>
 
 ggsave(paste0(ct,"_phase.png"), gg_phase,
        path = params$dir_velocyto,
-       width = 7, height = 5, units = "in")
+       width = 6, height = 6, units = "in")
+
+ggsave(paste0(ct,"_phase.pdf"), gg_phase,
+       path = params$dir_velocyto,
+       width = 6, height = 6, units = "in")
 
 
 
 
 
-#~ Process velocity ----
+# Process velocity ----
 message("---  Process velocity")
 rvel.cd <- gene.relative.velocity.estimates(emat,
                                             nmat)
@@ -156,6 +160,7 @@ qs::qsave(arrows_preproc, file.path(params$dir_velocyto, paste0( ct, "_arrows_pr
 
 message("---  Save plots")
 
+#~~ all grey ----
 pdf(file.path(params$dir_velocyto, paste0(ct, "_velocity.pdf")),
     width = 6, height = 6)
 show.velocity.on.embedding.cor(as.matrix(dat[,1:2]),
@@ -182,6 +187,65 @@ show.velocity.on.embedding.cor(as.matrix(dat[,1:2]),
                                do.par = T,
                                cell.border.alpha = 0.1)
 dev.off()
+
+
+
+
+
+#~~ phase-coded phase ----
+message(" Color-coded phase")
+
+
+# # color-code cell phase per cell
+phase_per_bc <- dat[["cell_phase_masked"]]
+ref_cols <- pals::kovesi.cyclic_mrybm_35_75_c68(50) |> colorRamp()
+
+
+
+phase_per_bc[!is.na(phase_per_bc)] <- (phase_per_bc / 360) |>
+  na.exclude() |>
+  ref_cols() |>
+  (\(x) x / 255 )() |>
+  rgb()
+
+phase_per_bc[is.na(phase_per_bc)] <- 'grey'
+
+names(phase_per_bc) <- rownames(dat)
+
+
+
+
+png(file.path(params$dir_velocyto, paste0(ct, "_velocity_phase.png")),
+    width = 6, height = 6, units = "in",
+    res = 300)
+show.velocity.on.embedding.cor(as.matrix(dat[,1:2]),
+                               rvel.cd,
+                               cc = arrows_preproc$cc,
+                               arrow.scale = 3,
+                               show.grid.flow = TRUE,
+                               grid.n = 40,
+                               cell.colors = phase_per_bc,
+                               arrow.lwd = 1.5,
+                               do.par = T,
+                               cell.border.alpha = 0.1)
+dev.off()
+
+
+pdf(file.path(params$dir_velocyto, paste0(ct, "_velocity_phase.pdf")),
+    width = 6, height = 6)
+show.velocity.on.embedding.cor(as.matrix(dat[,1:2]),
+                               rvel.cd,
+                               cc = arrows_preproc$cc,
+                               arrow.scale = 3,
+                               show.grid.flow = TRUE,
+                               grid.n = 40,
+                               cell.colors = phase_per_bc,
+                               arrow.lwd = 1.5,
+                               do.par = T,
+                               cell.border.alpha = 0.1)
+dev.off()
+
+
 
 
 
