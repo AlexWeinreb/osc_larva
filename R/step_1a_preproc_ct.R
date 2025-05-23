@@ -197,7 +197,7 @@ for(.ct in cell_types ){
   #        width = 7, height = 5, units = "in")
 
   qs::qsave(
-    sub,
+    sub_smoothed,
     file.path(dir_out,
               paste0(.ct, "_seu.qs"))
   )
