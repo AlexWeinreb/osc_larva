@@ -15,7 +15,7 @@ source("R/utils.R")
 
 
 dir_third <- "intermediates/2502/250311_third"
-dir_processed <- "intermediates/2502/250313_third_processed"
+dir_processed <- "intermediates/2502/250529_third_processed"
 
 
 
@@ -27,6 +27,12 @@ rev_markers <- readxl::read_excel("/gpfs/ycga/work/hammarlund/aw853/references/d
 stopifnot(!any(duplicated(rev_markers$gene)))
 
 
+# check later annotations
+seu_annot <- qs::qread( file.path("intermediates/2502/250509_assembled", "250509_seu_all_herma.qs"))
+table(seu_annot$cell_type[seu_annot$tissue == "reproductive"])
+
+xx <- names(which(seu_annot$cell_type == "gonadal_sheath")) |> str_remove("^s[0-9]+_")
+
 
 # transfer the files that are already atomic cell types
 atomicfile <- paste0("250311_seu_",cond_here,"_", tissue_here,".qs")
@@ -35,28 +41,62 @@ file.exists(file.path(dir_third, atomicfile))
 file.copy(file.path(dir_third, atomicfile),
           file.path(dir_processed, atomicfile))
 
+# copy neurons
+neuron_files <- c("230313_g2_ACh_motoneuron.qs", "230313_g2_ADL.qs", "230313_g2_AFD.qs", "230313_g2_AIA.qs",
+                  "230313_g2_AIB.qs", "230313_g2_AIM_RIP.qs", "230313_g2_AIN.qs", "230313_g2_ALA.qs",
+                  "230313_g2_ASEL.qs", "230313_g2_ASER.qs", "230313_g2_ASG.qs", "230313_g2_ASH.qs",
+                  "230313_g2_ASJ.qs", "230313_g2_ASK.qs", "230313_g2_AVA.qs", "230313_g2_AVB.qs",
+                  "230313_g2_AVD.qs", "230313_g2_AVE.qs", "230313_g2_AVH.qs", "230313_g2_AVJ.qs",
+                  "230313_g2_AVK.qs", "230313_g2_AVL.qs", "230313_g2_AWA.qs", "230313_g2_AWC.qs",
+                  "230313_g2_BAG.qs", "230313_g2_CEP.qs", "230313_g2_HSN.qs", "230313_g2_IL1.qs",
+                  "230313_g2_IL2_LR.qs", "230313_g2_mechanosensory.qs", "230313_g2_OLQ.qs",
+                  "230313_g2_pharyngeal.qs", "230313_g2_PVD.qs", "230313_g2_PVQ.qs", "230313_g2_RIA.qs",
+                  "230313_g2_RIC.qs", "230313_g2_RID.qs", "230313_g2_RIH.qs", "230313_g2_RIM.qs",
+                  "230313_g2_RIR.qs", "230313_g2_RIS.qs", "230313_g2_RIV.qs", "230313_g2_RMD_LR.qs",
+                  "230313_g2_RMF.qs", "230313_g2_RMG.qs", "230313_g2_RMH.qs", "230313_g2_SAA.qs",
+                  "230313_g2_SIA.qs", "230313_g2_SIB.qs", "230313_g2_SMB.qs", "230313_g2_SMD.qs",
+                  "230313_g2_URX.qs", "230313_g2_URY.qs", "230313_g2_VD_DD.qs", "230318_g1_ACh_motoneuron.qs",
+                  "230318_g1_AIN.qs", "230318_g1_ALN_PLN_SMB.qs", "230318_g1_ASK.qs", "230318_g1_CAN.qs",
+                  "230318_g1_DVB.qs", "230318_g1_mechanosensory.qs", "230318_g1_PDA.qs", "230318_g1_PHC.qs",
+                  "230318_g1_PVD.qs", "230318_g1_RMH.qs", "230318_g1_VD_DD.qs")
 
+dir_third_old <- "intermediates/2502/250313_third_processed/"
+dir_third_processed
+walk(neuron_files,
+     \(.file){
+       stopifnot(file.exists(file.path(dir_third_old, .file)))
+       stopifnot( !file.exists(file.path(dir_third_processed, .file)))
+       file.copy(file.path(dir_third_old, .file),
+                 file.path(dir_third_processed, .file))
+     })
+
+
+## Save ----
 
 # if not atomic, use rest of script, save here individual objects
 
+atomic_seu <- seu
+atomic_seu <- subset(seu, idents = c(9,11,12))
 
-# atomic_seu <- subset(seu, idents = c(6))
-# 
-# stopifnot(
-#   ! file.exists(file.path(dir_processed,
-#                           "230318_g1_AMsh.qs"))
-# )
-# qs::qsave(atomic_seu,
-#           file.path(dir_processed,
-#                     "230318_g1_AMsh.qs"))
-
+stopifnot(
+  ! file.exists(file.path(dir_processed,
+                          "230529_g1_ILso.qs"))
+)
+qs::qsave(atomic_seu,
+          file.path(dir_processed,
+                    "230529_g1_ILso.qs"))
+rm(atomic_seu)
 
 
 ## Load ----
+list.files(dir_third, pattern = "250311_seu_1")
+
 cond_here <- "1"
 tissue_here <- "glia"
 
 seu <- qs::qread(file.path( dir_third, paste0("250311_seu_",cond_here,"_", tissue_here,".qs") ))
+
+# marks <- qs::qread(file.path( dir_third, paste0("250311_marks_",cond_here,"_", tissue_here,".qs") ))
 
 DimPlot(seu,
         reduction = "umap",
@@ -74,30 +114,41 @@ DimPlot(seu,
         alpha = .5) +
   NoLegend()
 
+# ElbowPlot(seu, ndims = 200) + geom_vline(aes(xintercept = 30))
+# seu <- FindNeighbors(seu,
+#                      dims = 1:40)
+# 
+# seu <- FindClusters(seu,
+#                     resolution = .6)
 
+# check against previous annotation
+xx <- colnames(seu)
+xx <- colnames(seu)[seu$seurat_clusters == 0]
+seu_annot$cell_type[which(str_remove(colnames(seu_annot), "^s[0-9]+_") %in% xx)] |> table()
 
-
-
+xx <- names(which(seu_annot$cell_type == "BWM")) |> str_remove("^s[0-9]+_")
+seu$seurat_clusters[which(colnames(seu) %in% xx)] |> table()
 
 DimPlot(seu,
         reduction = "pca") +
   NoLegend()
 
 seu$tmp <- Idents(seu) == "7"
+seu$tmp <- colnames(seu) %in% xx
 # seu$tmp <- Idents(seu) %in% c(0,2,4,7)
 DimPlot(seu,
         reduction = "umap",
         group.by = "tmp",
         label = FALSE,
         pt.size = 1.5,
-        alpha = .5) +
-  NoLegend()
+        alpha = .5) 
+  # NoLegend()
 
 # Specific markers ----
 
 
 aggregate_tib(seu,
-              gene_names = rev_markers$gene[rev_markers$tissue == "reproductive"] ) |>
+              gene_names = rev_markers$gene[rev_markers$tissue == "muscle"] ) |>
   ggplot() +
   theme_classic() +
   scale_size_continuous(limits = c(.01,1)) +
@@ -245,10 +296,10 @@ genes <- rev_markers$gene_id[rev_markers$tissue == "reproductive"] |>
 
 
 #~ DTC ----
-genes <- c("hlh-12","lag-2","T02E1.8","sex-1","nid-1") |>
-  s2i(gids) |>
-  set_names(~ i2s(.x, gids))
+genes <- c("hlh-12","lag-2","T02E1.8","sex-1","nid-1")
 
+#~ Anchor ----
+genes <- c("cdh-3")
 
 #~ hmc ----
 genes <- c("glb-26","Y105E8B.9","W04G5.4","Y73B6A.3","twk-9","C28C12.11") |>
@@ -256,9 +307,7 @@ genes <- c("glb-26","Y105E8B.9","W04G5.4","Y73B6A.3","twk-9","C28C12.11") |>
   set_names(~ i2s(.x, gids))
 
 #~ coelo ----
-genes <- c("cup-4", "lgc-26", "unc-122") |>
-  s2i(gids) |>
-  set_names(~ i2s(.x, gids))
+genes <- c("cup-4", "lgc-26", "unc-122")
 
 
 #~ excr ----
@@ -316,6 +365,8 @@ genes <- c("unc-33","arx-2","grl-12","F44A2.3")
 
 genes <- c("grl-2", "grl-12")
 
+# CEPso/OLso
+genes <- c("col-56","col-68")
 
 ## From wormglia
 # ADEsh
@@ -378,7 +429,7 @@ aggregate_tib(seu2,
          prop_ILso < .1)
 
 
-genes <- c("ceh-27")
+genes <- c("amx-2")
 
 
 
@@ -567,7 +618,7 @@ DimPlot(seu,
 
 # pairwise comparison ----
 mark_sing <- FindMarkers(seu,
-                         ident.1 = c(8,4,12), ident.2 = c(0) )
+                         ident.1 = c(0,5,13,16), ident.2 = c(17) )
 
 mark_sing <- FindMarkers(seu,
                          ident.1 = c(20) )
@@ -578,7 +629,8 @@ mark_sing |>
   filter(avg_log2FC > 1,
          pct.1 > .3,
          pct.2 < .2) |>
-  arrange(desc(avg_log2FC)) |> pull(gene_name) |> paste0(collapse = " ") |> message()
+  arrange(desc(avg_log2FC)) |> pull(gene_name) |> # head(6) -> genes
+  paste0(collapse = ", ") |> message()
 
 mark_sing |>
   rownames_to_column("gene_name") |>
@@ -598,7 +650,15 @@ mark_sing |>
   filter(avg_log2FC > 1,
          pct.1 > .3,
          pct.2 < .2) |>
-  arrange(desc(avg_log2FC)) |> pull(gene_name) |> str_subset("\\-") |> head(15) |> paste0(collapse = ", ") |> message()
+  arrange(desc(avg_log2FC)) |> pull(gene_name) |> str_subset("\\-") |> paste0(collapse = ", ") |> message()
+
+mark_sing |>
+  rownames_to_column("gene_name") |>
+  as_tibble() |>
+  filter(avg_log2FC > 1,
+         pct.1 > .3,
+         pct.2 < .2) |>
+  arrange(desc(avg_log2FC)) |> pull(gene_name) |> str_subset("\\-") |> head(6) -> genes
 
 
 #~ TEA  ----
@@ -607,8 +667,8 @@ genelist <- mark_sing |>
   rownames_to_column("gene_name") |>
   as_tibble() |>
   filter(avg_log2FC > 1,
-         pct.1 > .2,
-         pct.2 < .1) |>
+         pct.1 > .3,
+         pct.2 < .2) |>
   arrange(desc(avg_log2FC)) |> pull(gene_name)
 
 length(genelist)
@@ -635,10 +695,65 @@ tea_res |>
 tea_res |> arrange(desc(observed))
 tea_res |> arrange(FDR)
 
+
+# Genes explanation
+wbe_dict$wbid[as.logical(wbe_dict$`vulE WBbt:0006767`)] |>
+  i2s(gids) |>
+  intersect(genelist) |>
+  paste(collapse = ", ")
+
+
+
+#~ TEA from marker precomp ----
+marks <- qs::qread(file.path( dir_third, paste0("250311_marks_",cond_here,"_", tissue_here,".qs") ))
+
+genelist <- marks |>
+  filter(cluster == 12) |>
+  filter(avg_log2FC > 1,
+         pct.1 > .3,
+         pct.2 < .2) |>
+  arrange(desc(avg_log2FC)) |> pull(gene_name)
+
+length(genelist)
+
+# wbe_dict <- wormbaseEnrich::fetch_dictionary("tissue")
+# wbe_dict_go <- wormbaseEnrich::fetch_dictionary("GO")
+tea_res <- wormbaseEnrich::enrichment_analysis(s2i(genelist, gids), wbe_dict,
+                                               background_genes = rownames(seu) |> s2i(gids))
+
+
+
+tea_res |>
+  mutate(progenitor = startsWith(term_name, "AB")) |>
+  # filter(! startsWith(term_name, "AB")) |>
+  ggplot() +
+  theme_classic() +
+  scale_alpha_manual(values = c(`TRUE` = .2, `FALSE` = 1)) +
+  aes(x = observed, y = -log10(FDR),
+      alpha = progenitor,
+      label = term_name) +
+  geom_point(aes(size = enrichment_fc)) +
+  ggrepel::geom_text_repel()
+
+tea_res |> arrange(desc(observed))
+tea_res |> arrange(FDR)
+
+
+# Genes explanation
+wbe_dict$wbid[as.logical(wbe_dict$`excretory socket cell WBbt:0004534`)] |>
+  i2s(gids) |>
+  intersect(genelist) |>
+  paste(collapse = ", ")
+
+
+
+
+
+
 # test subset ----
 
-sub <- subset(seu, idents = setdiff(0:8, c("0","5","6")))
-sub <- subset(seu, idents = c(19))
+sub <- subset(seu, idents = setdiff(0:8, c(0,6)))
+sub <- subset(seu, idents = c(9,11,12))
 # sub <- seu
 
 
@@ -647,7 +762,7 @@ sub <- SCTransform(sub)
 maxnpcs <- pmin(200, ncol(sub) - 10)
 sub <- RunPCA(sub, npcs = maxnpcs, verbose = FALSE)
 
-npca <- 40
+npca <- 15
 
 ElbowPlot(sub, ndims = maxnpcs) +
   geom_vline(aes(xintercept = npca))
@@ -673,7 +788,7 @@ sub <- FindNeighbors(sub,
                      dims = 1:npca)
 
 sub <- FindClusters(sub,
-                    resolution = 1)
+                    resolution = .5)
 
 DimPlot(
   sub,
@@ -702,6 +817,18 @@ FeaturePlot(sub,
 
 
 
+aggregate_tib(sub,
+              gene_names = genes) |>
+  ggplot() +
+  theme_classic() +
+  scale_size_continuous(limits = c(.01,1)) +
+  scale_color_gradient2(low = "blue3",
+                        mid = "red3",
+                        high = "yellow2",
+                        midpoint = 2) +
+  geom_point(aes(x = cell_id, y = gene_name,
+                 size = prop, color = log10(count)),
+             alpha = .8)
 
 
 all_markers <- FindAllMarkers(sub,
@@ -723,49 +850,87 @@ all_markers |>
 table(sub$doubletFinder, Idents(sub), useNA = 'ifany')
 
 
-#~ more ----
-
-genes <- rev_markers$gene_id[rev_markers$tissue == "pharynx" | rev_markers$cell_type == "pharyngeal_muscle"] |>
-  set_names(~ i2s(.x, gids))
-
-genes <- genes[genes %in% rownames(sub)]
 
 
+#~ pairwise in sub ----
+
+
+mark_sing <- FindMarkers(sub,
+                         ident.1 = c(3) )
+
+mark_sing |>
+  rownames_to_column("gene_name") |>
+  as_tibble() |>
+  filter(avg_log2FC > 1,
+         pct.1 > .3,
+         pct.2 < .2) |>
+  arrange(desc(avg_log2FC)) |> pull(gene_name) |> paste0(collapse = ", ") |> message()
+
+
+# named genes
+mark_sing |>
+  rownames_to_column("gene_name") |>
+  as_tibble() |>
+  filter(avg_log2FC > 1,
+         pct.1 > .3,
+         pct.2 < .2) |>
+  arrange(desc(avg_log2FC)) |> pull(gene_name) |> str_subset("\\-") |> head(15) |> paste0(collapse = ", ") |> message()
+
+# as markers
+genes <- mark_sing |>
+  rownames_to_column("gene_name") |>
+  as_tibble() |>
+  filter(avg_log2FC > 1,
+         pct.1 > .3,
+         pct.2 < .2) |>
+  arrange(desc(avg_log2FC)) |> pull(gene_name) |> head()
 
 FeaturePlot(sub,
-            reduction = "umap",
-            genes,
-            combine = FALSE) |>
-  map2(names(genes),
-       ~ {.x + ggtitle(.y) + xlab(NULL) + ylab(NULL) + NoLegend()}) |>
+            genes, alpha=.7, pt.size = 1.5,
+            combine = FALSE) |># lapply(\(.x) .x + NoLegend()) |>
   patchwork::wrap_plots()
 
+#~~ TEA  ----
+
+genelist <- mark_sing |>
+  rownames_to_column("gene_name") |>
+  as_tibble() |>
+  filter(avg_log2FC > 1,
+         pct.1 > .3,
+         pct.2 < .2) |>
+  arrange(desc(avg_log2FC)) |> pull(gene_name)
+
+length(genelist)
+
+# wbe_dict <- wormbaseEnrich::fetch_dictionary("tissue")
+# wbe_dict_go <- wormbaseEnrich::fetch_dictionary("GO")
+tea_res <- wormbaseEnrich::enrichment_analysis(s2i(genelist, gids), wbe_dict,
+                                               background_genes = rownames(seu) |> s2i(gids))
 
 
 
-
-aggregate_tib(sub,
-              gene_names = rev_markers$gene[rev_markers$tissue == "muscle"]) |>
+tea_res |>
+  mutate(progenitor = startsWith(term_name, "AB")) |>
+  # filter(! startsWith(term_name, "AB")) |>
   ggplot() +
   theme_classic() +
-  scale_size_continuous(limits = c(.01,1)) +
-  scale_color_gradient2(low = "blue3",
-                        mid = "red3",
-                        high = "yellow2",
-                        midpoint = 2) +
-  geom_point(aes(x = cell_id, y = gene_name,
-                 size = prop, color = log10(count)),
-             alpha = .8)
+  scale_alpha_manual(values = c(`TRUE` = .2, `FALSE` = 1)) +
+  aes(x = observed, y = -log10(FDR),
+      alpha = progenitor,
+      label = term_name) +
+  geom_point(aes(size = enrichment_fc)) +
+  ggrepel::geom_text_repel()
+
+tea_res |> arrange(desc(observed))
+tea_res |> arrange(FDR)
 
 
 
-
-
-FeaturePlot(sub,
-            features = c("egl-20", "col-118", "C39E9.8","W03F9.11") |> s2i(gids))
-
-
-
+# Genes explanation
+wbe_dict$wbid[as.logical(wbe_dict$`ILshVL WBbt:0004525` | wbe_dict$`ILshDR WBbt:0004531`)] |>
+  i2s(gids) |>
+  intersect(genelist) |>
+  paste(collapse = ", ")
 
 
 
@@ -1066,7 +1231,46 @@ ggplot(FetchData(seu,
 # Add identities ----
 
 
-# # group 2 glia
+#~ group 1 glia ----
+
+annot_g1_glia <- tibble(
+  cell_bc = colnames(seu), glia_type = NA_character_
+)
+table(annot_g1_glia$glia_type, useNA = 'ifany')
+
+
+
+# not subset
+annot_g1_glia$glia_type[annot_g1_glia$cell_bc %in% colnames(seu)[Idents(seu) %in% c("0")]] <- "PHsh"
+
+annot_g1_glia$glia_type[annot_g1_glia$cell_bc %in% colnames(seu)[Idents(seu) %in% c("6")]] <- "AMsh"
+
+
+
+annot_g1_glia$glia_type[annot_g1_glia$cell_bc %in% colnames(seu)[Idents(seu) %in% c("11")]] <- "skin_2"
+
+
+
+
+
+annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(seu)[Idents(seu) %in% c("9")]] <- "glia_socket_1"
+
+# subset sockets setdiff(0:13, c(4,7,8,10,11))
+annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(sub)[Idents(sub) %in% c(13)]] <- "glia_1"
+
+annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(sub)[Idents(sub) %in% c(12)]] <- "glia_sheath_1"
+annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(sub)[Idents(sub) %in% c(3,5,7)]] <- "glia_sheath_2"
+annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(sub)[Idents(sub) %in% c(16)]] <- "glia_2"
+
+annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(sub)[Idents(sub) %in% c(4)]] <- "unclear"
+annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(sub)[Idents(sub) %in% c(6,9,10,15)]] <- "CEPso"
+
+annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(sub)[Idents(sub) %in% c(0,1,2,8,11,14)]] <- "ILso"
+
+# qs::qsave(annot_g2_glia, file.path(dir_processed, "250529_annot_g2_glia.qs"))
+
+
+# #~ group 2 glia ----
 # 
 # annot_g2_glia <- tibble(
 #   cell_bc = colnames(seu), glia_type = NA_character_
@@ -1074,65 +1278,35 @@ ggplot(FetchData(seu,
 # table(annot_g2_glia$glia_type, useNA = 'ifany')
 # 
 # 
-# # subset for ILso and other sockets
-# annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(sub)[Idents(sub) %in% c("0","1","2")]] <- "ILso"
-# annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(sub)[Idents(sub) %in% c("3","6")]] <- "sheath"
-# annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(sub)[Idents(sub) %in% c("4")]] <- "PDEso"
-# annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(sub)[Idents(sub) %in% c("7","8")]] <- "socket_s7"
-# annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(sub)[Idents(sub) %in% c("9")]] <- "socket_s9"
-# annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(sub)[Idents(sub) %in% c("5")]] <- "OLso"
-# annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(sub)[Idents(sub) %in% c("10")]] <- "head_hyp"
+# # subset AM/PHsh (seu cl 7)
+# annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(sub)[Idents(sub) %in% c(1:4)]] <- "AMsh"
+# annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(sub)[Idents(sub) %in% c("0")]] <- "PHsh"
 # 
+# # not subset
+# annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(seu)[Idents(seu) %in% c("8")]] <- "AM_PHso"
 # 
-# annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(seu)[Idents(seu) %in% c("5")]] <- "ADE_PDEso"
+# annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(seu)[Idents(seu) %in% c("10")]] <- "skin_3"
+# annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(seu)[Idents(seu) %in% c("11")]] <- "skin_2"
 # 
 # annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(seu)[Idents(seu) %in% c("4")]] <- "CEPsh"
 # 
-# annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(seu)[Idents(seu) %in% c("7")]] <- "AM_PHsh"
-# 
-# annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(seu)[Idents(seu) %in% c("8")]] <- "AM_PHso"
 # 
 # 
-# annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(seu)[Idents(seu) %in% c("10")]] <- "head_hyp"
-# annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(seu)[Idents(seu) %in% c("11")]] <- "tail_hyp"
+# annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(seu)[Idents(seu) %in% c("9")]] <- "glia_socket_1"
 # 
-# annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(seu)[Idents(seu) %in% c("12")]] <- "glia"
+# # subset sockets setdiff(0:13, c(4,7,8,10,11))
+# annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(sub)[Idents(sub) %in% c(13)]] <- "glia_1"
 # 
+# annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(sub)[Idents(sub) %in% c(12)]] <- "glia_sheath_1"
+# annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(sub)[Idents(sub) %in% c(3,5,7)]] <- "glia_sheath_2"
+# annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(sub)[Idents(sub) %in% c(16)]] <- "glia_2"
 # 
-# # qs::qsave(annot_g2_glia, file.path(dir_processed, "250318_annot_g2_glia.qs"))
+# annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(sub)[Idents(sub) %in% c(4)]] <- "unclear"
+# annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(sub)[Idents(sub) %in% c(6,9,10,15)]] <- "CEPso"
 # 
+# annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(sub)[Idents(sub) %in% c(0,1,2,8,11,14)]] <- "ILso"
 # 
-# 
-# 
-# annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(sub)[Idents(sub) %in% c("0", "2")]] <- "AMsh"
-# annot_g2_glia$glia_type[annot_g2_glia$cell_bc %in% colnames(sub)[Idents(sub) %in% c("1")]] <- "PHsh"
-# 
-# annot_g2_glia <- annot_g2_glia |> column_to_rownames("cell_bc")
-# 
-# 
-# # seu$annot_third_glia <- annot_g2_glia[colnames(seu), "glia_type"]
-# Idents(seu) <- "annot_third_glia"
-# 
-# 
-# 
-# 
-# levels(Idents(seu)) |>
-#   setdiff("unclear") |>
-#   walk(~{
-#     filename <- file.path(dir_processed,
-#                           paste0("230318_g2_", .x, ".qs"))
-#     
-#     sub <- subset(seu, idents = .x)
-#     
-#     
-#     if(!file.exists(filename)){
-#       qs::qsave(sub,
-#                 filename)
-#       message("saved")
-#     } else{
-#       stop("exists!")
-#     }
-#   })
+# # qs::qsave(annot_g2_glia, file.path(dir_processed, "250529_annot_g2_glia.qs"))
 
 
 
@@ -1140,8 +1314,65 @@ ggplot(FetchData(seu,
 
 
 
+# save each glial type
+annot_g2_glia <- annot_g2_glia |> column_to_rownames("cell_bc")
 
 
+# seu$annot_third_glia <- annot_g2_glia[colnames(seu), "glia_type"]
+Idents(seu) <- "annot_third_glia"
+
+
+
+#~ save glia ----
+
+levels(Idents(seu)) |>
+  setdiff("unclear") |>
+  walk(~{
+    filename <- file.path(dir_processed,
+                          paste0("230529_g2_", .x, ".qs"))
+
+    sub <- subset(seu, idents = .x)
+
+
+    if(!file.exists(filename)){
+      qs::qsave(sub,
+                filename)
+      message("saved")
+    } else{
+      stop("exists!")
+    }
+  })
+
+
+
+
+full_join(
+seu_annot$cell_type[seu_annot$tissue == "glia"] |>
+  enframe(value = "cell_type",
+          name = "cell_bc") |>
+  mutate(cell_bc = str_remove(cell_bc, "^s[0-9]+_"))
+,
+seu$annot_third_glia |>
+  enframe(value = "cell_type",
+          name = "cell_bc")
+ ,
+by = "cell_bc"
+) |> filter(is.na(cell_type.y)) |> pull(cell_type.x) |> table()
+
+
+
+seu_annot[[]] |>
+  rownames_to_column("cell_bc") |>
+  mutate(cell_bc = str_remove(cell_bc, "^s[0-9]+_")) |>
+  as_tibble() |>
+  select(cell_bc, cell_type, tissue, orig.ident) |>
+  filter(tissue == "glia") |>
+  anti_join(seu$annot_third_glia |>
+              enframe(value = "cell_type",
+                      name = "cell_bc"),
+            by = "cell_bc"
+  ) |>
+  count(orig.ident)
 
 
 

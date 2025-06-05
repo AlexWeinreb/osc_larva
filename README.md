@@ -250,7 +250,9 @@ Further reprocessing those that are not an atomic cell type (single cluster), in
 
 For neurons, reprocessed separately in `third_pass_neurs.R`.
 
-The individually processed files are finally saved in `intermediates/2502/250313_third_processed`
+The individually processed files are finally saved in `intermediates/2502/250529_third_processed`.
+
+The list of cell types, their putative identities, and the gene markers, are recorded in `data/cell_annotations.xlsx`.
 
 
 
