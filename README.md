@@ -279,7 +279,7 @@ In `R/step_1a_preproc_ct.R`, called with `src/step_1a_preproc_ct.sh`:
 * outputs in `250522_step1` for each cell type
 
 
-note: `250330_step1`: only kept cell types with cells from L2 and L4. `250502`: process all cell types with > 20 cells.
+note older versions: `250330_step1`: only kept cell types with cells from L2 and L4. `250502`: process all cell types with > 20 cells.
 
 
 
@@ -299,7 +299,7 @@ These are used for clustering.
 
 
 
-`step_2a_gam_binom.R` is to be run on cluster as dsq jobarray, called from dSQ. Contents:
+`step_2a_gam_nb.R` is to be run on cluster as dsq jobarray, called from dSQ. Contents:
 * load intermediates from step 1 `250522_step1`
 * prefilter, run ElPiGraph and a NB-GAM (with size factors), save the models, descriptors, smooth fits
 * save intermediates in "intermediates/2502/250522_step2"
@@ -315,7 +315,7 @@ Jobfile created with:
 ```r
 paste("module load R; Rscript R/step_2a_gam_nb.R",
        "--dir_step1 'intermediates/2502/250522_step1'",
-      "--out_dir 'intermediates/2502/250522_step2'",
+      "--out_dir 'intermediates/2502/250523_step2'",
       "--i", seq_along(list.files('intermediates/2502/250522_step1', pattern = "_seu\\.qs$")),
       "--prop_thres 0.05 --cnt_thres 20",
       "--nb_subsamples_ptDE 10") |>
@@ -328,11 +328,10 @@ Job prepared with:
 ml dSQ; dsq --job-file joblists/step_2a_gam.dsq.txt  --cpus-per-task 1 --mem 15G --time 00:20:00 --partition day
 ```
 
-Notes:
-* i=60, cell_type="sperm" failed, was rerun manually (same parameters, unclear why it failed)
+Notes older versions:
 * previously used pseudotimeDE at this step, along with filtering on curve shape as step 3. No longer useful: most/all genes appear DE with pseudotime, replace with simple GAM and curve shape filtering. Keeping state of repo at that point in branch `pseudotimede`.
 * used binomial fit in some versions, later used NB-GAM on raw counts without offset, and Gaussian GAM on SCT data
-* bootstraps on dtw in previous version: wasn't obviously a better predictor than the dtw distance itself
+* bootstraps on dtw in previous version: CI wasn't obviously a better predictor than the dtw distance itself
 
 
 
