@@ -28,8 +28,7 @@ if(! interactive()){
     'out_dir', 'o', 1, 'character',
     'i', 'i', 1, 'integer',
     'prop_thres', 'g', 1, 'double',
-    'cnt_thres', 'c', 1, 'integer',
-    'nb_subsamples_ptDE', 'n', 1, 'integer'
+    'cnt_thres', 'c', 1, 'integer'
   ), byrow=TRUE, ncol=4)
   
   params <- getopt(spec)
@@ -37,12 +36,11 @@ if(! interactive()){
 } else{
   # Options for interactive
   params <- list(
-    dir_step1 = "intermediates/2502/250502_step1",
-    out_dir = "intermediates/2502/250514_step2_nb",
+    dir_step1 = "intermediates/2502/250609_step1",
+    out_dir = "intermediates/2502/250609_step2",
     i = 8,
     prop_thres = 0.1,
-    cnt_thres = 30,
-    nb_subsamples_ptDE = 10
+    cnt_thres = 30
   )
 }
 
@@ -290,11 +288,13 @@ mods_centered <- lapply(
 
 
 preds_centered <- vapply(mods_centered,
-                         \(.mod) predict(.mod,
-                                         type = "response",
-                                         newdata = data.frame(
-                                           pseudotime_centered = (0:(len-1))/len ,
-                                           size_factors = rep(mean_sf, len))
+                         \(.mod) predict(
+                           .mod,
+                           type = "response",
+                           newdata = data.frame(
+                             pseudotime_centered = (0:(len-1))/len ,
+                             size_factors = rep(mean_sf, len)
+                           )
                          ),
                          FUN.VALUE = double(len))
 
@@ -456,7 +456,7 @@ res$asymmetry <- apply(
 #   }
 # )
 
-res$baseline <- apply(smooth_centered, 2,
+res$baseline <- apply(preds_recentered, 2,
                       \(x){
                         x |>
                           sort() |>
@@ -477,9 +477,9 @@ ref <- (ref - min(ref))/max(ref - min(ref))
 ref <- circ_perm_mat(matrix(ref, ncol = 1))
 
 
-# matplot((seq_len(len) - 1)/len, preds_scaled, type = 'l',
+# matplot((seq_len(len) - 1)/len, preds_scaled[,1], type = 'l',
 #         xlab = "Pseudotime",
-#         ylab = "log(count + 1)",
+#         ylab = "expression (scaled)",
 #         lwd = .7)
 # lines((seq_len(len) - 1)/len, ref, lwd = 2.5)
 

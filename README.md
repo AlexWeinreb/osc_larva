@@ -276,9 +276,9 @@ In `assemble_osc.R` (interactive on cluster) assemble all cell types from L2 and
 
 
 In `R/step_1a_preproc_ct.R`, called with `src/step_1a_preproc_ct.sh`:
-* inputs: Seurat object `250509_assembled/250509_seu_all_herma.qs` from assembled
+* inputs: Seurat object `250605_assembled/250606_seu_all_herma.qs.qs` from assembled
 * impute or not, run SCT, run PCA; save plots and objects
-* outputs in `250522_step1` for each cell type
+* outputs in `250609_step1` for each cell type
 
 
 note older versions: `250330_step1`: only kept cell types with cells from L2 and L4. `250502`: process all cell types with > 20 cells.
@@ -315,19 +315,18 @@ Outputs:
 
 Jobfile created with:
 ```r
-paste("module load R; Rscript R/step_2a_gam_nb.R",
-       "--dir_step1 'intermediates/2502/250522_step1'",
-      "--out_dir 'intermediates/2502/250523_step2'",
-      "--i", seq_along(list.files('intermediates/2502/250522_step1', pattern = "_seu\\.qs$")),
-      "--prop_thres 0.05 --cnt_thres 20",
-      "--nb_subsamples_ptDE 10") |>
+paste("module load mlq; ml R; Rscript R/step_2a_gam_nb.R",
+       "--dir_step1 'intermediates/2502/250609_step1'",
+      "--out_dir 'intermediates/2502/250609_step2'",
+      "--i", seq_along(list.files('intermediates/2502/250609_step1', pattern = "_seu\\.qs$")),
+      "--prop_thres 0.05 --cnt_thres 20") |>
   writeLines("joblists/step_2a_gam.dsq.txt")
 ```
 
 
 Job prepared with:
 ```
-ml dSQ; dsq --job-file joblists/step_2a_gam.dsq.txt  --cpus-per-task 1 --mem 15G --time 00:20:00 --partition day
+ml dSQ; dsq --job-file joblists/step_2a_gam.dsq.txt  --cpus-per-task 1 --mem 15G --time 00:20:00 --partition day; ml unload dSQ
 ```
 
 Notes older versions:
