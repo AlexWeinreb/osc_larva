@@ -12,8 +12,8 @@ source("https://raw.githubusercontent.com/AlexWeinreb/knn-smoothing/refs/heads/m
 
 
 
-dir_assembled <- "intermediates/2502/250509_assembled/"
-dir_out <- "intermediates/2502/250522_step1"
+dir_assembled <- "intermediates/2502/250605_assembled/"
+dir_out <- "intermediates/2502/250609_step1"
 
 
 
@@ -23,7 +23,7 @@ dir_out <- "intermediates/2502/250522_step1"
 
 # Load ----
 
-seu <- qs::qread( file.path(dir_assembled, "250509_seu_all_herma.qs"))
+seu <- qs::qread( file.path(dir_assembled, "250606_seu_all_herma.qs"))
 
 
 
