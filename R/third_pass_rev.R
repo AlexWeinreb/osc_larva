@@ -31,7 +31,7 @@ stopifnot(!any(duplicated(rev_markers$gene)))
 seu_annot <- qs::qread( file.path("intermediates/2502/250509_assembled", "250509_seu_all_herma.qs"))
 table(seu_annot$cell_type[seu_annot$tissue == "reproductive"])
 
-xx <- names(which(seu_annot$cell_type == "gonadal_sheath")) |> str_remove("^s[0-9]+_")
+xx <- names(which(seu_annot$cell_type == "PHsh")) |> str_remove("^s[0-9]+_")
 
 
 # transfer the files that are already atomic cell types
@@ -76,22 +76,22 @@ walk(neuron_files,
 # if not atomic, use rest of script, save here individual objects
 
 atomic_seu <- seu
-atomic_seu <- subset(seu, idents = c(9,11,12))
+atomic_seu <- subset(sub, idents = c(2))
 
 stopifnot(
   ! file.exists(file.path(dir_processed,
-                          "230529_g1_ILso.qs"))
+                          "230529_g2_OLso.qs"))
 )
 qs::qsave(atomic_seu,
           file.path(dir_processed,
-                    "230529_g1_ILso.qs"))
+                    "230529_g2_OLso.qs"))
 rm(atomic_seu)
 
 
 ## Load ----
 list.files(dir_third, pattern = "250311_seu_1")
 
-cond_here <- "1"
+cond_here <- "2"
 tissue_here <- "glia"
 
 seu <- qs::qread(file.path( dir_third, paste0("250311_seu_",cond_here,"_", tissue_here,".qs") ))
@@ -753,7 +753,7 @@ wbe_dict$wbid[as.logical(wbe_dict$`excretory socket cell WBbt:0004534`)] |>
 # test subset ----
 
 sub <- subset(seu, idents = setdiff(0:8, c(0,6)))
-sub <- subset(seu, idents = c(9,11,12))
+sub <- subset(seu, idents = c(1,2,0,6,13,12))
 # sub <- seu
 
 
@@ -762,7 +762,7 @@ sub <- SCTransform(sub)
 maxnpcs <- pmin(200, ncol(sub) - 10)
 sub <- RunPCA(sub, npcs = maxnpcs, verbose = FALSE)
 
-npca <- 15
+npca <- 30
 
 ElbowPlot(sub, ndims = maxnpcs) +
   geom_vline(aes(xintercept = npca))
@@ -772,7 +772,7 @@ ElbowPlot(sub, ndims = maxnpcs) +
 
 sub <- RunUMAP(sub,
                dims = 1:npca,
-               n.neighbors = 30)
+               n.neighbors = 20)
 
 
 DimPlot(
@@ -788,7 +788,7 @@ sub <- FindNeighbors(sub,
                      dims = 1:npca)
 
 sub <- FindClusters(sub,
-                    resolution = .5)
+                    resolution = .1)
 
 DimPlot(
   sub,
@@ -803,7 +803,7 @@ DimPlot(
 # seu <- qs::qread(file.path(dir_processed, "250318_subglia_g1.qs"))
 # seu <- qs::qread(file.path(dir_processed, "250317_subglia_g2.qs"))
 
-
+genes <- c("col-56", "col-68", "grl-18", "col-53")
 
 #~ markers ----
 genes <- genes[genes %in% rownames(sub)]
@@ -839,11 +839,11 @@ all_markers <- FindAllMarkers(sub,
 
 
 all_markers |>
-  filter(cluster == "2") |>
+  filter(cluster == "4") |>
   filter(p_val_adj < 0.05,
          abs(pct.1 - pct.2) > 0.3,
          avg_log2FC > 0) |>
-  pull(gene_name) |> paste0(collapse = " ")
+  pull(gene_name) |> paste0(collapse = " ") |> message()
 
 
 
@@ -856,7 +856,7 @@ table(sub$doubletFinder, Idents(sub), useNA = 'ifany')
 
 
 mark_sing <- FindMarkers(sub,
-                         ident.1 = c(3) )
+                         ident.1 = c(2) )
 
 mark_sing |>
   rownames_to_column("gene_name") |>

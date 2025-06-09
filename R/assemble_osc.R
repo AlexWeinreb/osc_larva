@@ -1,5 +1,6 @@
 # Inits ----
 
+opar <- par(no.readonly = TRUE)
 
 library(tidyverse)
 library(Seurat)
@@ -9,7 +10,7 @@ source("R/utils.R")
 source("R/mean_phase_rho.R")
 
 # SCTransform requires 1.3 GB for this data
-options(future.globals.maxSize = 1.5 * 1024^3)
+# options(future.globals.maxSize = 1.5 * 1024^3)
 
 
 
@@ -34,69 +35,11 @@ osc_raw <- readxl::read_excel("../10x_grl18/data/oscillating/msb209498-sup-0003-
 
 
 
-dir_out <- "intermediates/2502/250509_assembled"
-dir_out_individual_cts <- file.path(dir_out, "250330_cell_types")
+dir_out <- "intermediates/2502/250605_assembled"
+# dir_out_individual_cts <- file.path(dir_out, "250330_cell_types")
 
-dir_third_processed <- "intermediates/2502/250313_third_processed"
+dir_third_processed <- "intermediates/2502/250529_third_processed/"
 
-
-# the result
-# seu <- qs::qread( file.path(dir_out, "250509_seu_all_herma.qs"))
-
-# old
-# ##seu <- qs::qread( "intermediates/2502/250328_assembled_old/250329_seu_all_herma.qs" )
-
-samples_table <- read_tsv("data/samples_table.tsv")
-
-# Plot GFP ----
-
-
-# two ways to plot same thing
-
-# FeaturePlot(seu, features = "nsIs198", pt.size = 2, alpha = .2, cols = c("bisque2", "green4"))
-
-dat <- FetchData(seu, vars = c("orig.ident", "nsIs198", "umap_1", "umap_2"))
-
-
-
-ggplot(dat) +
-  theme_classic() +
-  scale_color_gradient(low = "bisque2", high = "green4") +
-  geom_point(aes(x = umap_1, y = umap_2, color = nsIs198),
-             alpha = .2, size = 2)
-
-dat2 <- left_join(dat, samples_table,
-          by = c(orig.ident = "sample_name"))
-  
-ggplot() +
-  theme_classic() +
-  scale_color_gradient(low = "lightsalmon", high = "darkolivegreen") +
-  scale_fill_gradient(low = "khaki", high = "seagreen4") +
-  geom_point(aes(x = umap_1, y = umap_2, color = nsIs198),
-             alpha = .1, size = 2,
-             data = filter(dat2, promoter == "grl-18")) +
-  geom_point(aes(x = umap_1, y = umap_2, fill = nsIs198),
-             alpha = .1, size = 3, shape = 21, stroke = NA,
-             data = filter(dat2, promoter != "grl-18"))
-
-# 650 x 500
-
-dat2 |>
-  filter(promoter == "grl-18") |>
-  ggplot() +
-  theme_classic() +
-  scale_color_gradient(low = "bisque2", high = "green4") +
-  geom_point(aes(x = umap_1, y = umap_2, color = nsIs198),
-             alpha = .2, size = 2)
-
-
-dat2 |>
-  filter(promoter != "grl-18") |>
-  ggplot() +
-  theme_classic() +
-  scale_color_gradient(low = "bisque2", high = "green4") +
-  geom_point(aes(x = umap_1, y = umap_2, color = nsIs198),
-             alpha = .2, size = 2)
 
 
 
@@ -112,10 +55,10 @@ files_list <- list.files(dir_third_processed) |>
   mutate(filename2 = filename |>
            str_replace("seu_1","g1") |>
            str_replace("seu_2","g2")) |>
-  filter(str_detect(filename2, "2[35]031[0-9]_(g1|g2)")) |>
+  filter(str_detect(filename2, "230[35][0-9]{2}_(g1|g2)")) |>
   separate_wider_regex(filename2,
                        patterns = c(
-                         "^2[35]031[0-9]_",
+                         "^230[35][0-9]{2}_",
                          group = "(?:g1|g2)",
                          "_",
                          cell_type = "[a-zA-Z0-9_]+",
@@ -149,16 +92,21 @@ seu <- merge_fast(seu_list, cell_keys = TRUE)
 
 rm(seu_list)
 
-
+# qs::qsave(seu, file.path(dir_out,
+#                          "250606_seu_all_herma.qs"))
+# seu <- qs::qread( file.path(dir_out, "250606_seu_all_herma.qs"))
 
 
 #~ tissue ----
 
-ct2tissue <- read_csv("data/cell_type2tissue.csv") |>
+ct2tissue <- readxl::read_excel("data/cell_annotations.xlsx",
+                                sheet = 1L) |>
+  select(cell_type, tissue) |>
   column_to_rownames("cell_type")
 
 seu$tissue <- ct2tissue[ seu$cell_type , "tissue" ]
 
+stopifnot( !any(is.na(seu$tissue)) )
 
 
 #~ norm and dim reduc ----
@@ -208,31 +156,42 @@ DimPlot(seu,
         alpha = .05) +
   NoLegend()
 
-seu$tissue2 <- seu$tissue
-seu$tissue2[seu$cell_type == "ILso"] <- "ILso"
 DimPlot(seu,
-        group.by = "tissue2",
+        group.by = "tissue",
         reduction = "umap",
-        label = FALSE,
+        label = TRUE,
         pt.size = 2,
-        alpha = .1) +
+        alpha = .05) +
   NoLegend()
 
-# ggsave("UMAP_tissue.png", path = "presentations/",
+# seu2 <- seu
+# seu2$tissue[seu2$cell_type == "ILso"] <- "ILso"
+# DimPlot(seu2,
+#         group.by = "tissue",
+#         reduction = "umap",
+#         label = FALSE,
+#         pt.size = 2,
+#         alpha = .1) +
+#   NoLegend()
+# 
+# ggsave("UMAP_tissue.pdf", path = "presentations/",
 #        width = 110, height = 120, units = "mm",
 #        scale = 2)
-
-
-FetchData(seu, vars = c("tissue2", "umap_1", "umap_2")) |>
-  ggplot() +
-  theme_classic() +
-  geom_point(aes(x = umap_1, y = umap_2, color = tissue2),
-             alpha = .2, size = 2)
+# rm(seu2)
+# 
+# 
+# FetchData(seu2, vars = c("tissue", "umap_1", "umap_2")) |>
+#   ggplot() +
+#   theme_classic() +
+#   geom_point(aes(x = umap_1, y = umap_2, color = tissue),
+#              alpha = .2, size = 2)
 
 
 
 
 # Oscillations ----
+# seu <- qs::qread( file.path(dir_out, "250606_seu_all_herma.qs"))
+
 osc_table <- osc_raw |>
   filter(gene_name %in% rownames(seu),
          Class == "Osc",
@@ -284,6 +243,9 @@ seu$cell_rho <- rho_from_mat(mat, osc_table$peak_phase_deg)
 
 
 
+# qs::qsave(seu, file.path(dir_out,
+#                          "250606_seu_all_herma.qs"))
+# seu <- qs::qread( file.path(dir_out, "250606_seu_all_herma.qs"))
 
 
 
@@ -333,9 +295,9 @@ pvals_by_cell <- tibble(perm = 0:10000) |>
   mutate(FDR = p.adjust(p_val, method = "BH")) |>
   column_to_rownames("cell_bc")
 
-qs::qsave(pvals_by_cell, file.path(dir_out, "250509_permutations_10000.qs"))
+# qs::qsave(pvals_by_cell, file.path(dir_out, "250606_permutations_10000.qs"))
 
-pvals_by_cell <- qs::qread(file.path(dir_out, "250509_permutations_10000.qs"))
+pvals_by_cell <- qs::qread(file.path(dir_out, "250606_permutations_10000.qs"))
 
 
 # hist(pvals_by_cell$p_val, breaks = 30, main = NULL, xlab = "Distribution of p-values")
@@ -343,7 +305,7 @@ pvals_by_cell <- qs::qread(file.path(dir_out, "250509_permutations_10000.qs"))
 
 table(pvals_by_cell$FDR < .05)
 #> FALSE  TRUE 
-#>  9791 12290
+#>  9606 14451
 
 
 seu$length_FDR <- pvals_by_cell[rownames(FetchData(seu, vars = "ident")), "FDR"]
@@ -353,18 +315,35 @@ seu$cell_phase_masked <- if_else(seu$length_signif, seu$cell_phase, NA_real_)
 
 
 
+# qs::qsave(seu, file.path(dir_out,
+#                          "250606_seu_all_herma.qs"))
+# seu <- qs::qread( file.path(dir_out, "250606_seu_all_herma.qs"))
+
+
+
+# plot phases
+
 FetchData(seu,
-          vars = c("umap_1", "umap_2", "cell_phase_masked", "cell_rho")) |>
+          vars = c("umap_1", "umap_2",
+                   "cell_phase_masked", "cell_rho")) |>
   ggplot() +
   theme_classic() +
-  theme(legend.position = "none") +
+  # theme(legend.position = "none") +
   scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
                         limits = c(0, 360)) +
-  geom_point(aes(x = umap_1, y = umap_2,
-                 color = cell_phase_masked),
-             alpha = .3)
+  aes(x = umap_1, y = umap_2) +
+  geom_point(aes(color = cell_phase_masked),
+             shape = 16,
+             size = 2,
+             alpha = .2,
+             show.legend = FALSE)
 
-
+# ggsave("umap_phase.png", path = "presentations/",
+#        width = 80, height = 80, units = "mm",
+#        scale = 1.5)
+# ggsave("umap_phase.pdf", path = "presentations/",
+#        width = 80, height = 80, units = "mm",
+#        scale = 1.5)
 
 
 
@@ -374,77 +353,52 @@ FetchData(seu,
 
 #~ Local coherence index ----
 
+k_neighbors <- 20L
 
 
 seu <- FindNeighbors(seu,
                      return.neighbor = TRUE,
                      reduction = "pca",
                      dims = 1:npca,
-                     k.param = 21)
+                     k.param = k_neighbors + 1L)
+
+
+# qs::qsave(seu, file.path(dir_out, "250606_seu_all_herma.qs"))
+# seu <- qs::qread( file.path(dir_out, "250606_seu_all_herma.qs"))
 
 
 
 
 
 
+cell_phases <- FetchData(seu, vars = c("cell_phase", "cell_rho", "tissue", "cell_type"))
 
-cells_phases <- FetchData(seu, vars = c("cell_phase", "cell_rho", "tissue", "cell_type"))
-
-
-
-
-
-dotprod_by_cell <- cells_phases |>
-  mutate(coherence = mean_dotprod(cells_phases,
-                                  seu.nn = seu@neighbors$SCT.nn,
-                                  k = 20))
+dotprod_by_cell <- mean_dotprod_norm(cell_phases,
+                                     seu.nn = seu@neighbors$SCT.nn,
+                                     k = k_neighbors)
 
 
-# qs::qsave(dotprod_by_cell, file.path(dir_out, "250509_dotprod_by_cell.qs"))
-dotprod_by_cell <- qs::qread(file.path(dir_out, "250509_dotprod_by_cell.qs"))
+
+
+# qs::qsave(dotprod_by_cell, file.path(dir_out, "250606_dotprod_by_cell.qs"))
+dotprod_by_cell <- qs::qread(file.path(dir_out, "250606_dotprod_by_cell.qs"))
 
 
 
 # Plot by cell type and cluster
 
-dotprod_by_cell |>
-  arrange(tissue, cell_type) |> mutate(cell_type = fct_inorder(cell_type)) |>
-  ggplot() +
-  theme_classic() +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  coord_cartesian(ylim = c(-.1, .6)) +
-  ylab("Local phase coherence") + xlab(NULL) +
-  ggbeeswarm::geom_quasirandom(aes(x = cell_type, y = coherence, color = tissue)) +
-  geom_point(aes(x = cell_type, y = mean_coherence),
-             data = (
-               dotprod_by_cell |>
-                 summarize(mean_coherence = mean(coherence),
-                           .by = "cell_type")
-             ),
-             size = 2)
-
-
-# qs::qsave(seu, file.path(dir_out, "250509_seu_all_herma.qs"))
-# seu <- qs::qread( file.path(dir_out, "250509_seu_all_herma.qs"))
-
-
-
-
-
-
-# fancier plot
 cell_types_to_plot <- dotprod_by_cell |>
   summarize(nb_cells = n(),
             .by = cell_type) |>
   filter(nb_cells >= 30) |>
-  pull(cell_type) |>
-  setdiff("reproductive")
-
+  pull(cell_type)
 
 dotprod_agg_by_ct <- dotprod_by_cell |>
   filter(cell_type %in% cell_types_to_plot) |>
   summarize(mean_coherence = mean(coherence),
             .by = c(tissue, cell_type)) |>
+  mutate(tissue = factor(tissue,
+                         levels = c("skin", "glia","pharynx","muscle","neuron","reproductive","other"))) |>
   arrange(tissue, desc(mean_coherence)) |>
   mutate(cell_type = fct_inorder(cell_type))
 
@@ -467,78 +421,120 @@ dotprod_by_cell |>
 
 
 
-
-
 #~~ perm test ----
 
-cells_phases <- FetchData(seu, vars = c("cell_phase", "cell_rho", "tissue", "cell_type"))
+# the neighbors etc do not change between permutations: compute once and reuse
+nb_neighbors <- 20L
 
-# the neighbors do not change between permutations: compute once and reuse
-cell_neighbors <- tibble(
-  cell = rownames(cells_phases),
-  neighbors = map(cell,
-                  \(cell) TopNeighbors(seu@neighbors$SCT.nn, cell = cell, n = (20+1L) ) |>
-                    setdiff(cell),
-                  .progress = TRUE)
+precomputed <- local({
+  
+  
+  cell_phases = FetchData(seu,
+                          vars = c("cell_phase", "cell_rho",
+                                   "tissue", "cell_type"))
+  
+  
+  cell_neighbors = tibble(
+    cell = rownames(cell_phases),
+    neighbors = map(cell,
+                    \(cell) TopNeighbors(seu@neighbors$SCT.nn,
+                                         cell = cell,
+                                         n = (nb_neighbors + 1L) ) |>
+                      setdiff(cell),
+                    .progress = TRUE)
+  ) |>
+    unnest(neighbors)
+  
+  # use a subsample
+  cell_same_type = tibble(
+    cell = rownames(cell_phases),
+    cell_type = cell_phases$cell_type,
+    nb_cells_in_type = map_int(cell_type,
+                           \(.ct) sum(cell_phases$cell_type == .ct)),
+    nb_cells_use = pmin(nb_cells_in_type - 1L, nb_neighbors),
+    neighbors = pmap(list(.ct = cell_type, .n = nb_cells_use, .cell = cell),
+                    \(.ct, .n, .cell) rownames(cell_phases)[cell_phases$cell_type == .ct] |> setdiff(.cell) |> sample(.n),
+                    .progress = TRUE)
+  ) |>
+    select(cell, neighbors) |>
+    unnest(neighbors) |>
+    filter(cell != neighbors)
+  
+  
+  neigh_cell_indices = match(cell_neighbors$cell, rownames(cell_phases))
+  neigh_neigh_indices = match(cell_neighbors$neighbors, rownames(cell_phases))
+  
+  
+  type_cell_indices = match(cell_same_type$cell, rownames(cell_phases))
+  type_neigh_indices = match(cell_same_type$neighbors, rownames(cell_phases))
+  
+  
+  list(cell_phases = cell_phases,
+       cell_neighbors = cell_neighbors, cell_same_type = cell_same_type,
+       neigh_cell_indices = neigh_cell_indices, neigh_neigh_indices = neigh_neigh_indices,
+       type_cell_indices = type_cell_indices, type_neigh_indices = type_neigh_indices
+  )
+})
+
+# qs::qsave(precomputed, file.path(dir_out, "250606_precomputed_perm.qs"))
+# precomputed <- qs::qread(file.path(dir_out, "250606_precomputed_perm.qs"))
+
+xx <- run_permutation_test_by_celltype_and_phase(0, precomputed, mat, osc_table$peak_phase_deg)
+
+all.equal(
+  dotprod_by_cell |>
+    summarize(mean_coherence = mean(coherence),
+              .by = c(tissue, cell_type)) |> arrange(tissue, cell_type),
+  xx |> filter(permutation == 0) |> select(-permutation) |> arrange(tissue, cell_type)
+)
+
+plot(
+  dotprod_by_cell |>
+    summarize(mean_coherence = mean(coherence),
+              .by = c(tissue, cell_type)) |> arrange(tissue, cell_type) |> pull(mean_coherence),
+  xx |> filter(permutation == 0) |> select(-permutation) |> arrange(tissue, cell_type) |> pull(mean_coherence)
+); abline(a=0, b=1)
+
+
+# takes ~1h
+set.seed(123)
+mean_dotprod_by_celltype_res_perm <- map_dfr(
+  0:10000,
+  ~ run_permutation_test_by_celltype_and_phase(.x, precomputed, mat, osc_table$peak_phase_deg),
+  .progress = TRUE
+)
+# qs::qsave(mean_dotprod_by_celltype_res_perm,
+#           file.path(dir_out, "250606_coherence_perm10000.qs"))
+# mean_dotprod_by_celltype_res_perm <- qs::qread(file.path(dir_out, "250606_coherence_perm10000.qs"))
+
+all.equal(
+  mean_dotprod_by_celltype_res_perm |> filter(permutation == 0) |> select(-permutation),
+  dotprods_normalized(precomputed, mat, osc_table$peak_phase_deg) |>
+    summarize(mean_coherence = mean(coherence),
+              .by = c(tissue, cell_type))
 )
 
 
 
-run_permutation_test_by_celltype_rand_phase <- function(.perm){
-  
-  
-  if(.perm > 0){
-    
-    osc_perm <- osc_table |>
-      mutate(peak_phase_deg = sample(peak_phase_deg))
-  } else{
-    
-    osc_perm <- osc_table
-  }
-  
-  cells_phases_perm <- cells_phases
-  
-  # overwrite with permuted
-  cells_phases_perm$cell_phase <- angle_from_mat(mat, osc_perm$peak_phase_deg)
-  cells_phases_perm$cell_rho <- rho_from_mat(mat, osc_perm$peak_phase_deg)
-  
-  cells_phases_xy <- cells_phases_perm |>
-    mutate(x = cell_rho * cos(cell_phase *pi/180),
-           y = cell_rho * sin(cell_phase *pi/180),
-           x = if_else(is.nan(cell_phase), 0, x),
-           y = if_else(is.nan(cell_phase), 0, y))
-  
-  all_cells_neighs_xy <- cell_neighbors |>
-    mutate(cell_x = cells_phases_xy[cell, "x"],
-           cell_y = cells_phases_xy[cell, "y"]) |>
-    unnest(neighbors) |>
-    mutate(neigh_x = cells_phases_xy[neighbors, "x"],
-           neigh_y = cells_phases_xy[neighbors, "y"])
-  
-  
-  mean_dotprod_by_cell <- tibble(cell = all_cells_neighs_xy$cell,
-                                 dotprod = all_cells_neighs_xy$cell_x * all_cells_neighs_xy$neigh_x +
-                                   all_cells_neighs_xy$cell_y * all_cells_neighs_xy$neigh_y) |>
-    summarize(coherence = mean(dotprod),
-              .by = cell)
-  
-  cells_phases_perm |>
-    add_column(coherence = mean_dotprod_by_cell$coherence) |>
-    summarize(mean_coherence = mean(coherence),
-              .by = c(tissue, cell_type)) |>
-    add_column(permutation = .perm)
-}
-
-
-
+library(furrr)
+plan(multicore, workers = 4)
+precomputed2 <- precomputed[c("cell_phases", "cell_neighbors",
+                              "neigh_cell_indices", "neigh_neigh_indices")]
 set.seed(123)
-mean_dotprod_by_celltype_res_perm <- map_dfr(0:10000,
-                                             run_permutation_test_by_celltype_rand_phase,
-                                             .progress = TRUE)
-# qs::qsave(mean_dotprod_by_celltype_res_perm,
-#           file.path(dir_out, "250509_coherence_perm10000.qs"))
+mean_dotprod_by_celltype_res_perm <- future_map_dfr(
+  0:10000,
+  ~ run_permutation_test_unnorm_by_celltype_and_phase(.x, precomputed2, mat, osc_table$peak_phase_deg),
+  .options = furrr_options(seed = TRUE),
+  .progress = TRUE
+)
 
-# mean_dotprod_by_celltype_res_perm <- qs::qread(file.path(dir_out, "250509_coherence_perm10000.qs"))
+# qs::qsave(mean_dotprod_by_celltype_res_perm,
+#           file.path(dir_out, "250606_coherence_unnorm_perm10000.qs"))
+# mean_dotprod_by_celltype_res_perm <- qs::qread(file.path(dir_out, "250606_coherence_unnorm_perm10000.qs"))
+
+
+
+
 
 
 # mean_dotprod_by_celltype_res_perm |>
@@ -555,7 +551,7 @@ mean_dotprod_by_celltype_res_perm <- map_dfr(0:10000,
 #              size = 2)
 
 
-
+#~~~ res ----
 p_vals <- mean_dotprod_by_celltype_res_perm |>
   group_by(tissue, cell_type) |>
   nest() |>
@@ -563,12 +559,16 @@ p_vals <- mean_dotprod_by_celltype_res_perm |>
                             \(dat){
                               mean(dat$mean_coherence >= dat$mean_coherence[[1]])
                             }),
+            nb = map_dbl(data,
+                            \(dat){
+                              sum(dat$mean_coherence >= dat$mean_coherence[[1]])
+                            }),
             .groups = 'drop') |>
   mutate(p_adj = p.adjust(p_val, method = "holm"))
 
 
-hist(p_vals$p_val)
-hist(p_vals$p_adj)
+hist(p_vals$p_val, breaks = 30)
+hist(p_vals$p_adj, breaks = 30, xlim = c(0,1))
 
 
 # filter on nb of cells
@@ -577,8 +577,7 @@ cell_types_to_plot <- dotprod_by_cell |>
   summarize(nb_cells = n(),
             .by = cell_type) |>
   filter(nb_cells >= 30) |>
-  pull(cell_type) |>
-  setdiff("reproductive")
+  pull(cell_type)
 
 
 dotprod_agg_by_ct <- dotprod_by_cell |>
@@ -594,16 +593,17 @@ dotprod_agg_by_ct <- dotprod_by_cell |>
 
 gg_dotprod_by_cell <- dotprod_by_cell |>
   filter(cell_type %in% cell_types_to_plot) |>
-   mutate(cell_type = factor(cell_type, levels = levels(dotprod_agg_by_ct$cell_type))) |>
+  mutate(cell_type = factor(cell_type, levels = levels(dotprod_agg_by_ct$cell_type))) |>
   ggplot() +
   theme_classic() +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
   ylab("Local phase coherence") + xlab(NULL) +
-  # geom_hline(aes(yintercept = -.2)) + geom_hline(aes(yintercept = .9)) +
+  # geom_hline(aes(yintercept = -.4)) + geom_hline(aes(yintercept = 1.4)) +
   # coord_cartesian(ylim = c(-.2,.9)) +
-  geom_tile(aes(x = cell_type, y = .8713012,
+  scale_fill_manual(values = c(`TRUE` = "orange", `FALSE` = "white")) +
+  geom_tile(aes(x = cell_type, y = diff(range(dotprod_by_cell$coherence))/2 + min(dotprod_by_cell$coherence),
                 fill = p_adj < .05 ),
-            height = 2.212274,
+            height = diff(range(dotprod_by_cell$coherence)),
             alpha = .1,
             data = dotprod_agg_by_ct) +
   ggbeeswarm::geom_quasirandom(aes(x = cell_type, y = coherence, color = tissue),
@@ -620,7 +620,10 @@ gg_dotprod_by_cell
 #        path = "presentations/",
 #        width = 200, height = 70, units = "mm",
 #        scale = 2)
-
+# ggsave("local_phase_coherence.pdf", plot = gg_dotprod_by_cell,
+#        path = "presentations/",
+#        width = 200, height = 70, units = "mm",
+#        scale = 2)
 
 
 
@@ -635,7 +638,7 @@ local_coherence_by_ct <- dotprod_by_cell |>
   as_tibble()
 
 # qs::qsave(local_coherence_by_ct,
-#           file.path(dir_out, "250509_coherence_by_ct.qs"))
+#           file.path(dir_out, "250606_coherence_by_ct.qs"))
 
 
 
@@ -643,6 +646,69 @@ local_coherence_by_ct <- dotprod_by_cell |>
 
 
 
+
+
+
+
+# Plot GFP ----
+
+samples_table <- read_tsv("data/samples_table.tsv")
+
+# two ways to plot same thing
+
+# FeaturePlot(seu, features = "nsIs198", pt.size = 2, alpha = .2, cols = c("bisque2", "green4"))
+
+dat <- FetchData(seu, vars = c("orig.ident", "nsIs198", "umap_1", "umap_2"))
+
+
+
+ggplot(dat) +
+  theme_classic() +
+  scale_color_gradient(low = "bisque2", high = "green4") +
+  geom_point(aes(x = umap_1, y = umap_2, color = nsIs198),
+             alpha = .2, size = 2)
+
+dat2 <- left_join(dat, samples_table,
+                  by = c(orig.ident = "sample_name"))
+
+ggplot() +
+  theme_classic() +
+  scale_color_gradient(low = "bisque2", high = "darkolivegreen") +
+  scale_fill_gradient(low = "bisque2", high = "dodgerblue2") +
+  geom_point(aes(x = umap_1, y = umap_2, color = nsIs198),
+             alpha = .1, size = 2,
+             data = filter(dat2, promoter == "grl-18")) +
+  geom_point(aes(x = umap_1, y = umap_2, fill = nsIs198),
+             alpha = .1, size = 3, shape = 21, stroke = NA,
+             data = filter(dat2, promoter != "grl-18"))
+
+# 650 x 500
+# ggsave("umap_both_sorts.png",
+#        path = "presentations/250523_umap",
+#        width = 6.5, height = 5, units = "in")
+# 
+# ggsave("umap_both_sorts.pdf",
+#        path = "presentations/250523_umap",
+#        width = 6.5, height = 5, units = "in")
+
+
+# plot separately both sorts
+dat2 |>
+  filter(promoter == "grl-18") |>
+  ggplot() +
+  theme_classic() +
+  scale_color_gradient(low = "bisque2", high = "green4") +
+  geom_point(aes(x = umap_1, y = umap_2, color = nsIs198),
+             alpha = .2, size = 2)
+
+
+dat2 |>
+  filter(promoter != "grl-18") |>
+  ggplot() +
+  theme_classic() +
+  scale_color_gradient(low = "bisque2", high = "green4") +
+  geom_point(aes(x = umap_1, y = umap_2, color = nsIs198),
+             alpha = .2, size = 2)
 
 
 
@@ -703,12 +769,25 @@ FetchData(sub,
 # Illustrations ----
 
 #~ Individual cells ILso ----
-sub <- subset(seu, cell_type == "ILso") |>
-  SCTransform() |>
-  RunPCA(npcs = 2, verbose = FALSE)
+sub <- qs::qread(
+  file.path("intermediates/2502/250522_step1",
+            paste0("ILso", "_seu_unsmoothed.qs"))
+)
 
 
-mat <- GetAssayData(sub, assay = "SCT", layer = "data")
+dat <- FetchData(sub,
+                 vars = c("PC_1", "PC_2", "cell_phase_masked")) |>
+  mutate(selected = FALSE,
+         selected = {x <- selected; x[c(4,242)] <- TRUE; x})
+
+dat$PC_1 <- -dat$PC_1
+
+
+stopifnot(identical(
+  rownames(dat)[c(4,242)],
+  colnames(GetAssayData(sub, assay = "SCT", layer = "data"))[c(4,242)]
+))
+
 
 
 # PCA
@@ -717,16 +796,12 @@ DimPlot(sub,
         label = FALSE,
         pt.size = .8,
         alpha = .3,
-        cells.highlight = colnames(mat)[c(4,242)],
+        cells.highlight = rownames(dat)[c(4,242)],
         sizes.highlight = 3,
         cols.highlight = 'red') +
   NoLegend()
 
 
-dat <- FetchData(sub,
-                 vars = c("PC_1", "PC_2", "cell_phase_masked")) |>
-  mutate(selected = FALSE,
-         selected = {x <- selected; x[c(4,242)] <- TRUE; x})
 dat |> 
   ggplot() +
   theme_classic() +
@@ -737,12 +812,10 @@ dat |>
              data = dat |> filter(selected),
              size = 3, color = 'red3')
 
-# ggsave("phases_ILso_cells_4-242_pca.pdf", path = "presentations/",
-#        width = 6, height = 6, units = "in")
-
-
-# ggsave("phases_ILso_cells_4-242_pca.png", path = "presentations/",
-#        width = 6, height = 6, units = "in")
+ggsave("phases_ILso_cells_4-242_pca.pdf", path = "presentations/250523_umap/",
+       width = 6, height = 6, units = "in")
+ggsave("phases_ILso_cells_4-242_pca.png", path = "presentations/250523_umap/",
+       width = 6, height = 6, units = "in")
 
 
 dat |> 
@@ -1138,6 +1211,133 @@ FetchData(sub,
              alpha = .2)
 
 sub <- qs::qread(file.path(dir_out_individual_cts, "AM_PHso.qs"))
+
+
+# compare older version ----
+# the results
+seu_new <- qs::qread(file.path(dir_out, "250605_seu_all_herma.qs"))
+seu_old <- qs::qread("intermediates/2502/250509_assembled/250509_seu_all_herma.qs" )
+
+
+
+# Find correspondences of sample indices by majority vote
+correspondence <- inner_join(
+  seu_old[[]] |>
+    rownames_to_column("cell_bc") |>
+    separate_wider_delim(cell_bc,
+                         delim = "_",
+                         names = c("sample", "cell_bc"),
+                         too_many = "merge") |>
+    select(sample, cell_bc, cell_type, tissue),
+  seu_new[[]] |>
+    rownames_to_column("cell_bc") |>
+    separate_wider_delim(cell_bc,
+                         delim = "_",
+                         names = c("sample", "cell_bc"),
+                         too_many = "merge") |>
+    select(sample, cell_bc, cell_type, tissue),
+  by = "cell_bc",
+  relationship = "many-to-many"
+) |>
+  count(sample.x, sample.y, name = "shared_count") |>
+  group_by(sample.x) |>
+  slice_max(shared_count, n = 1, with_ties = FALSE) |>
+  select(s_old = sample.x, s_new = sample.y)
+
+
+merged <- full_join(
+  seu_old[[]] |>
+    rownames_to_column("cell_bc") |>
+    separate_wider_delim(cell_bc,
+                         delim = "_",
+                         names = c("sample", "cell_bc"),
+                         too_many = "merge") |>
+    left_join(correspondence,
+              by = c(sample = "s_old")) |>
+    select(-sample) |> rename(sample = s_new),
+  seu_new[[]] |>
+    rownames_to_column("cell_bc") |>
+    separate_wider_delim(cell_bc,
+                         delim = "_",
+                         names = c("sample", "cell_bc"),
+                         too_many = "merge"),
+  by = c("sample", "cell_bc")
+) |>
+  rename(cell_type_old = cell_type.x,
+         cell_type_new = cell_type.y,
+         tissue_old = tissue.x,
+         tissue_new = tissue.y)
+
+merged |>
+  ggplot() +
+  theme_classic() +
+  geom_jitter(aes(x = tissue_old, y = tissue_new),
+              alpha = .1)
+
+merged |>
+  filter(tissue_old == "other") |>
+  ggplot() +
+  theme_classic() +
+  geom_jitter(aes(x = cell_type_old, y = cell_type_new),
+             alpha = .1)
+
+
+merged |>
+  filter(tissue_old == "skin" | tissue_new == "skin") |>
+  ggplot() +
+  theme_classic() +
+  geom_jitter(aes(x = cell_type_old, y = cell_type_new),
+              alpha = .1)
+
+
+
+merged |>
+  filter(tissue_old == "glia" | tissue_new == "glia") |>
+  ggplot() +
+  theme_classic() +
+  geom_jitter(aes(x = cell_type_old, y = cell_type_new),
+              alpha = .1)
+
+
+
+merged |>
+  filter(tissue_old == "glia" | tissue_new == "glia",
+         cell_type_old == "ADE_PDEso", is.na(cell_type_new)) |> 
+  select(starts_with("stage")) |>
+  count(stage.x, stage.y)
+
+
+
+merged |>
+  filter(tissue_old == "glia" | tissue_new == "glia",
+         cell_type_old == "socket_s9" | cell_type_old == "socket_s7" |cell_type_new == "glia_sheath_2") |>
+  count(stage.x, stage.y, cell_type_old, cell_type_new)
+
+
+
+
+
+xx <- merged |>
+  filter(cell_type_old == "OLso" | cell_type_new == "OLso") |>
+  pull(cell_bc)
+
+xx <- merged |>
+  filter(cell_type_new == "CEPso") |>
+  pull(cell_bc)
+
+sub$tmp <- colnames(sub) %in% xx
+DimPlot(sub, group.by = "tmp")
+
+
+xx <- colnames(sub)[sub$seurat_clusters == 2]
+
+merged |>
+  filter(cell_bc %in% colnames(sub)[sub$seurat_clusters == 2]) |>
+  count(stage.x, stage.y, cell_type_old, cell_type_new)
+
+
+
+
 
 # ___________ ----
 
