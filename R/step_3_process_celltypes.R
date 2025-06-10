@@ -571,10 +571,10 @@ iwalk(heatmaps_list,
 
 # Compare bulk ----
 
-dir_assembled <- "intermediates/2502/250328_assembled"
-mean_dotprod_by_celltype_res_perm <- qs::qread(file.path(dir_assembled, "250330_coherence_perm10000.qs"))
-dotprod_by_cell <- qs::qread(file.path(dir_assembled, "250329_dotprod_by_cell.qs"))
-# dotprod_by_cell$tissue[dotprod_by_cell$cell_type == "pharyngeal"] <- "neuron"
+dir_assembled <- "intermediates/2502/250508_assembled"
+mean_dotprod_by_celltype_res_perm <- qs::qread(file.path(dir_assembled, "250508_coherence_perm10000.qs"))
+dotprod_by_cell <- qs::qread(file.path(dir_assembled, "250508_dotprod_by_cell.qs"))
+
 
 p_vals <- mean_dotprod_by_celltype_res_perm |>
   group_by(tissue, cell_type) |>
