@@ -497,14 +497,14 @@ Tests and manual version in `test_scVelo.R` (not used).
 ### Clustering
 
 In `R/cluster_cellgenes.R`, called from `runR_cluster_hclust.sh`:
-* load descriptors from step 2a
+* load descriptors from step 2a `250609_step2`
 * transformations (exp(-a*x)), normalize (box-cox), scale; cluster with fastclust::hclust
 * save
 
 In `R/hclust_results.R`, load this clustering, cutree and cluster identification.
 
 
-All results saved in `250519_step2`.
+All results saved in `250609_cluster`.
 
 
 In `explore_step3_timeseries_distances.R`, temporary explorations, to delete later.

@@ -9,7 +9,9 @@ opar <- par(no.readonly = TRUE)
 library(tidyverse)
 
 # load
-dir_step2 <- "intermediates/2502/250519_step2/"
+dir_step2 <- "intermediates/2502/250609_step2/"
+
+dir_clust <- "intermediates/2502/250609_cluster"
 
 predictors <- list.files(dir_step2,
                          pattern = "_descriptors\\.qs$") |>
@@ -26,22 +28,22 @@ predictors <- list.files(dir_step2,
 message("Scaling predictors")
 
 # # we want a low baseline, it's log (bc counts), and can get quite high, basically anything above 1 is probably bad
-# hist(log10(1 + predictors_sel$baseline))
-# hist(exp(-log1p(predictors_sel$baseline)))
-# plot(log10(1 + predictors_sel$baseline), exp(-log1p(predictors_sel$baseline)))
+# hist(log10(1 + predictors$baseline))
+# hist(exp(-log1p(predictors$baseline)))
+# plot(log10(1 + predictors$baseline), exp(-log1p(predictors$baseline)))
 # 
 # # we like high peaks, to avoid flat genes. It's log (bc counts). There are outliers.
-# hist(log10(1 + predictors_sel$max_peak))
-# hist(DescTools::Winsorize(log10(1 + predictors_sel$max_peak)))
+# hist(log10(1 + predictors$max_peak))
+# hist(DescTools::Winsorize(log10(1 + predictors$max_peak)))
 # 
 # # we want something close to an ideal peak
-# hist(predictors_sel$dist_dtw)
-# plot(predictors_sel$dist_dtw, exp(-.05 * predictors_sel$dist_dtw))
+# hist(predictors$dist_dtw)
+# plot(predictors$dist_dtw, exp(-.05 * predictors$dist_dtw))
 # 
 # 
 # # avoid asymmetric curves
-# hist(predictors_sel$asymmetry)
-# plot(predictors_sel$asymmetry, exp(- .2 * predictors_sel$asymmetry), log = "x")
+# hist(predictors$asymmetry)
+# plot(predictors$asymmetry, exp(- .2 * predictors$asymmetry), log = "x")
 ## > not using: the more highly expressed genes can have quite a bit of asymmetry
 
 # we want a fit where pseudotime is a good predictor of expression
@@ -100,7 +102,7 @@ mat_pred <- scale(mat_pred)
 
 
 
-qs::qsave(mat_pred, file.path(dir_step2, "250519_mat_predictors.qs"))
+qs::qsave(mat_pred, file.path(dir_clust, "250519_mat_predictors.qs"))
 
 
 
@@ -113,7 +115,7 @@ hc <- fastcluster::hclust(dist(mat_pred, method = "manhattan"), method = "ward.D
 
 message("Done. Saving...")
 
-qs::qsave(hc, file.path(dir_step2, "250519_hclust_manhattan.qs"))
+qs::qsave(hc, file.path(dir_clust, "250519_hclust_manhattan.qs"))
 
 
 
@@ -124,7 +126,7 @@ hc <- fastcluster::hclust(dist(mat_pred, method = "euclidean"), method = "ward.D
 
 message("Done. Saving...")
 
-qs::qsave(hc, file.path(dir_step2, "250519_hclust_euclidean.qs"))
+qs::qsave(hc, file.path(dir_clust, "250519_hclust_euclidean.qs"))
 
 
 message("-----------------")
