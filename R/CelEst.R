@@ -159,10 +159,13 @@ all_tests <- map_dfr(
         length( nonpuls_genes |> setdiff(targets_tf) )
       ), nrow = 2)
       
+      observed <- contingency[1,1]
+      expected <- contingency[1,2] * contingency[2,1]/sum(contingency)
       
       data.frame(
         cell_type = ct,
         source_name = tf,
+        enrichment_fc = observed / expected,
         p_val = fisher.test(contingency, alternative = "greater")$p.value
       )
     })
@@ -172,7 +175,8 @@ all_tests <- map_dfr(
   },
   .progress = TRUE) |>
   as_tibble() |>
-  mutate(p_adj = p.adjust(p_val, method = "BH"))
+  mutate(p_adj = p.adjust(p_val, method = "BH"),
+         signif = p_adj < .05)
 
 
 
@@ -186,6 +190,24 @@ all_tests |>
             nb_signif = sum(p_adj < .05),
             .by = cell_type)
 
+
+all_tests |>
+  ggplot() +
+  theme_classic() +
+  scale_x_continuous(transform = "sqrt") +
+  scale_alpha_manual(values = c(`TRUE` = 1, `FALSE` = .2)) +
+  scale_color_manual(values = c(`TRUE` = "red3", `FALSE` = "black")) +
+  facet_wrap(~cell_type) +
+  geom_hline(aes(yintercept = -log10(.05)),
+             linetype = "dashed", color = "grey") +
+  geom_point(aes(x = enrichment_fc, y = -log10(p_adj),
+                 alpha = signif, color = signif,
+                 shape = cell_type)) +
+  ggrepel::geom_text_repel(aes(x = enrichment_fc, y = -log10(p_adj),
+                               label = source_name),
+                           data = all_tests |> filter(signif),
+                           force_pull = .01,force = 10,
+                           max.overlaps = 10)
 
 
 #~ TFs enriched ----
