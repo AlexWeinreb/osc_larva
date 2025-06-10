@@ -23,9 +23,9 @@ gids <- wb_load_gene_ids(295) |>
 
 
 
-osc_raw <- readxl::read_excel("../10x_grl18/data/oscillating/msb209498-sup-0003-datasetev1.xlsx",
-                          sheet = "Dataset EV1 WBidToGeneNames_Osc",
-                          na = "NA") |>
+osc_raw <- readxl::read_excel("data/msb209498-sup-0003-datasetev1.xlsx",
+                              sheet = "Dataset EV1 WBidToGeneNames_Osc",
+                              na = "NA") |>
   mutate(gene_id = wb_clean_gene_names(WB_ID),
          gene_name = i2s(gene_id, gids) )
 
@@ -288,9 +288,9 @@ pvals_by_cell <- tibble(perm = 0:10000) |>
   unnest(rho_data) |>
   nest(.by = cell_bc) |>
   mutate(p_val = map_dbl(data,
-                            \(dat){
-                              mean( dat$rho >= dat$rho[[ 1 ]] )
-                            })) |>
+                         \(dat){
+                           mean( dat$rho >= dat$rho[[ 1 ]] )
+                         })) |>
   select(-data) |>
   mutate(FDR = p.adjust(p_val, method = "BH")) |>
   column_to_rownames("cell_bc")
@@ -373,20 +373,20 @@ seu <- FindNeighbors(seu,
 
 cell_phases <- FetchData(seu, vars = c("cell_phase", "cell_rho", "tissue", "cell_type"))
 
-dotprod_by_cell <- mean_dotprod_norm(cell_phases,
-                                     seu.nn = seu@neighbors$SCT.nn,
-                                     k = k_neighbors)
+# dotprod_by_cell <- mean_dotprod_norm(cell_phases,
+#                                      seu.nn = seu@neighbors$SCT.nn,
+#                                      k = k_neighbors)
 
 
-xx <- mean_dotprod(cell_phases,
-                   seu.nn = seu@neighbors$SCT.nn,
-                   k = k_neighbors)
+
 dotprod_by_cell <- cbind(cell_phases,
-                         coherence = xx) |>
+                         coherence = mean_dotprod(cell_phases,
+                                                  seu.nn = seu@neighbors$SCT.nn,
+                                                  k = k_neighbors)) |>
   as_tibble()
 
-# qs::qsave(dotprod_by_cell, file.path(dir_out, "250606_dotprod_by_cell.qs"))
-dotprod_by_cell <- qs::qread(file.path(dir_out, "250606_dotprod_by_cell.qs"))
+# qs::qsave(dotprod_by_cell, file.path(dir_out, "250610_dotprod_by_cell.qs"))
+dotprod_by_cell <- qs::qread(file.path(dir_out, "250610_dotprod_by_cell.qs"))
 
 
 
@@ -429,8 +429,6 @@ dotprod_by_cell |>
 #~~ perm test ----
 
 # the neighbors etc do not change between permutations: compute once and reuse
-nb_neighbors <- 20L
-
 precomputed <- local({
   
   
@@ -444,7 +442,7 @@ precomputed <- local({
     neighbors = map(cell,
                     \(cell) TopNeighbors(seu@neighbors$SCT.nn,
                                          cell = cell,
-                                         n = (nb_neighbors + 1L) ) |>
+                                         n = (k_neighbors + 1L) ) |>
                       setdiff(cell),
                     .progress = TRUE)
   ) |>
@@ -455,11 +453,11 @@ precomputed <- local({
     cell = rownames(cell_phases),
     cell_type = cell_phases$cell_type,
     nb_cells_in_type = map_int(cell_type,
-                           \(.ct) sum(cell_phases$cell_type == .ct)),
-    nb_cells_use = pmin(nb_cells_in_type - 1L, nb_neighbors),
+                               \(.ct) sum(cell_phases$cell_type == .ct)),
+    nb_cells_use = pmin(nb_cells_in_type - 1L, k_neighbors),
     neighbors = pmap(list(.ct = cell_type, .n = nb_cells_use, .cell = cell),
-                    \(.ct, .n, .cell) rownames(cell_phases)[cell_phases$cell_type == .ct] |> setdiff(.cell) |> sample(.n),
-                    .progress = TRUE)
+                     \(.ct, .n, .cell) rownames(cell_phases)[cell_phases$cell_type == .ct] |> setdiff(.cell) |> sample(.n),
+                     .progress = TRUE)
   ) |>
     select(cell, neighbors) |>
     unnest(neighbors) |>
@@ -565,9 +563,9 @@ p_vals <- mean_dotprod_by_celltype_res_perm |>
                               mean(dat$mean_coherence >= dat$mean_coherence[[1]])
                             }),
             nb = map_dbl(data,
-                            \(dat){
-                              sum(dat$mean_coherence >= dat$mean_coherence[[1]])
-                            }),
+                         \(dat){
+                           sum(dat$mean_coherence >= dat$mean_coherence[[1]])
+                         }),
             .groups = 'drop') |>
   mutate(p_adj = p.adjust(p_val, method = "holm"))
 
@@ -593,6 +591,8 @@ dotprod_agg_by_ct <- dotprod_by_cell |>
             by = c("cell_type")) |>
   mutate(p_adj = if_else(is.na(p_adj), 1, p_adj),
          signif = cut(p_adj, breaks = c(-Inf, 1e-3,1e-2,5e-2,Inf), labels = c("***","**","*","n.s."))) |>
+  mutate(tissue = factor(tissue,
+                         levels = c("skin", "glia","pharynx","muscle","neuron","reproductive","other"))) |>
   arrange(tissue, desc(mean_coherence)) |>
   mutate(cell_type = fct_inorder(cell_type))
 
@@ -622,11 +622,11 @@ gg_dotprod_by_cell
 # 1300 x 450
 
 # ggsave("local_phase_coherence.png", plot = gg_dotprod_by_cell,
-#        path = "presentations/",
+#        path = "presentations/figures/local_phase_coherence",
 #        width = 200, height = 70, units = "mm",
 #        scale = 2)
 # ggsave("local_phase_coherence.pdf", plot = gg_dotprod_by_cell,
-#        path = "presentations/",
+#        path = "presentations/figures/local_phase_coherence",
 #        width = 200, height = 70, units = "mm",
 #        scale = 2)
 
@@ -1284,7 +1284,7 @@ merged |>
   ggplot() +
   theme_classic() +
   geom_jitter(aes(x = cell_type_old, y = cell_type_new),
-             alpha = .1)
+              alpha = .1)
 
 
 merged |>
