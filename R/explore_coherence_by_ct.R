@@ -1,4 +1,25 @@
 
+ct <- "seam"
+
+neighbors_bc <- map(rownames(cell_phases)[cell_phases$cell_type == ct],
+                    \(cell) TopNeighbors(seu@neighbors$SCT.nn, cell = cell, n = (20+1L) ) |>
+                      setdiff(cell),
+                    .progress = TRUE) |>
+  unlist() |>
+  unique()
+
+# start ----
+cells_phases <- cell_phases
+
+phase <- osc_table$peak_phase_deg
+phase <- sample(osc_table$peak_phase_deg)
+
+# overwrite with permuted
+cells_phases$cell_phase <- angle_from_mat(mat, phase)
+cells_phases$cell_rho <- rho_from_mat(mat, phase)
+
+cells_phases <- cells_phases |>
+  filter(cell_type == ct | (rownames(cell_phases) %in% neighbors_bc))
 
 
 cells_phases_xy <- cells_phases |>
@@ -6,6 +27,9 @@ cells_phases_xy <- cells_phases |>
          y = cell_rho * sin(cell_phase *pi/180),
          x = if_else(is.nan(cell_phase), 0, x),
          y = if_else(is.nan(cell_phase), 0, y))
+
+cells_phases <- cells_phases |>
+  filter(cell_type == ct)
 
 
 cell_neighbors_xy <- tibble(
@@ -47,7 +71,7 @@ cell_dotp_neighbors <- tibble(cell = cell_neighbors_xy$cell,
 
 
 cell_dotp_ct <- tibble(cell = cell_type_xy$cell,
-                              dotprod = cell_type_xy$cell_x * cell_type_xy$neigh_x +
+                       dotprod = cell_type_xy$cell_x * cell_type_xy$neigh_x +
                          cell_type_xy$cell_y * cell_type_xy$neigh_y) |>
   summarize(mean_dotprod = mean(dotprod),
             .by = cell)
@@ -58,19 +82,20 @@ stopifnot(identical( cell_dotp_neighbors$cell, cell_dotp_ct$cell ))
 stopifnot(identical( cell_dotp_neighbors$cell, rownames(cells_phases) ))
 
 
-left_join(cell_dotp_neighbors |> rename(dotp_neigh = mean_dotprod),
-          cell_dotp_ct |> rename(dotp_ct = mean_dotprod),
-          by = "cell") |>
-  left_join(cells_phases |> rownames_to_column("cell"),
-            by = "cell") |>
-  ggplot() +
-  theme_classic() +
-  theme(legend.position = "none") +
-  facet_wrap(~tissue) +
-  geom_hline(aes(yintercept = 0), linetype = "dashed") +
-  geom_vline(aes(xintercept = 0), linetype = "dashed") +
-  geom_point(aes(x = dotp_ct, y = dotp_neigh, color = cell_type),
-             alpha = .3)
+# left_join(cell_dotp_neighbors |> rename(dotp_neigh = mean_dotprod),
+#           cell_dotp_ct |> rename(dotp_ct = mean_dotprod),
+#           by = "cell") |>
+#   left_join(cells_phases |> rownames_to_column("cell"),
+#             by = "cell") |>
+#   ggplot() +
+#   theme_classic() +
+#   theme(legend.position = "none") +
+#   facet_wrap(~tissue) +
+#   # ggtitle("CAN") +
+#   geom_hline(aes(yintercept = 0), linetype = "dashed") +
+#   geom_vline(aes(xintercept = 0), linetype = "dashed") +
+#   geom_point(aes(x = dotp_ct, y = dotp_neigh, color = cell_type),
+#              alpha = .3)
 
 
 dotprod_by_cell <- left_join(cell_dotp_neighbors |> rename(dotp_neigh = mean_dotprod),
@@ -78,7 +103,7 @@ dotprod_by_cell <- left_join(cell_dotp_neighbors |> rename(dotp_neigh = mean_dot
                              by = "cell") |>
   left_join(cells_phases |> rownames_to_column("cell"),
             by = "cell") |>
-  mutate(norm_dotp = ((dotp_neigh+1) / (dotp_ct+1)))
+  mutate(norm_dotp = log((dotp_neigh+1) / (dotp_ct+1)))
 
 
 
@@ -122,6 +147,70 @@ dotprod_by_cell |>
 
 
 
+# Plot coherence ----
+dotprod_by_cell |>
+  ggplot() +
+  theme_classic() +
+  theme(legend.position = "none") +
+  ggtitle("AMsh", "(permuted)") +
+  # geom_hline(aes(yintercept = 0), linetype = "dashed") +
+  # geom_vline(aes(xintercept = 0), linetype = "dashed") +
+  geom_abline(aes(intercept = 0, slope = 1), linetype = "dashed") +
+  geom_point(aes(x = dotp_ct, y = dotp_neigh, color = cell_rho),
+             alpha = 1, size = 2)
+
+dotprod_by_cell$norm_dotp |> mean()
+
+dotprod_by_cell$norm_dotp[-348] |> mean()
+
+
+dotprod_by_cell2$coherence[dotprod_by_cell2$cell_type == ct] |> mean()
+
+
+dotprod_by_cell |>
+  filter(dotp_neigh > .2) |>
+  pull(cell)
+
+cell_phases[
+  TopNeighbors(seu@neighbors$SCT.nn, cell = "s91_CCAAGCGCAATTGAAG-1_2", n = (20+1L) ),
+  "cell_type"]
+
+which(dotprod_by_cell$cell == "s91_CCAAGCGCAATTGAAG-1_2")
+which.max(dotprod_by_cell$norm_dotp)
+
+dotprod_by_cell |>
+  filter(dotp_neigh > .1,
+         dotp_ct < 0)
+
+cells_problematic <- dotprod_by_cell |>
+  filter(dotp_neigh > .1,
+         dotp_ct < 0) |>
+  pull(cell)
+
+
+neighbors_of_problematic <- map(cells_problematic,
+                                \(cell) TopNeighbors(seu@neighbors$SCT.nn, cell = cell, n = (20+1L) ) |>
+                                  setdiff(cell),
+                                .progress = TRUE) |>
+  unlist() |>
+  unique()
+
+cell_phases[neighbors_of_problematic, "cell_type"] |>
+  table() |> as.matrix() |> t() |> as.data.frame() |>
+  flextable::flextable()
+
+cell_phases[neighbors_bc, "cell_type"] |>
+  table() |> as.matrix() |> t() |> as.data.frame() |>
+  flextable::flextable()
+
+
+# Plot permutations ----
+
+mean_dotprod_by_celltype_res_perm <- qs::qread(file.path(dir_out, "250606_coherence_perm10000.qs"))
+
+norm_coherence <- mean_dotprod_by_celltype_res_perm$mean_coherence[mean_dotprod_by_celltype_res_perm$cell_type == ct]
+hist(norm_coherence)
+abline(v = norm_coherence[[1]])
 
 
 
