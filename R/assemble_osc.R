@@ -378,7 +378,12 @@ dotprod_by_cell <- mean_dotprod_norm(cell_phases,
                                      k = k_neighbors)
 
 
-
+xx <- mean_dotprod(cell_phases,
+                   seu.nn = seu@neighbors$SCT.nn,
+                   k = k_neighbors)
+dotprod_by_cell <- cbind(cell_phases,
+                         coherence = xx) |>
+  as_tibble()
 
 # qs::qsave(dotprod_by_cell, file.path(dir_out, "250606_dotprod_by_cell.qs"))
 dotprod_by_cell <- qs::qread(file.path(dir_out, "250606_dotprod_by_cell.qs"))
