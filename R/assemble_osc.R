@@ -164,6 +164,8 @@ DimPlot(seu,
         alpha = .05) +
   NoLegend()
 
+
+
 # seu2 <- seu
 # seu2$tissue[seu2$cell_type == "ILso"] <- "ILso"
 # DimPlot(seu2,
@@ -174,17 +176,22 @@ DimPlot(seu,
 #         alpha = .1) +
 #   NoLegend()
 # 
-# ggsave("UMAP_tissue.pdf", path = "presentations/",
-#        width = 110, height = 120, units = "mm",
-#        scale = 2)
-# rm(seu2)
-# 
 # 
 # FetchData(seu2, vars = c("tissue", "umap_1", "umap_2")) |>
 #   ggplot() +
 #   theme_classic() +
 #   geom_point(aes(x = umap_1, y = umap_2, color = tissue),
-#              alpha = .2, size = 2)
+#              alpha = .1, size = 2,
+#              show.legend = FALSE)
+# 
+# ggsave("UMAP_tissue.png", path = "presentations/figures/250610_umap/",
+#        width = 60, height = 60, units = "mm",
+#        scale = 2)
+# ggsave("UMAP_tissue.pdf", path = "presentations/figures/250610_umap/",
+#        width = 60, height = 60, units = "mm",
+#        scale = 2)
+# rm(seu2)
+
 
 
 
@@ -338,10 +345,10 @@ FetchData(seu,
              alpha = .2,
              show.legend = FALSE)
 
-# ggsave("umap_phase.png", path = "presentations/",
+# ggsave("umap_phase.png", path = "presentations/figures/250610_umap/",
 #        width = 80, height = 80, units = "mm",
 #        scale = 1.5)
-# ggsave("umap_phase.pdf", path = "presentations/",
+# ggsave("umap_phase.pdf", path = "presentations/figures/250610_umap/",
 #        width = 80, height = 80, units = "mm",
 #        scale = 1.5)
 
@@ -373,12 +380,16 @@ seu <- FindNeighbors(seu,
 
 cell_phases <- FetchData(seu, vars = c("cell_phase", "cell_rho", "tissue", "cell_type"))
 
+
+## Normalized
+
 # dotprod_by_cell <- mean_dotprod_norm(cell_phases,
 #                                      seu.nn = seu@neighbors$SCT.nn,
 #                                      k = k_neighbors)
+# dotprod_by_cell <- qs::qread(file.path(dir_out, "250606_dotprod_by_cell.qs"))
 
 
-
+## Unnormalized
 dotprod_by_cell <- cbind(cell_phases,
                          coherence = mean_dotprod(cell_phases,
                                                   seu.nn = seu@neighbors$SCT.nn,
@@ -562,10 +573,6 @@ p_vals <- mean_dotprod_by_celltype_res_perm |>
                             \(dat){
                               mean(dat$mean_coherence >= dat$mean_coherence[[1]])
                             }),
-            nb = map_dbl(data,
-                         \(dat){
-                           sum(dat$mean_coherence >= dat$mean_coherence[[1]])
-                         }),
             .groups = 'drop') |>
   mutate(p_adj = p.adjust(p_val, method = "holm"))
 
@@ -643,7 +650,7 @@ local_coherence_by_ct <- dotprod_by_cell |>
   as_tibble()
 
 # qs::qsave(local_coherence_by_ct,
-#           file.path(dir_out, "250606_coherence_by_ct.qs"))
+#           file.path(dir_out, "250610_coherence_by_ct.qs"))
 
 
 
@@ -680,6 +687,7 @@ ggplot() +
   theme_classic() +
   scale_color_gradient(low = "bisque2", high = "darkolivegreen") +
   scale_fill_gradient(low = "bisque2", high = "dodgerblue2") +
+  theme(legend.position = "none") +
   geom_point(aes(x = umap_1, y = umap_2, color = nsIs198),
              alpha = .1, size = 2,
              data = filter(dat2, promoter == "grl-18")) +
@@ -689,12 +697,15 @@ ggplot() +
 
 # 650 x 500
 # ggsave("umap_both_sorts.png",
-#        path = "presentations/250523_umap",
-#        width = 6.5, height = 5, units = "in")
+#        path = "presentations/figures/250610_umap",
+#        width = 60, height = 60, units = "mm",
+#        scale = 2)
 # 
 # ggsave("umap_both_sorts.pdf",
-#        path = "presentations/250523_umap",
-#        width = 6.5, height = 5, units = "in")
+#        path = "presentations/figures/250610_umap",
+#        width = 60, height = 60, units = "mm",
+#        scale = 2)
+
 
 
 # plot separately both sorts
@@ -724,6 +735,7 @@ dat2 |>
 
 
 
+
 # UMAPs per tissue ----
 tissues <- seu$tissue |> unique()
 i=0
@@ -734,10 +746,10 @@ tissue_here
 
 sub <- subset(seu, tissue == tissue_here)
 table(sub$cell_type)
-sub <- SCTransform(sub)
-sub <- RunPCA(sub, npcs = 200, verbose = FALSE)
+sub <- SCTransform(sub)|>
+  RunPCA(npcs = 200, verbose = FALSE)
 
-npca <- 20
+npca <- 40
 
 ElbowPlot(sub, ndims = 200) +
   geom_vline(aes(xintercept = npca))
@@ -748,6 +760,14 @@ sub <- RunUMAP(sub, dims = 1:npca)
 DimPlot(sub,
         group.by = "cell_type",
         label = TRUE) + NoLegend()
+
+ggsave(paste0("celltype_",tissue_here,".png"), path = "presentations/figures/250611_umap_tissues/",
+       width = 60, height = 60, units = "mm",
+       scale = 2)
+ggsave(paste0("celltype_",tissue_here,".pdf"), path = "presentations/figures/250611_umap_tissues/",
+       width = 60, height = 60, units = "mm",
+       scale = 2)
+
 
 FetchData(sub,
           vars = c("umap_1", "umap_2",
@@ -764,10 +784,12 @@ FetchData(sub,
              alpha = .2,
              show.legend = FALSE)
 
-# ggsave("umap_other.png", path = "presentations/",
-#        width = 78, height = 60, units = "mm",
-#        scale = 2)
-
+ggsave(paste0("phase_",tissue_here,".png"), path = "presentations/figures/250611_umap_tissues/",
+       width = 60, height = 60, units = "mm",
+       scale = 2)
+ggsave(paste0("phase_",tissue_here,".pdf"), path = "presentations/figures/250611_umap_tissues/",
+       width = 60, height = 60, units = "mm",
+       scale = 2)
 
 
 # ____________ ----
