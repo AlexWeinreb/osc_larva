@@ -379,27 +379,8 @@ ggplot(by_cell_type) +
 # Compare bulk ----
 
 dir_assembled <- "intermediates/2502/250605_assembled/"
-mean_dotprod_by_celltype_res_perm <- qs::qread(file.path(dir_assembled, "250606_coherence_unnorm_perm10000.qs"))
-dotprod_by_cell <- qs::qread(file.path(dir_assembled, "250610_dotprod_by_cell.qs"))
 
-
-p_vals <- mean_dotprod_by_celltype_res_perm |>
-  group_by(tissue, cell_type) |>
-  nest() |>
-  summarize(p_val = map_dbl(data,
-                            \(dat){
-                              mean(dat$mean_coherence >= dat$mean_coherence[[1]])
-                            }),
-            .groups = 'drop') |>
-  mutate(p_adj = p.adjust(p_val, method = "holm"))
-
-
-cell_types_bulk <- dotprod_by_cell |>
-  summarize(mean_coherence = mean(coherence),
-            .by = "cell_type") |>
-  left_join(p_vals,
-            by = c("cell_type")) |>
-  mutate(p_adj = if_else(is.na(p_adj), 1, p_adj))
+cell_types_bulk <- qs::qread(file.path(dir_assembled, "250610_coherence_by_ct.qs"))
 
 cell_types_both <- inner_join(
   by_cell_type |>
