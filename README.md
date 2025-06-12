@@ -509,57 +509,24 @@ All results saved in `250609_cluster`.
 
 In `explore_step3_timeseries_distances.R`, temporary explorations, to delete later.
 
+In `R/step_3_process_celltypes.R`, temporary explorations (manually annotate some genes to compare to gene clustering).
 
-
-##### older version
-
-
-Jobfile created with:
-```r
-paste("module load R; Rscript R/compare_kmeans_script.R",
-       "--which", c("methods", "nb_clust_pca", "nb_clust_som", "columns")) |>
-  writeLines("joblists/compare_kmeans.dsq.txt")
-```
-
-
-Job prepared with:
-```
-ml dSQ; dsq --job-file joblists/compare_kmeans.dsq.txt  --cpus-per-task 1 --mem 50G --time 15:20:00 --partition day
-```
-
-First run kmeans with PCA or SOM, select nb clusters.
-
-
-Even older version:
-Compare clusterings, 10 replicates, use replicate number as seed.
-
-Test different combinations
-
-```
-paste("module load R; Rscript R/compare_clustering_methods.R",
-      "--i", seq_len(10)
-      ) |>
-  writeLines("joblists/compare_clustering_methods.dsq.txt")
-```
-
-```
-ml dSQ; dsq --job-file joblists/compare_clustering_methods.dsq.txt --cpus-per-task 1 --mem 40G --time 20:10:00 --partition day; ml unload dSQ
-```
 
 
 
 ### Step 3: process cell types, curve shape, heatmaps
 
-On cluster, interactively, run `src/runR_step_3_process_celltypes`:
-* inputs:
-  * result of step 2 `2502/250325_step2_binom/{celltype}_res_gam.qs` for each cell type
-  * also use step1 to examine individual genes
-* determine what genes are peaky based on curve shape
-* plot heatmaps per cell type, determine if heatmap diagonal
-* save results in `2502/250330_step3_genes_by_celltype/`
+
+In `step3_heatmap_from_clust.R`, look at each cell type's pulsatile genes. Categorize cell types as oscillatory or not based on entropy of peaks.
 
 
 
+### Step 4: Analysis
+
+
+In `R/step_4_analysis.R` look at genes.
+
+In `R/CelEst.R` looks at TFs.
 
 
 

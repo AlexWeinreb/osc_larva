@@ -16,20 +16,22 @@ gids <- wb_load_gene_ids(295) |>
 
 source("R/utils_heatmap_processing.R")
 
+dir_clust <- "intermediates/2502/250609_cluster"
 
-dir_step1 <- "intermediates/2502/250330_step1/"
-dir_step2 <- "intermediates/2502/250519_step2/"
-
-dir_step3 <- "intermediates/2502/250519_step3_genes_by_celltype/"
-
+dir_step2 <- "intermediates/2502/250606_step2/"
+# dir_step2 <- "E:/backups/Projects_june2025/glia/osc_larva/intermediates/2502/250609_step2/"
 
 
-ct2tissue <- read_csv("data/cell_type2tissue.csv")
+dir_step3 <- "intermediates/2502/250606_step3_genes_by_celltype/"
+
+
+
+# ct2tissue <- read_csv("data/cell_type2tissue.csv")
 
 
 
 # Load ----
-cluster_results <- read_csv(file.path(dir_step2, "250519_cluster_results.csv"))
+cluster_results <- read_csv(file.path(dir_clust, "250610_cluster_results.csv"))
 
 smooth_noncentered <- list.files(dir_step2,
                                  pattern = "_preds\\.qs$") |>
@@ -58,7 +60,8 @@ by_cell_type <- cluster_results |>
             .by = "cell_type") |>
   mutate(prop_puls = round( 100 * n_puls / n_tot )) |>
   arrange(desc(prop_puls)) |>
-  mutate(cell_type = fct_inorder(cell_type))
+  mutate(cell_type = fct_inorder(cell_type)) |>
+  filter(n_puls > 0)
 
 cluster_results <- cluster_results |>
   mutate(cell_type = factor(cell_type,
@@ -79,7 +82,8 @@ stopifnot(all.equal(
 
 # heatmap ----
 
-# printMat::matimage(log1p(smooth_noncentered))
+# printMat::matimage(log1p(smooth_noncentered)[,sample(ncol(smooth_noncentered), 200)])
+
 
 
 # create a heatmap for each cell type
@@ -101,7 +105,7 @@ heatmaps_list <- cluster_results |>
   
 
 
-# sapply(heatmaps_list, dim)
+# sapply(heatmaps_list[1:4], dim)
 
 heatmaps_scaled <- map(heatmaps_list,
                        ~{
@@ -374,9 +378,9 @@ ggplot(by_cell_type) +
 
 # Compare bulk ----
 
-dir_assembled <- "intermediates/2502/250509_assembled"
-mean_dotprod_by_celltype_res_perm <- qs::qread(file.path(dir_assembled, "250509_coherence_perm10000.qs"))
-dotprod_by_cell <- qs::qread(file.path(dir_assembled, "250509_dotprod_by_cell.qs"))
+dir_assembled <- "intermediates/2502/250605_assembled/"
+mean_dotprod_by_celltype_res_perm <- qs::qread(file.path(dir_assembled, "250606_coherence_unnorm_perm10000.qs"))
+dotprod_by_cell <- qs::qread(file.path(dir_assembled, "250610_dotprod_by_cell.qs"))
 
 
 p_vals <- mean_dotprod_by_celltype_res_perm |>
@@ -397,55 +401,50 @@ cell_types_bulk <- dotprod_by_cell |>
             by = c("cell_type")) |>
   mutate(p_adj = if_else(is.na(p_adj), 1, p_adj))
 
-inner_join(
+cell_types_both <- inner_join(
   by_cell_type |>
-    select(cell_type, perplexity)
+    select(cell_type, n_puls, n_tot, prop_puls, perplexity)
   ,
   cell_types_bulk |>
-    select(cell_type, tissue, mean_coherence, p_coherence = p_adj)
-) |>
-  # mutate(signif = case_when(
-  #   p_diag < .05 & p_coherence < .05 ~ "*",
-  #   p_diag < .05 & p_coherence >= .05 ~ "#",
-  #   p_diag >= .05 & p_coherence < .05 ~ "$",
-  #   p_diag >= .05 & p_coherence >= .05 ~ "o"
-  # )) |>
+    select(cell_type, tissue, mean_coherence, p_coherence_adj = p_adj)
+)
+
+
+cell_types_both |>
   ggplot() +
   theme_classic() +
   xlab("Mean local phase coherence") +
   ylab("Perplexity") +
   scale_shape_manual(values = c(`TRUE` = 8, `FALSE` = 19)) +
   geom_point(aes(x = mean_coherence, y = perplexity, color = tissue,
-                 shape = p_coherence < .05),
+                 shape = p_coherence_adj < .05),
              size = 3)
 
+# ggsave("phasic_cell_types_unannot.png", path = "presentations/figures/250612_celltype_osc",
+#        width = 80, height = 50, units = "mm",
+#        scale = 2)
+# ggsave("phasic_cell_types_unannot.pdf", path = "presentations/figures/250612_celltype_osc",
+#        width = 80, height = 50, units = "mm",
+#        scale = 2)
 
-inner_join(
-  by_cell_type |>
-    select(cell_type, perplexity)
-  ,
-  cell_types_bulk |>
-    select(cell_type, tissue, mean_coherence, p_coherence = p_adj)
-) |>
-  # mutate(signif = case_when(
-  #   p_diag < .05 & p_coherence < .05 ~ "both",
-  #   p_diag < .05 & p_coherence >= .05 ~ "diag only",
-  #   p_diag >= .05 & p_coherence < .05 ~ "bulk only",
-  #   p_diag >= .05 & p_coherence >= .05 ~ "neither"
-  # )) |>
+
+cell_types_both |>
   ggplot() +
   theme_classic() +
   xlab("Mean local phase coherence (bulk)") +
   ylab("Perplexity (sc)") +
   scale_shape_manual(values = c(`TRUE` = 8, `FALSE` = 19)) +
   geom_point(aes(x = mean_coherence, y = perplexity, color = tissue,
-                 shape = p_coherence < .05),
+                 shape = p_coherence_adj < .05),
              size = 3) +
   ggrepel::geom_text_repel(aes(x = mean_coherence, y = perplexity, label = cell_type))
 
 
-# ggsave("phasic_cell_types.pdf", path = "presentations/",
-#        width = 60, height = 50, units = "mm",
+# ggsave("phasic_cell_types_annot.png", path = "presentations/figures/250612_celltype_osc",
+#        width = 80, height = 50, units = "mm",
+#        scale = 2)
+# ggsave("phasic_cell_types_annot.pdf", path = "presentations/figures/250612_celltype_osc",
+#        width = 80, height = 50, units = "mm",
 #        scale = 2)
 
 
@@ -459,19 +458,12 @@ inner_join(
 
 
 
-by_cell_type |>
-  qs::qsave(file.path(dir_step3, "cell_types_sc.qs"))
+# by_cell_type |>
+#   qs::qsave(file.path(dir_step3, "cell_types_sc.qs"))
 
 
-
-inner_join(
-  by_cell_type |>
-    select(cell_type, n_puls, n_tot, prop_puls, similarity_diag, p_diag_adj = p_adj)
-  ,
-  cell_types_bulk |>
-    select(cell_type, tissue, mean_coherence, p_coherence_adj = p_adj)
-) |>
-  qs::qsave(file.path(dir_step3, "cell_types.qs"))
+# cell_types_both |>
+#   qs::qsave(file.path(dir_step3, "cell_types.qs"))
 
 
 
@@ -488,7 +480,7 @@ iwalk(heatmaps_list,
         })
           
         squash::savemat(t(hm_norm)[, nrow(hm_norm):1],
-                        filename = file.path(dir_step3,
+                        filename = file.path(dir_step3, "heatmaps_cts",
                                              paste0(.ct, "_heatmap.png")))
           
         })
@@ -496,7 +488,7 @@ iwalk(heatmaps_list,
 
 iwalk(heatmaps_list,
       ~ qs::qsave(.x,
-                  file.path(dir_step3,
+                  file.path(dir_step3, "heatmaps_cts",
                             paste0(.y, "_heatmap.qs")))
 )
 
@@ -520,19 +512,14 @@ iwalk(heatmaps_list,
 
 
 
-# Save pretty heatmaps
-sig_cent <- make_ref_sig(200)
-null_mat <- sapply(seq_len(800),
-                   \(i){
-                     circ_perm(sig_cent, floor(200 * i/800))
-                   })
+# Save prettier heatmaps
 
-heatmaps_list <- append(heatmaps_list, list(null_mat = null_mat))
+
 
 # hmp_sparsified <- heatmaps_list[[9]]
 # ct <- names(heatmaps_list)[[9]]
 
-iwalk(heatmaps_list,
+iwalk(heatmaps_list[c("gonad_1", "ILso")],
       \(hmp_sparsified, ct){
         
         if(ncol(hmp_sparsified) <= 200){
@@ -548,13 +535,17 @@ iwalk(heatmaps_list,
                              show_rownames = FALSE,
                              show_colnames = FALSE,
                              fontsize = 7,
-                             filename = paste0("presentations/250520_heatmaps/", ct, ".png"),
+                             filename = paste0("presentations/figures/250612_celltype_osc/heatmap_", ct, ".png"),
                              width = 4,
                              height = 2,
                              main = ct)
           
           return()
         }
+        
+        hmp_sparsified <- apply(hmp_sparsified, 2, \(x){
+          (x - min(x)) / (max(x) - min(x))
+        })
         
         
         colnames(hmp_sparsified) <- str_split_i(colnames(hmp_sparsified), fixed("|"), 2)
@@ -567,13 +558,23 @@ iwalk(heatmaps_list,
         head(colnames(hmp_sparsified), 20)
         
         
-        pheatmap::pheatmap(log10( 1 + hmp_sparsified),
+        pheatmap::pheatmap(hmp_sparsified,
                            cluster_rows = FALSE,
                            cluster_cols = FALSE,
                            show_rownames = FALSE,
                            fontsize = 6,
-                           filename = paste0("presentations/250520_heatmaps/", ct, ".png"),
-                           width = 4,
+                           filename = paste0("presentations/figures/250612_celltype_osc/heatmap_", ct, ".png"),
+                           width = 5,
+                           height = 2.5,
+                           main = ct)
+        
+        pheatmap::pheatmap(hmp_sparsified,
+                           cluster_rows = FALSE,
+                           cluster_cols = FALSE,
+                           show_rownames = FALSE,
+                           fontsize = 6,
+                           filename = paste0("presentations/figures/250612_celltype_osc/heatmap_", ct, ".pdf"),
+                           width = 5,
                            height = 2.5,
                            main = ct)
         
