@@ -102,7 +102,7 @@ mat_pred <- scale(mat_pred)
 
 
 
-qs::qsave(mat_pred, file.path(dir_clust, "250519_mat_predictors.qs"))
+qs::qsave(mat_pred, file.path(dir_clust, "mat_predictors.qs"))
 
 
 
@@ -115,7 +115,7 @@ hc <- fastcluster::hclust(dist(mat_pred, method = "manhattan"), method = "ward.D
 
 message("Done. Saving...")
 
-qs::qsave(hc, file.path(dir_clust, "250519_hclust_manhattan.qs"))
+qs::qsave(hc, file.path(dir_clust, "hclust_manhattan.qs"))
 
 
 
@@ -126,7 +126,7 @@ hc <- fastcluster::hclust(dist(mat_pred, method = "euclidean"), method = "ward.D
 
 message("Done. Saving...")
 
-qs::qsave(hc, file.path(dir_clust, "250519_hclust_euclidean.qs"))
+qs::qsave(hc, file.path(dir_clust, "hclust_euclidean.qs"))
 
 
 message("-----------------")
