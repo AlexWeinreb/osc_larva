@@ -121,6 +121,10 @@ stopifnot(all.equal(
 
 
 
+#~ PANTHER ----
+dict_panther <- qs::qread("data/gene_families/panther_dict.qs")
+nb_genes_in_fam <- dict_panther[,-1] |> colSums()
+dict_panther <- dict_panther[ , c(TRUE, nb_genes_in_fam > 5) ]
 
 
 
@@ -605,12 +609,6 @@ imap_dfr(all_go,
 
 #~ PANTHER families ----
 
-dict_panther <- qs::qread("data/gene_families/panther_dict.qs")
-
-nb_genes_in_fam <- dict_panther[,-1] |> colSums()
-
-dict_panther <- dict_panther[ , c(TRUE, nb_genes_in_fam > 5) ]
-
 
 all_panther <- map_dfr(
   cell_types_osc,
@@ -976,7 +974,7 @@ all_genes |>
              by = "gene_name") |>
   relocate(family_description, .after = gene_name) |>
   left_join(osc_table_nodup) |> View()
-  # writexl::write_xlsx("data/gene_families/250429_ILso_osc_genes_from_defined_families.xlsx")
+  # writexl::write_xlsx("data/gene_families/250612_ILso_osc_genes_from_defined_families.xlsx")
 
 all_genes |>
   filter(cell_type == "ILso") |>
@@ -1224,9 +1222,151 @@ Seurat::FeaturePlot(amphso_subseu,
 
 
 # Illustrate GAM ----
-dir_step2 <- "intermediates/2502/250512_step2/"
 
 
+#~ load ----
+
+dir_step2 <- "intermediates/2502/250609_step2/"
+dir_step1 <- "intermediates/2502/250609_step1/"
+
+# if working from external HDD
+# dir_step2 <- "E:/backups/Projects_june2025/glia/osc_larva/intermediates/2502/250609_step2/"
+# dir_step1 <- "E:/backups/Projects_june2025/glia/osc_larva/intermediates/2502/250609_step1/"
+
+
+
+
+ilso_subseu <- qs::qread( file.path(dir_step1,
+                                    paste0("ILso", "_seu.qs")) )
+
+mods_uncentered <- qs::qread(file.path(dir_step2, paste0("ILso", "_mods_uncentered.qs")))
+
+
+
+smooth_centered <- list.files(dir_step2,
+                              pattern = "_preds_cent_clipped\\.qs$") |>
+  enframe(value = "filename",
+          name = NULL) |>
+  separate_wider_regex(filename,
+                       patterns = c(
+                         cell_type = "^.+",
+                         "_preds_cent_clipped\\.qs"
+                       ),
+                       cols_remove = FALSE) |>
+  pmap(\(cell_type, filename){
+    mat_preds <- qs::qread(file.path(dir_step2,
+                                     filename))
+    colnames(mat_preds) <- paste0(cell_type, "|", colnames(mat_preds))
+    
+    mat_preds
+  }) |>
+  do.call(cbind, args = _)
+
+
+
+# computed same for all genes
+mean_sf <- lapply(mods_centered,
+                  \(.mod) exp(mod$model$`offset(log(size_factors))`)) |>
+  unlist() |>
+  log() |>
+  mean() |>
+  exp()
+
+
+
+
+
+
+#~ gene ----
+
+goi <- "grl-18"
+goi <- "nhr-23"
+goi <- "col-109"
+goi <- "pugs-11"
+
+
+
+
+
+
+
+#~| cells ----
+Seurat::FeaturePlot(ilso_subseu,
+                    features = goi,
+                    reduction = "pca",
+                    pt.size = 2, #min.cutoff = 0,max.cutoff = 1,
+                    alpha = .5) +
+  ggtitle(goi, "ILso")
+
+ggsave(paste0(goi, "_expr.png"),
+       path = "presentations/figures/250613_gam_illustrations",
+       width = 60, height = 60, units = "mm",
+       scale = 2)
+ggsave(paste0(goi, "_expr.pdf"),
+       path = "presentations/figures/250613_gam_illustrations",
+       width = 60, height = 60, units = "mm",
+       scale = 2)
+
+
+#~| GAM ----
+
+# clipped
+mod <- mods_uncentered[[goi]]
+
+dat <- data.frame(
+  pseudotime = mod$model$pseudotime,
+  count = log10( 1 + mod$model$expr / exp(mod$model$`offset(log(size_factors))`) ),
+  fit = log10( 1 + mod$fitted.values / exp(mod$model$`offset(log(size_factors))`) )
+)
+
+clip <- max(
+  dat$count |> quantile(probs = .95),
+  1.1 * max(dat$fit)
+)
+
+dat |>
+  ggplot() +
+  theme_classic() +
+  ylab("Expression (log, normalized)") +
+  scale_y_continuous(limits = c(0, clip),
+                     oob = scales::squish) +
+  geom_point(aes(x = pseudotime,
+                 y = count),
+             alpha = .4,
+             size = 2,
+             shape = 16) +
+  geom_line(aes(x = pseudotime,
+                y = fit),
+            color = 'orange2',
+            linewidth = 1.5) +
+  ggtitle(goi)
+
+
+
+ggsave(paste0(goi, "_devexpl.png"),
+       path = "presentations/figures/250613_gam_illustrations",
+       width = 60, height = 50, units = "mm",
+       scale = 2)
+ggsave(paste0(goi, "_devexpl.pdf"),
+       path = "presentations/figures/250613_gam_illustrations",
+       width = 60, height = 50, units = "mm",
+       scale = 2)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Old ----
 
 
 smooth_preds <- list.files(dir_step2,
