@@ -166,6 +166,10 @@ DimPlot(seu,
 
 
 
+
+# Export UMAPs ----
+
+
 # seu2 <- seu
 # seu2$tissue[seu2$cell_type == "ILso"] <- "ILso"
 # DimPlot(seu2,
@@ -192,6 +196,76 @@ DimPlot(seu,
 #        scale = 2)
 # rm(seu2)
 
+
+
+DimPlot(seu,
+        group.by = "cell_type",
+        reduction = "umap",
+        label = FALSE,
+        pt.size = 2,
+        alpha = .1) +
+  NoLegend()
+
+
+FetchData(seu, vars = c("cell_type", "umap_1", "umap_2")) |>
+  ggplot() +
+  theme_classic() +
+  hues::scale_color_iwanthue() +
+  geom_point(aes(x = umap_1, y = umap_2, color = cell_type),
+             alpha = .1, size = 2,
+             show.legend = FALSE)
+
+# ggsave("UMAP_cell_type.png", path = "presentations/figures/250610_umap/",
+#        width = 60, height = 60, units = "mm",
+#        scale = 2)
+# ggsave("UMAP_cell_type.pdf", path = "presentations/figures/250610_umap/",
+#        width = 60, height = 60, units = "mm",
+#        scale = 2)
+
+DimPlot(seu,
+        group.by = "cell_type",
+        reduction = "umap",
+        label = TRUE,
+        pt.size = 2,
+        alpha = .1) +
+  NoLegend()
+
+
+
+DimPlot(seu,
+        group.by = "stage",
+        reduction = "umap",
+        label = FALSE,
+        pt.size = 2,
+        alpha = .1)
+
+
+FetchData(seu, vars = c("stage", "umap_1", "umap_2")) |>
+  ggplot() +
+  theme_classic() +
+  scale_color_brewer(type = "qual") +
+  geom_point(aes(x = umap_1, y = umap_2, color = stage),
+             alpha = .1, size = 2,
+             show.legend = FALSE)
+
+# ggsave("UMAP_stage.png", path = "presentations/figures/250610_umap/",
+#        width = 60, height = 60, units = "mm",
+#        scale = 2)
+
+FetchData(seu, vars = c("stage", "umap_1", "umap_2")) |>
+  slice_sample(n = 10) |>
+  ggplot() +
+  theme_classic() +
+  scale_color_brewer(type = "qual") +
+  geom_point(aes(x = umap_1, y = umap_2, color = stage),
+             alpha = 1, size = 2)
+
+# ggsave("UMAP_stage_legend.pdf", path = "presentations/figures/250610_umap/",
+#        width = 60, height = 60, units = "mm",
+#        scale = 2)
+
+
+# colorspace::darken("#beaed4", amount = .2)
 
 
 
