@@ -3,7 +3,7 @@
 # Inits ----
 library(tidyverse)
 library(wbData)
-
+source("R/utils_heatmap_processing.R")
 
 gids <- wb_load_gene_ids(295) |>
   add_row(X = "a",
@@ -16,15 +16,36 @@ gids <- wb_load_gene_ids(295) |>
   )
 
 
-
-out_dir <- "presentations/2503_figures/"
-dir_step3 <- "intermediates/2502/250425_step3_genes_by_celltype/"
-dir_step2_clust <- "intermediates/2502/250422_step2_nb_centered/"
-dir_step2_noncent <- "intermediates/2502/250422_step2_nb/"
+dir_tf <- "intermediates/2502/250617_celest_tfs/"
+dir_out <- "presentations/figures/250616_celest/"
+dir_step3 <- "intermediates/2502/250606_step3_genes_by_celltype/"
+dir_clust <- "intermediates/2502/250609_cluster"
+dir_step2 <- "intermediates/2502/250609_step2/"
+# dir_step2 <- "E:/backups/Projects_june2025/glia/osc_larva/intermediates/2502/250609_step2/"
 
 
 # download.file("https://raw.githubusercontent.com/IBMB-MFP/CelEsT-MS/refs/heads/main/CelEsT_annotated_v1pt1.txt",
 #               "data/CelEst_v1pt1.txt")
+
+
+
+# For gene name conversion, cf "step4" script
+osc_table <- readxl::read_excel("data/msb209498-sup-0003-datasetev1.xlsx",
+                              sheet = "Dataset EV1 WBidToGeneNames_Osc",
+                              na = "NA") |>
+  mutate(gene_id = wb_clean_gene_names(WB_ID),
+         gene_name = i2s(gene_id, gids) ) |>
+  filter(! is.na(gene_name)) |>
+  mutate(osc_amplitude = if_else(is.na(OscAmplitude), 0, OscAmplitude)) |>
+  select(gene_name, bulk_class = Class, osc_amplitude, bulk_peak = PeakPhase) |>
+  group_by(gene_name) |>
+  slice_max(osc_amplitude,
+            with_ties = FALSE) |>
+  ungroup()
+
+
+stopifnot(!any(is.na(osc_table$gene_name)))
+stopifnot(anyDuplicated(osc_table$gene_name) == 0L)
 
 
 
@@ -33,8 +54,9 @@ dir_step2_noncent <- "intermediates/2502/250422_step2_nb/"
 
 cell_types_info <- qs::qread(file.path(dir_step3, "cell_types.qs"))
 
-all_genes <- read_csv(file.path(dir_step2_clust, "250424_cluster_results.csv")) |>
-  mutate(cellgene = paste0(cell_type, "|", gene_name))
+all_genes <- read_csv(file.path(dir_clust, "250610_cluster_results.csv")) |>
+  mutate(cellgene = paste0(cell_type, "|", gene_name)) |>
+  filter(cell_type %in% cell_types_info$cell_type)
 
 
 stopifnot(all.equal(
@@ -46,30 +68,10 @@ stopifnot(all.equal(
 
 # select cell types to test
 
-cell_types_info |>
-  mutate(signif = case_when(
-    p_diag_adj < .05 & p_coherence_adj < .05 ~ "both",
-    p_diag_adj < .05 & p_coherence_adj >= .05 ~ "diag only",
-    p_diag_adj >= .05 & p_coherence_adj < .05 ~ "bulk only",
-    p_diag_adj >= .05 & p_coherence_adj >= .05 ~ "neither"
-  )) |>
-  ggplot() +
-  theme_classic() +
-  xlab("Mean local phase coherence (bulk)") +
-  ylab("Diagonal similarity (sc)") +
-  scale_shape_manual(values = c("both" = 8, "diag only" = 7, "bulk only" = 9, "neither" = 16)) +
-  geom_point(aes(x = mean_coherence, y = similarity_diag, color = tissue,
-                 shape = signif),
-             size = 3) +
-  ggrepel::geom_text_repel(aes(x = mean_coherence, y = similarity_diag, label = cell_type))
-
-cell_types_test <- cell_types_info |>
-  filter(prop_puls >= 10,
-         p_diag_adj < .05,
-         p_coherence_adj < .05) |>
+cell_types_osc <- cell_types_info |>
+  filter(p_coherence_adj < .05,
+         perplexity > 30) |>
   pull(cell_type)
-
-
 
 
 
@@ -130,7 +132,7 @@ celest <- celest |>
 # Fisher exact test
 
 all_tests <- map_dfr(
-  cell_types_test,
+  cell_types_osc,
   \(ct){
     
     all_genes_ct <- all_genes |> filter(cell_type == ct) |> pull(gene_name)
@@ -192,6 +194,7 @@ all_tests |>
 
 
 all_tests |>
+  # filter(cell_type == "hypodermis") |>
   ggplot() +
   theme_classic() +
   scale_x_continuous(transform = "sqrt") +
@@ -201,13 +204,94 @@ all_tests |>
   geom_hline(aes(yintercept = -log10(.05)),
              linetype = "dashed", color = "grey") +
   geom_point(aes(x = enrichment_fc, y = -log10(p_adj),
-                 alpha = signif, color = signif,
-                 shape = cell_type)) +
+                 alpha = signif, color = signif)) +
   ggrepel::geom_text_repel(aes(x = enrichment_fc, y = -log10(p_adj),
                                label = source_name),
-                           data = all_tests |> filter(signif),
+                           data = all_tests |>
+                             # filter(cell_type == "hypodermis") |>
+                             filter(signif)
+                           ,
                            force_pull = .01,force = 10,
                            max.overlaps = 10)
+
+
+all_tests |>
+  mutate(cell_type = str_replace_all(cell_type, "_", " ")) |>
+  ggplot() +
+  theme_classic() +
+  theme(legend.position = "none") +
+  scale_x_continuous(transform = "log2", labels = \(x) format(x, drop0trailing = TRUE)) +
+  scale_alpha_manual(values = c(`TRUE` = .8, `FALSE` = .2)) +
+  scale_color_manual(values = c(`TRUE` = "red3", `FALSE` = "black")) +
+  xlab("Fold Change (log)") +
+  facet_wrap(~cell_type) +
+  geom_hline(aes(yintercept = -log10(.05)),
+             linetype = "dashed", color = "grey") +
+  geom_point(aes(x = enrichment_fc, y = -log10(p_adj),
+                 alpha = signif, color = signif),
+             shape = 16, size = 1.5)
+
+# ggsave("volcano_TFs.pdf", path = dir_out,
+#        width = 200, height = 150, units = "mm",
+#        scale = 1.5)
+
+
+# tfs_signif <- all_tests |>
+#   filter(any(signif),
+#          .by = source_name) |>
+#   pull(source_name) |>
+#   unique()
+# 
+# stopifnot(identical(
+#   tfs_signif,
+#   all_tests |>
+#     summarize(n_sig = sum(signif),
+#               .by = source_name) |>
+#     filter(n_sig > 0) |> pull(source_name)
+# ))
+
+mat_tfs <- all_tests |>
+  filter(any(signif),
+         .by = source_name) |>
+  pivot_wider(id_cols = cell_type,
+              names_from = source_name,
+              values_from = p_val,
+              values_fill = 1) |>
+  column_to_rownames("cell_type") |>
+  as.matrix()
+
+pheatmap::pheatmap(mat_tfs)
+
+hc_cts <- dist(mat_tfs) |> hclust()
+hc_tfs <- dist(t(mat_tfs)) |> hclust()
+
+all_tests |>
+  filter(sum(p_adj < .05) > 0,
+         .by = source_name) |>
+  mutate(
+    source_name = factor(source_name,
+                         levels = rev(hc_tfs$labels[hc_tfs$order])),
+    cell_type = factor(str_replace_all(cell_type, "_", " "),
+                       levels = str_replace_all(hc_cts$labels, "_", " ")[hc_cts$order])
+    ) |>
+  ggplot() +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  scale_color_gradient(low = "grey75", high = "red3", trans = c("log10", "reverse")) +
+  scale_size_continuous(transform = "log2") +
+  scale_alpha_continuous(transform = c("log10", "reverse")) +
+  geom_point(aes(x = cell_type, y = source_name,
+                 color = p_adj,
+                 size = enrichment_fc,
+                 alpha = p_adj),
+             shape = 16)
+
+
+# ggsave("dotplot_tfs_vs_celltypes.pdf",
+#        path = dir_out,
+#        width = 100, height = 200, units = "mm",
+#        scale = 1.5)
+
 
 
 #~ TFs enriched ----
@@ -269,14 +353,14 @@ all_tests |>
 
 cell_types_info |>
   filter(prop_puls >= 10,
-         p_diag_adj < .05,
-         p_coherence_adj < .05) |>
+         p_coherence_adj < .05,
+         perplexity > 30) |>
   select(cell_type,
          n_puls) |>
   left_join(all_tests,
             by = "cell_type") |>
   filter(p_adj < 0.05) |>
-  mutate(source_id = s2i(source_name, gids, warn_missing = TRUE)) |>
+  # mutate(source_id = s2i(source_name, gids, warn_missing = TRUE)) |>
   filter(cell_type == "ILso") |> pull(source_name) |> paste(collapse = ", ")
 
 
@@ -372,226 +456,212 @@ ggraph(graph_tbl, layout = "fr") +
 
 
 
-# time non-overlapping bins ----
-
-list.files(dir_step2_noncent)
-
-preds_ilso <- file.path(dir_step2_noncent, "ILso_preds.qs") |> qs::qread()
-
-n_timepoints <- nrow(preds_ilso)
-
-time_max <- apply(preds_ilso, 2, which.max) / n_timepoints
-
-puls_genes <- all_genes |>
-  filter(cell_type == "ILso",
-         shape == "pulsatile") |>
-  mutate(time_peak = time_max[gene_name],
-         time_peak_binned = cut(time_peak,
-                                 breaks = quantile(time_peak,
-                                                   probs = seq(0, 1, 0.2)),
-                                include.lowest = TRUE,
-                                labels = FALSE))
+# Binned time ebnrichment ----
 
 
 
 
-
-ct <- "ILso"
-all_tests_bin <- map_dfr(
-  unique(puls_genes$time_peak_binned),
-  \(bin){
-    
-    all_genes_ct <- all_genes |> filter(cell_type == ct) |> pull(gene_name)
-    puls_genes_bin <- puls_genes |> filter(time_peak_binned == bin) |> pull(gene_name)
-    nonpuls_genes_bin <- all_genes_ct |> setdiff(puls_genes_bin)
-    
-    stopifnot(all.equal(
-      nonpuls_genes_bin |> sort(),
-      union(
-        all_genes |> filter(cell_type == ct, shape == "nonpulsatile") |> pull(gene_name),
-        puls_genes |> filter(time_peak_binned != bin) |> pull(gene_name)
-      ) |> sort()
-    ))
-    
-    
-    tfs_to_test_ct <- intersect(unique(celest$source_name),
-                                all_genes_ct)
-    
-    
-    res <- lapply(tfs_to_test_ct,
-                  function(tf) {
-                    
-                    targets_tf <- celest |> filter(source_name == tf) |> pull(target_name)
-                    
-                    
-                    contingency <- matrix(c(
-                      length( targets_tf |> intersect(puls_genes_bin) ),
-                      length( puls_genes_bin |> setdiff(targets_tf) ),
-                      length( nonpuls_genes_bin |> intersect(targets_tf) ),
-                      length( nonpuls_genes_bin |> setdiff(targets_tf) )
-                    ), nrow = 2)
-                    
-                    
-                    data.frame(
-                      cell_type = ct,
-                      time_bin = bin,
-                      source_name = tf,
-                      odds_ratio = fisher.test(contingency, alternative = "greater")$estimate,
-                      p_val = fisher.test(contingency, alternative = "greater")$p.value
-                    )
-                  })
-    
-    res |> bind_rows()
-    
-  }) |>
-  as_tibble() |>
-  mutate(p_adj = p.adjust(p_val, method = "BH"))
+all(paste0(cell_types_osc, "_mods_uncentered.qs") %in% list.files(dir_step2))
 
 
-#~ res ----
+bin_width <- 36
+nb_bins <- 90
 
-all_tests_bin
-
-
-
-hist(all_tests_bin$p_val)
-hist(all_tests_bin$p_adj)
-
-table(all_tests_bin$p_adj < .05)
-
-all_tests_bin |>
-  summarize(nb_tests = n(),
-            nb_signif = sum(p_adj < .05),
-            .by = time_bin)
-
-
-
-# TFs enriched
-xx <- all_tests_bin |>
-  filter(p_adj < 0.05)
-
-split(xx, xx$time_bin) |>
-  map(~ .x |> pull(source_name)) |>
-  UpSetR::fromList() |>
-  UpSetR::upset(nsets = 50, nintersects = 200)
-
-
-all_tests_bin |>
-  filter(p_adj < 0.05) |>
-  summarize(TFs = list(source_name),
-            .by = time_bin) |>
-  deframe()
-
-
-
-# Display as table
-df <- all_tests_bin |>
-  filter(p_adj < 0.1) |>
-  select(time_bin, source_name) |>
-  pivot_wider(id_cols = time_bin,
-              names_from = source_name,
-              values_from = source_name,
-              values_fill = "")
-
-df[order(rowSums(df == "")),order(colSums(df == ""))] |> as.data.frame() ##|> View()
-
-# heatmap of effect size ----
-signif_sources <- all_tests |> filter(cell_type == "ILso", p_adj < .05) |> pull(source_name)
-tf_by_time <- all_tests_bin |>
-  filter(source_name %in% signif_sources) |>
-  arrange(time_bin) |>
-  pivot_wider(id_cols = source_name,
-              names_from = time_bin,
-              values_from = odds_ratio) |>
-  column_to_rownames("source_name") |>
-  as.matrix()
-
-pheatmap::pheatmap(tf_by_time,
-                   cluster_rows = TRUE,
-                   cluster_cols = FALSE,
-                   scale = "none")
-
-
-
-
-# time overlapping bins ----
-
-ct <- "ILso"
-
-preds_ct <- file.path(dir_step2_noncent, paste0(ct, "_preds.qs")) |> qs::qread()
-
-n_timepoints <- nrow(preds_ct)
-
-time_max <- apply(preds_ct, 2, which.max) / n_timepoints
-
-puls_genes <- all_genes |>
-  filter(cell_type == ct,
-         shape == "pulsatile") |>
-  mutate(time_peak = time_max[gene_name])
-
-bin_width <- .1
-bins_start <- seq(0, 1 - bin_width, .01)
+bins_start <- seq(0, 360 - bin_width, 360/nb_bins)
 bins_end <- bins_start + bin_width
 
+for(ct in cell_types_osc){
+  
+  message(ct)
+  
+  mods_uncentered <- qs::qread(file.path(dir_step2, paste0(ct, "_mods_uncentered.qs")))
+  
+  # computed same for all genes
+  mean_sf <- lapply(mods_uncentered,
+                    \(.mod) exp(.mod$model$`offset(log(size_factors))`)) |>
+    unlist() |>
+    log() |>
+    mean() |>
+    exp()
+  
+  len <- 128
+  
+  preds_uncentered <- vapply(mods_uncentered,
+                             \(.mod) predict(.mod,
+                                             type = "response",
+                                             newdata = data.frame(
+                                               pseudotime = (0:(len-1))/len ,
+                                               size_factors = rep(mean_sf, len))
+                             ),
+                             FUN.VALUE = double(len))
+  
+  
+  time_max <- apply(preds_uncentered, 2, which.max) / len
+  
+  # preds_uncentered1 <- preds_uncentered[,1:20]
+  # time_max1 <- time_max[1:20]
+  # ngenes <- ncol(preds_uncentered1)
+  # printMat::matimage(log1p(preds_uncentered1))
+  # points((1:ngenes - 1)/(ngenes - 1), (1 - time_max1), pch = "-", cex = 3.5, col = 'purple')
+  
+  
+  
+  # align to bulk phase
+  
+  peak_times <- left_join(
+    enframe(time_max,
+            name = "gene_name",
+            value = "peak_pseudotime"),
+    osc_table,
+    by = "gene_name"
+  ) |>
+    filter(bulk_class == "Osc")
+  
+  alignment <- align_circular(peak_times$bulk_peak,
+                              peak_times$peak_pseudotime*360)
+  
+  time_max_deg <- if (alignment$invert) {
+    ((360 - time_max*360) - alignment$shift) %% 360
+  } else {
+    (time_max*360 - alignment$shift) %% 360
+  }
+  
+  png(file.path(dir_tf, paste0(ct, "_alignment.png")))
+  plot(peak_times$bulk_peak,
+       time_max_deg[peak_times$gene_name])
+  dev.off()
+  
+  
+  
+  
+  puls_genes <- all_genes |>
+    filter(cell_type == ct,
+           shape == "pulsatile") |>
+    mutate(time_peak_deg = time_max_deg[gene_name])
+  
+  
+  
+  #~ overlapping bins ----
+  
+  all_tests_bin <- map_dfr(
+    seq_along(bins_start),
+    \(bin){
+      
+      all_genes_ct <- all_genes |> filter(cell_type == ct) |> pull(gene_name)
+      
+      puls_genes_bin <- puls_genes |>
+        filter(time_peak_deg >= bins_start[[bin]],
+               time_peak_deg < bins_end[[bin]] ) |>
+        pull(gene_name)
+      
+      nonpuls_genes_bin <- all_genes_ct |> setdiff(puls_genes_bin)
+      
+      stopifnot(all.equal(
+        nonpuls_genes_bin |> sort(),
+        union(
+          all_genes |> filter(cell_type == ct, shape == "nonpulsatile") |> pull(gene_name),
+          puls_genes |> filter(time_peak_deg >= bins_end[[bin]] | time_peak_deg < bins_start[[bin]]) |> pull(gene_name)
+        ) |> sort()
+      ))
+      
+      
+      tfs_to_test_ct <- intersect(unique(celest$source_name),
+                                  all_genes_ct)
+      
+      
+      res <- lapply(tfs_to_test_ct,
+                    function(tf) {
+                      
+                      targets_tf <- celest |> filter(source_name == tf) |> pull(target_name)
+                      
+                      
+                      contingency <- matrix(c(
+                        length( targets_tf |> intersect(puls_genes_bin) ),
+                        length( puls_genes_bin |> setdiff(targets_tf) ),
+                        length( nonpuls_genes_bin |> intersect(targets_tf) ),
+                        length( nonpuls_genes_bin |> setdiff(targets_tf) )
+                      ), nrow = 2)
+                      
+                      
+                      data.frame(
+                        cell_type = ct,
+                        time_bin = bin,
+                        source_name = tf,
+                        odds_ratio = fisher.test(contingency, alternative = "greater")$estimate,
+                        p_val = fisher.test(contingency, alternative = "greater")$p.value
+                      )
+                    })
+      
+      res |> bind_rows()
+      
+    },
+    .progress = TRUE) |>
+    as_tibble() |>
+    mutate(p_adj = p.adjust(p_val, method = "BH"))
+  
+  qs::qsave(all_tests_bin,
+            file.path(dir_tf, paste0(ct, "_all_tests_bin.qs")))
+}
 
-all_tests_bin <- map_dfr(
-  seq_along(bins_start),
-  \(bin){
-    
-    all_genes_ct <- all_genes |> filter(cell_type == ct) |> pull(gene_name)
-    
-    puls_genes_bin <- puls_genes |>
-      filter(time_peak >= bins_start[[bin]],
-             time_peak < bins_end[[bin]] ) |>
-      pull(gene_name)
-    
-    nonpuls_genes_bin <- all_genes_ct |> setdiff(puls_genes_bin)
-    
-    stopifnot(all.equal(
-      nonpuls_genes_bin |> sort(),
-      union(
-        all_genes |> filter(cell_type == ct, shape == "nonpulsatile") |> pull(gene_name),
-        puls_genes |> filter(time_peak >= bins_end[[bin]] | time_peak < bins_start[[bin]]) |> pull(gene_name)
-      ) |> sort()
-    ))
-    
-    
-    tfs_to_test_ct <- intersect(unique(celest$source_name),
-                                all_genes_ct)
-    
-    
-    res <- lapply(tfs_to_test_ct,
-                  function(tf) {
-                    
-                    targets_tf <- celest |> filter(source_name == tf) |> pull(target_name)
-                    
-                    
-                    contingency <- matrix(c(
-                      length( targets_tf |> intersect(puls_genes_bin) ),
-                      length( puls_genes_bin |> setdiff(targets_tf) ),
-                      length( nonpuls_genes_bin |> intersect(targets_tf) ),
-                      length( nonpuls_genes_bin |> setdiff(targets_tf) )
-                    ), nrow = 2)
-                    
-                    
-                    data.frame(
-                      cell_type = ct,
-                      time_bin = bin,
-                      source_name = tf,
-                      odds_ratio = fisher.test(contingency, alternative = "greater")$estimate,
-                      p_val = fisher.test(contingency, alternative = "greater")$p.value
-                    )
-                  })
-    
-    res |> bind_rows()
-    
-  },
-  .progress = TRUE) |>
-  as_tibble() |>
-  mutate(p_adj = p.adjust(p_val, method = "BH"))
 
 
-#~ res ----
+
+#~| Save heatmaps ----
+
+for(ct in cell_types_osc){
+  message(ct)
+  
+  all_tests_bin <- qs::qread(file.path(dir_tf, paste0(ct, "_all_tests_bin.qs")))
+  
+  signif_sources <- all_tests_bin |>
+    filter(p_adj < 0.05) |>
+    summarize(TFs = list(source_name),
+              .by = time_bin) |>
+    deframe() |> unlist() |> unique()
+  
+  if(length(signif_sources) == 0) next
+  
+  tf_by_time <- all_tests_bin |>
+    filter(source_name %in% signif_sources) |>
+    arrange(time_bin) |>
+    mutate(signif = -log10(p_adj)) |>
+    pivot_wider(id_cols = source_name,
+                names_from = time_bin,
+                values_from = signif) |>
+    column_to_rownames("source_name") |>
+    as.matrix()
+  
+  
+  pt_colnames <- round(bins_start + (bin_width/2), 1)
+  pt_colnames[2 * (1:(length(pt_colnames)/2))] <- ""
+  colnames(tf_by_time) <- pt_colnames
+  
+  pheatmap::pheatmap(tf_by_time,
+                     cluster_rows = TRUE,
+                     cluster_cols = FALSE,
+                     scale = "none")
+  
+  
+  n_tfs <- nrow(tf_by_time)
+  
+  # height 2.5 for ILso/main figure, for supp,  2.7 mm (.1 in) per gene + 6 mm (.24 in) for legend
+  pheatmap::pheatmap(
+    tf_by_time,
+    color = colorRampPalette(c("white", "#C994C7", "#DD1C77"))(100),
+    border_color = NA,
+    cluster_rows = TRUE,
+    cluster_cols = FALSE,
+    filename = paste0("presentations/figures/250616_celest/heatmaps_timebins/", ct,".pdf"),
+    width = 9, height = .5+n_tfs*.15
+  )
+  dev.off()
+}
+
+
+
+#### ____________________  ----
+
+#~| res ----
 
 all_tests_bin
 
@@ -618,20 +688,53 @@ all_tests_bin |>
             .by = time_bin) |>
   deframe()
 
+all_tests_bin |>
+  filter(p_adj < 0.05) |>
+  summarize(TFs = list(source_name),
+            .by = time_bin) |>
+  deframe() |> unlist() |> unique()
 
 
 
 
-#~ heatmap of effect size ----
-signif_sources <- all_tests |> filter(cell_type == ct, p_adj < .05) |> pull(source_name)
+#~| heatmap of effect size ----
+# signif_sources <- all_tests |> filter(cell_type == ct, p_adj < .05) |> pull(source_name)
+signif_sources <- all_tests_bin |>
+  filter(p_adj < 0.05) |>
+  summarize(TFs = list(source_name),
+            .by = time_bin) |>
+  deframe() |> unlist() |> unique()
+
+# tf_by_time <- all_tests_bin |>
+#   filter(source_name %in% signif_sources) |>
+#   arrange(time_bin) |>
+#   pivot_wider(id_cols = source_name,
+#               names_from = time_bin,
+#               values_from = odds_ratio) |>
+#   column_to_rownames("source_name") |>
+#   as.matrix()
+# 
+# pheatmap::pheatmap(tf_by_time,
+#                    cluster_rows = TRUE,
+#                    cluster_cols = FALSE,
+#                    scale = "none")
+
+
+
 tf_by_time <- all_tests_bin |>
   filter(source_name %in% signif_sources) |>
   arrange(time_bin) |>
+  mutate(signif = -log10(p_adj)) |>
   pivot_wider(id_cols = source_name,
               names_from = time_bin,
-              values_from = odds_ratio) |>
+              values_from = signif) |>
   column_to_rownames("source_name") |>
   as.matrix()
+
+
+pt_colnames <- round(bins_start + (bin_width/2), 1)
+pt_colnames[2 * (1:(length(pt_colnames)/2))] <- ""
+colnames(tf_by_time) <- pt_colnames
 
 pheatmap::pheatmap(tf_by_time,
                    cluster_rows = TRUE,
@@ -640,15 +743,154 @@ pheatmap::pheatmap(tf_by_time,
 
 
 
+# height 2.5 for ILso/main figure, height 3.5 for supp
+pheatmap::pheatmap(
+  tf_by_time,
+  color = colorRampPalette(c("white", "#C994C7", "#DD1C77"))(100),
+  border_color = NA,
+  cluster_rows = TRUE,
+  cluster_cols = FALSE,
+  filename = paste0("presentations/figures/250616_celest/heatmap_timebins_", ct,".pdf"),
+  width = 9, height = 3.5
+)
+dev.off()
+
+
+# #~ non-overlapping bins ----
+# 
+# puls_genes_w_bin <- puls_genes |>
+#   mutate(time_peak_binned = cut(time_peak_deg,
+#                                  breaks = quantile(time_peak_deg,
+#                                                    probs = seq(0, 1, 0.2)),
+#                                 include.lowest = TRUE,
+#                                 labels = FALSE))
+# 
+# 
+# 
+# 
+# 
+# all_tests_bin <- map_dfr(
+#   unique(puls_genes_w_bin$time_peak_binned),
+#   \(bin){
+#     
+#     all_genes_ct <- all_genes |> filter(cell_type == ct) |> pull(gene_name)
+#     puls_genes_bin <- puls_genes_w_bin |> filter(time_peak_binned == bin) |> pull(gene_name)
+#     nonpuls_genes_bin <- all_genes_ct |> setdiff(puls_genes_bin)
+#     
+#     stopifnot(all.equal(
+#       nonpuls_genes_bin |> sort(),
+#       union(
+#         all_genes |> filter(cell_type == ct, shape == "nonpulsatile") |> pull(gene_name),
+#         puls_genes_w_bin |> filter(time_peak_binned != bin) |> pull(gene_name)
+#       ) |> sort()
+#     ))
+#     
+#     
+#     tfs_to_test_ct <- intersect(unique(celest$source_name),
+#                                 all_genes_ct)
+#     
+#     
+#     res <- lapply(tfs_to_test_ct,
+#                   function(tf) {
+#                     
+#                     targets_tf <- celest |> filter(source_name == tf) |> pull(target_name)
+#                     
+#                     
+#                     contingency <- matrix(c(
+#                       length( targets_tf |> intersect(puls_genes_bin) ),
+#                       length( puls_genes_bin |> setdiff(targets_tf) ),
+#                       length( nonpuls_genes_bin |> intersect(targets_tf) ),
+#                       length( nonpuls_genes_bin |> setdiff(targets_tf) )
+#                     ), nrow = 2)
+#                     
+#                     
+#                     data.frame(
+#                       cell_type = ct,
+#                       time_bin = bin,
+#                       source_name = tf,
+#                       odds_ratio = fisher.test(contingency, alternative = "greater")$estimate,
+#                       p_val = fisher.test(contingency, alternative = "greater")$p.value
+#                     )
+#                   })
+#     
+#     res |> bind_rows()
+#     
+#   }) |>
+#   as_tibble() |>
+#   mutate(p_adj = p.adjust(p_val, method = "BH"))
+# 
+# 
+# #~| res ----
+# 
+# all_tests_bin
+# 
+# 
+# 
+# hist(all_tests_bin$p_val)
+# hist(all_tests_bin$p_adj)
+# 
+# table(all_tests_bin$p_adj < .05)
+# 
+# all_tests_bin |>
+#   summarize(nb_tests = n(),
+#             nb_signif = sum(p_adj < .05),
+#             .by = time_bin)
+# 
+# 
+# 
+# # TFs enriched
+# xx <- all_tests_bin |>
+#   filter(p_adj < 0.05)
+# 
+# split(xx, xx$time_bin) |>
+#   map(~ .x |> pull(source_name)) |>
+#   UpSetR::fromList() |>
+#   UpSetR::upset(nsets = 50, nintersects = 200)
+# 
+# 
+# all_tests_bin |>
+#   filter(p_adj < 0.05) |>
+#   summarize(TFs = list(source_name),
+#             .by = time_bin) |>
+#   deframe()
+# 
+# 
+# 
+# # Display as table
+# df <- all_tests_bin |>
+#   filter(p_adj < 0.1) |>
+#   select(time_bin, source_name) |>
+#   pivot_wider(id_cols = time_bin,
+#               names_from = source_name,
+#               values_from = source_name,
+#               values_fill = "")
+# 
+# df[order(rowSums(df == "")),order(colSums(df == ""))] |> as.data.frame() ##|> View()
+# 
+# 
+# #~| heatmap of effect size ----
+# signif_sources <- all_tests |> filter(cell_type == ct, p_adj < .05) |> pull(source_name)
+# tf_by_time <- all_tests_bin |>
+#   filter(source_name %in% signif_sources) |>
+#   arrange(time_bin) |>
+#   pivot_wider(id_cols = source_name,
+#               names_from = time_bin,
+#               values_from = odds_ratio) |>
+#   column_to_rownames("source_name") |>
+#   as.matrix()
+# 
+# pheatmap::pheatmap(tf_by_time,
+#                    cluster_rows = TRUE,
+#                    cluster_cols = FALSE,
+#                    scale = "none")
 
 
 
 
+# check the genes in regulated set ----
 
-#~ check the genes in regulated set ----
 
-
-#~~ Block A ----
+#~|~ Block A ----
 tf_by_time[c("blmp-1","nhr-85","nhr-23"), 1:10] |>
   pheatmap::pheatmap(cluster_rows = FALSE,
                      cluster_cols = FALSE)
@@ -686,7 +928,7 @@ celest |>
 
 
 
-#~~ Block B ----
+#~|~ Block B ----
 tf_by_time[c("eor-1","nhr-41","nhr-25"), 24:50] |> 
   pheatmap::pheatmap(cluster_rows = FALSE,
                      cluster_cols = FALSE)
@@ -746,6 +988,15 @@ celest |>
   ungroup() |>
   summarize(evidence = paste(unique(unlist(evidence)), collapse = ", "),
             .by = c(target_name, source_name))
+
+
+
+
+
+
+
+
+
 
 
 

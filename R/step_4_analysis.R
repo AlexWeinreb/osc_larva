@@ -1264,13 +1264,13 @@ smooth_centered <- list.files(dir_step2,
 
 
 
-# computed same for all genes
-mean_sf <- lapply(mods_centered,
-                  \(.mod) exp(mod$model$`offset(log(size_factors))`)) |>
-  unlist() |>
-  log() |>
-  mean() |>
-  exp()
+# # computed same for all genes
+# mean_sf <- lapply(mods_centered,
+#                   \(.mod) exp(mod$model$`offset(log(size_factors))`)) |>
+#   unlist() |>
+#   log() |>
+#   mean() |>
+#   exp()
 
 
 
