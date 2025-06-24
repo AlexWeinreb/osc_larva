@@ -5,9 +5,9 @@ library(tidyverse)
 
 source("R/utils_fit.R")
 
-dir_clust <- "intermediates/2502/250609_cluster"
+dir_clust <- "intermediates/2502/250624_cluster"
 
-dir_step2 <- "intermediates/2502/250609_step2"
+dir_step2 <- "intermediates/2502/250624_step2"
 
 # mat_pred <- qs::qread(file.path(dir_clust, "mat_predictors.qs"))
 # hc <- qs::qread(file.path("intermediates/2502/250516_step2", "250516_hclust.qs"))
@@ -57,10 +57,10 @@ smooth_centered <- list.files(dir_step2,
 # clusters ----
 
 hc <- qs::qread(file.path(dir_clust, "hclust_euclidean.qs"))
-hc <- qs::qread(file.path(dir_clust, "hclust_manhattan.qs"))
 
 ncl <- 9
 memberships <- cutree(hc, k = ncl)
+table(memberships)
 
 
 # reorder cluster so they start at 1 in plot
@@ -93,7 +93,7 @@ annot_clusts <- clusters |>
 pheatmap::pheatmap(t(mat_pred),
                    cluster_rows = FALSE,
                    cluster_cols = hc,
-                   # filename = "presentations/figures/250610_hclust/manh_heatmap_genes_pred.png",
+                   # filename = "presentations/figures/250624_hclust/heatmap_genes_pred.pdf",
                    # width = 9, height = 4,
                    show_colnames = FALSE,
                    annotation_col = annot_clusts,
@@ -130,11 +130,11 @@ cluster_means |>
   geom_tile(aes(x = cluster, y = metric, fill = value))
 
 # ggsave("metrics_average.png",
-#        path = "presentations/figures/250610_hclust/",
+#        path = "presentations/figures/250624_hclust/",
 #        width = 120, height = 75, units = "mm",
 #        scale = 1.5)
 # ggsave("metrics_average.pdf",
-#        path = "presentations/figures/250610_hclust/",
+#        path = "presentations/figures/250624_hclust/",
 #        width = 120, height = 75, units = "mm",
 #        scale = 1.5)
 
@@ -154,8 +154,8 @@ cluster_means |>
 pheatmap::pheatmap(log1p(smooth_centered[,rownames(mat_pred)]),
                    cluster_rows = FALSE,
                    cluster_cols = hc,
-                   # filename = "presentations/figures/250610_hclust/manh_heatmap_genes_time.png",
-                   # width = 9, height = 4,
+                   filename = "presentations/figures/250624_hclust/manh_heatmap_genes_time.pdf",
+                   width = 9, height = 4,
                    show_rownames = FALSE,
                    show_colnames = FALSE,
                    annotation_colors = list(cluster = set_names(pals::alphabet(ncl), seq_len(ncl))),
@@ -223,18 +223,21 @@ all_clustered_fits |>
   )
 
 # ggsave("cluster_average.png",
-#        path = "presentations/figures/250610_hclust/",
+#        path = "presentations/figures/250624_hclust/",
 #        width = 120, height = 75, units = "mm",
 #        scale = 1.5)
 # ggsave("cluster_average.pdf",
-#        path = "presentations/figures/250610_hclust/",
+#        path = "presentations/figures/250624_hclust/",
 #        width = 120, height = 75, units = "mm",
 #        scale = 2)
 
-ggsave("cluster_average_vert.pdf",
-       path = "presentations/figures/250610_hclust/",
-       width = 70, height = 9*24, units = "mm",
-       scale = 2)
+# ggsave("cluster_average_vert.pdf",
+#        path = "presentations/figures/250624_hclust/",
+#        width = 70, height = 9*24, units = "mm",
+#        scale = 2)
+
+
+
 
 
 # save results ----
@@ -244,117 +247,118 @@ cluster_results <- all_clustered_fits |>
   distinct() |>
   mutate(shape = case_match(
     as.numeric(cluster),
-    c(3,4,5)~ "pulsatile",
+    7 ~ "pulsatile",
+    c(8,9) ~ "low",
     .default = "nonpulsatile"
   ))
 
 # cluster_results |>
-#   write_csv(file.path(dir_clust, "250610_cluster_results.csv"))
+#   write_csv(file.path(dir_clust, "250924_cluster_results.csv"))
 
 
 
 
 
-# Compare euclidean and manhattan ----
-res_eucl <- read_csv(file.path(dir_clust, "250610_cluster_results.csv")) |>
-  mutate(cell_gene = paste0(cell_type, "_", gene_name))
-res_manh <- read_csv(file.path(dir_clust, "250610_manh_cluster_results.csv")) |>
-  mutate(cell_gene = paste0(cell_type, "_", gene_name))
-
-list(eucl = res_eucl$cell_gene[res_eucl$shape == "pulsatile"],
-     manh = res_manh$cell_gene[res_manh$shape == "pulsatile"]) |>
-  eulerr::euler() |> plot(quantities = TRUE)
-
-all.equal(res_eucl |> select(cell_type, gene_name), res_manh |> select(cell_type, gene_name))
-res <- cbind(
-  res_eucl |> select(cell_type, gene_name, cluster_eucl = cluster, shape_eucl = shape),
-  res_manh |> select(cluster_manh = cluster, shape_manh = shape)
-) |>
-  as_tibble()
-
-res |>
-  count(cluster_eucl, shape_eucl, cluster_manh, shape_manh) |>
-  mutate(cluster_eucl = as.factor(cluster_eucl),
-         cluster_manh = as.factor(cluster_manh)) |>
-  ggplot() +
-  theme_classic() +
-  scale_fill_viridis_c() +
-  geom_tile(aes(x = cluster_eucl, y = cluster_manh, fill = (n) ))
-
-table(res$cluster_eucl, res$cluster_manh)
-
-# examine genesets where clusterings disagree
-geneset <- res |>
-  filter(cluster_eucl == 4,
-         cluster_manh == 9) |>
-  mutate(cell_gene = paste0(cell_type, "|", gene_name)) |>
-  pull(cell_gene)
-
-
-length(geneset)
-
-
-all_clustered_fits <- log1p(smooth_centered[,geneset]) |>
-  as.data.frame() |>
-  rownames_to_column("time") |>
-  as_tibble() |>
-  pivot_longer(-time,
-               names_to = "cellgene",
-               values_to = "log_cnt") |>
-  separate_wider_delim(cellgene,
-                       delim = "|",
-                       names = c("cell_type", "gene_name")) |>
-  mutate(time = as.numeric(time))
-
-
-selected <- all_clustered_fits |>
-  select(cell_type, gene_name) |>
-  distinct() |>
-  slice_sample(n = 15)
-
-all_clustered_fits |>
-  inner_join(selected) |>
-  ggplot() +
-  theme_classic() +
-  scale_color_brewer(type = "qual", palette = "Set2") +
-  scale_fill_brewer(type = "qual", palette = "Set2") +
-  # facet_grid(rows = vars(cluster)) +
-  geom_hline(aes(yintercept = 0),
-             linetype = 'dashed', color = 'grey80') +
-  geom_ribbon(
-    aes(x = time, ymin = average_signal - sd_signal, ymax = average_signal + sd_signal),
-    alpha = .2,
-    fill = "orange2",
-    data = all_clustered_fits |>
-      summarize(average_signal = mean(log_cnt),
-                sd_signal = sd(log_cnt),
-                .by = c(time))
-  ) +
-  geom_line(
-    aes(x = time, y = log_cnt, group = interaction(cell_type, gene_name)),
-    alpha = .4,
-    linewidth = .2
-  ) +
-  geom_line(
-    aes(x = time, y = average_signal),
-    linewidth = 1.5,
-    color = "orange2",
-    data = all_clustered_fits |>
-      summarize(average_signal = mean(log_cnt),
-                sd_signal = sd(log_cnt),
-                .by = c(time))
-  )
-
-#> Looking at some of the disagreements:
-#> eucl  manh
-#>    5     9  some good, some bad; keep
-#>    7     3  more bad, discard
-#>    2     6  discard
-#>    2     7  discard
-#>    7     7  discard
-#>    4     9  keep
-
-#>> keep the Euclidean
+# # Compare euclidean and manhattan ----
+# res_eucl <- read_csv(file.path(dir_clust, "250610_cluster_results.csv")) |>
+#   mutate(cell_gene = paste0(cell_type, "_", gene_name))
+# res_manh <- read_csv(file.path(dir_clust, "250610_manh_cluster_results.csv")) |>
+#   mutate(cell_gene = paste0(cell_type, "_", gene_name))
+# 
+# list(eucl = res_eucl$cell_gene[res_eucl$shape == "pulsatile"],
+#      manh = res_manh$cell_gene[res_manh$shape == "pulsatile"]) |>
+#   eulerr::euler() |> plot(quantities = TRUE)
+# 
+# all.equal(res_eucl |> select(cell_type, gene_name), res_manh |> select(cell_type, gene_name))
+# res <- cbind(
+#   res_eucl |> select(cell_type, gene_name, cluster_eucl = cluster, shape_eucl = shape),
+#   res_manh |> select(cluster_manh = cluster, shape_manh = shape)
+# ) |>
+#   as_tibble()
+# 
+# res |>
+#   count(cluster_eucl, shape_eucl, cluster_manh, shape_manh) |>
+#   mutate(cluster_eucl = as.factor(cluster_eucl),
+#          cluster_manh = as.factor(cluster_manh)) |>
+#   ggplot() +
+#   theme_classic() +
+#   scale_fill_viridis_c() +
+#   geom_tile(aes(x = cluster_eucl, y = cluster_manh, fill = (n) ))
+# 
+# table(res$cluster_eucl, res$cluster_manh)
+# 
+# # examine genesets where clusterings disagree
+# geneset <- res |>
+#   filter(cluster_eucl == 4,
+#          cluster_manh == 9) |>
+#   mutate(cell_gene = paste0(cell_type, "|", gene_name)) |>
+#   pull(cell_gene)
+# 
+# 
+# length(geneset)
+# 
+# 
+# all_clustered_fits <- log1p(smooth_centered[,geneset]) |>
+#   as.data.frame() |>
+#   rownames_to_column("time") |>
+#   as_tibble() |>
+#   pivot_longer(-time,
+#                names_to = "cellgene",
+#                values_to = "log_cnt") |>
+#   separate_wider_delim(cellgene,
+#                        delim = "|",
+#                        names = c("cell_type", "gene_name")) |>
+#   mutate(time = as.numeric(time))
+# 
+# 
+# selected <- all_clustered_fits |>
+#   select(cell_type, gene_name) |>
+#   distinct() |>
+#   slice_sample(n = 15)
+# 
+# all_clustered_fits |>
+#   inner_join(selected) |>
+#   ggplot() +
+#   theme_classic() +
+#   scale_color_brewer(type = "qual", palette = "Set2") +
+#   scale_fill_brewer(type = "qual", palette = "Set2") +
+#   # facet_grid(rows = vars(cluster)) +
+#   geom_hline(aes(yintercept = 0),
+#              linetype = 'dashed', color = 'grey80') +
+#   geom_ribbon(
+#     aes(x = time, ymin = average_signal - sd_signal, ymax = average_signal + sd_signal),
+#     alpha = .2,
+#     fill = "orange2",
+#     data = all_clustered_fits |>
+#       summarize(average_signal = mean(log_cnt),
+#                 sd_signal = sd(log_cnt),
+#                 .by = c(time))
+#   ) +
+#   geom_line(
+#     aes(x = time, y = log_cnt, group = interaction(cell_type, gene_name)),
+#     alpha = .4,
+#     linewidth = .2
+#   ) +
+#   geom_line(
+#     aes(x = time, y = average_signal),
+#     linewidth = 1.5,
+#     color = "orange2",
+#     data = all_clustered_fits |>
+#       summarize(average_signal = mean(log_cnt),
+#                 sd_signal = sd(log_cnt),
+#                 .by = c(time))
+#   )
+# 
+# #> Looking at some of the disagreements:
+# #> eucl  manh
+# #>    5     9  some good, some bad; keep
+# #>    7     3  more bad, discard
+# #>    2     6  discard
+# #>    2     7  discard
+# #>    7     7  discard
+# #>    4     9  keep
+# 
+# #>> keep the Euclidean
 
 
 
