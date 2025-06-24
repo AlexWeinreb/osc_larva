@@ -9,9 +9,9 @@ opar <- par(no.readonly = TRUE)
 library(tidyverse)
 
 # load
-dir_step2 <- "intermediates/2502/250609_step2/"
+dir_step2 <- "intermediates/2502/250624_step2/"
 
-dir_clust <- "intermediates/2502/250609_cluster"
+dir_clust <- "intermediates/2502/250624_cluster"
 
 predictors <- list.files(dir_step2,
                          pattern = "_descriptors\\.qs$") |>
@@ -107,15 +107,15 @@ qs::qsave(mat_pred, file.path(dir_clust, "mat_predictors.qs"))
 
 
 
-message("Clustering Manhattan")
-
-set.seed(123)
-hc <- fastcluster::hclust(dist(mat_pred, method = "manhattan"), method = "ward.D2")
-
-
-message("Done. Saving...")
-
-qs::qsave(hc, file.path(dir_clust, "hclust_manhattan.qs"))
+# message("Clustering Manhattan")
+# 
+# set.seed(123)
+# hc <- fastcluster::hclust(dist(mat_pred, method = "manhattan"), method = "ward.D2")
+# 
+# 
+# message("Done. Saving...")
+# 
+# qs::qsave(hc, file.path(dir_clust, "hclust_manhattan.qs"))
 
 
 
