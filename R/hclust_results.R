@@ -9,8 +9,10 @@ dir_clust <- "intermediates/2502/250624_cluster"
 
 dir_step2 <- "intermediates/2502/250624_step2"
 
-# mat_pred <- qs::qread(file.path(dir_clust, "mat_predictors.qs"))
-# hc <- qs::qread(file.path("intermediates/2502/250516_step2", "250516_hclust.qs"))
+# if working from external HDD
+# dir_step2 <- "E:/backups/Projects_june2025/glia/osc_larva/intermediates/2502/250624_step2"
+
+dir_figures <- "presentations/figures/250624_clust_metrics/"
 
 
 
@@ -89,7 +91,7 @@ annot_clusts <- clusters |>
 
 
 
-# based on hc
+#~ plot metrics ----
 pheatmap::pheatmap(t(mat_pred),
                    cluster_rows = FALSE,
                    cluster_cols = hc,
@@ -104,13 +106,14 @@ pheatmap::pheatmap(t(mat_pred),
 
 # dev.off()
 
+#~ plot tree ----
 plot(hc, labels = FALSE)
 # abline(h = mean(rev(hc$height)[(ncl-1):ncl]))
 rect.hclust(hc, k = ncl)
 
 
 
-# average metrics by cluster
+#~ average metrics by cluster ----
 stopifnot(identical(rownames(mat_pred),
                     clusters$cellgene))
 
@@ -151,11 +154,13 @@ cluster_means |>
 #                    annotation_col = annot_clusts)
 
 
+#~ heatmap pseudotime ----
+
 pheatmap::pheatmap(log1p(smooth_centered[,rownames(mat_pred)]),
                    cluster_rows = FALSE,
                    cluster_cols = hc,
-                   filename = "presentations/figures/250624_hclust/manh_heatmap_genes_time.pdf",
-                   width = 9, height = 4,
+                   # filename = "presentations/figures/250624_hclust/manh_heatmap_genes_time.pdf",
+                   # width = 9, height = 4,
                    show_rownames = FALSE,
                    show_colnames = FALSE,
                    annotation_colors = list(cluster = set_names(pals::alphabet(ncl), seq_len(ncl))),
@@ -164,7 +169,7 @@ pheatmap::pheatmap(log1p(smooth_centered[,rownames(mat_pred)]),
 # dev.off()
 
 
-#~ plot average ----
+#~ plot average curves ----
 all_clustered_fits <- log1p(smooth_centered[,rownames(mat_pred)]) |>
   as.data.frame() |>
   rownames_to_column("time") |>
@@ -240,7 +245,7 @@ all_clustered_fits |>
 
 
 
-# save results ----
+#~ save results ----
 
 cluster_results <- all_clustered_fits |>
   select(cell_type, gene_name, cluster) |>
@@ -253,7 +258,7 @@ cluster_results <- all_clustered_fits |>
   ))
 
 # cluster_results |>
-#   write_csv(file.path(dir_clust, "250924_cluster_results.csv"))
+#   write_csv(file.path(dir_clust, "250624_cluster_results.csv"))
 
 
 
@@ -409,14 +414,12 @@ log1p(smooth_centered[,geneset]) |>
 
 mods_centered <- qs::qread(file.path(dir_step2, paste0("ILso", "_mods_centered.qs")))
 
-# if working from external HDD
-# mods_centered <- qs::qread(file.path("E:/backups/Projects_june2025/glia/osc_larva/intermediates/2502/250609_step2/",
-#                                       paste0("ILso", "_mods_centered.qs")))
+len <- nrow(smooth_centered)
 
 
 # computed same for all genes
 mean_sf <- lapply(mods_centered,
-                  \(.mod) exp(mod$model$`offset(log(size_factors))`)) |>
+                  \(.mod) exp(.mod$model$`offset(log(size_factors))`)) |>
   unlist() |>
   log() |>
   mean() |>
@@ -439,7 +442,6 @@ mod <- mods_centered[[goi]]
 
 expr_smooth <- smooth_centered[,paste0("ILso|",goi)] / mean_sf
 
-len <- length(expr_smooth)
 
 
 
@@ -453,11 +455,11 @@ Seurat::FeaturePlot(ilso_subseu,
   ggtitle(goi, "ILso")
 
 # ggsave(paste0(goi, "_expr.png"),
-#        path = "presentations/figures/250612_clust_metrics",
+#        path = dir_figures,
 #        width = 50, height = 50, units = "mm",
 #        scale = 2)
 # ggsave(paste0(goi, "_expr.pdf"),
-#        path = "presentations/figures/250612_clust_metrics",
+#        path = dir_figures,
 #        width = 50, height = 50, units = "mm",
 #        scale = 2)
 
@@ -502,11 +504,11 @@ dat |>
 
 
 # ggsave(paste0(goi, "_baseline.png"),
-#        path = "presentations/figures/250612_clust_metrics",
+#        path = dir_figures,
 #        width = 60, height = 50, units = "mm",
 #        scale = 2)
 # ggsave(paste0(goi, "_baseline.pdf"),
-#        path = "presentations/figures/250612_clust_metrics",
+#        path = dir_figures,
 #        width = 60, height = 50, units = "mm",
 #        scale = 2)
 
@@ -536,11 +538,11 @@ tibble(
             linetype = c("22"))
 
 # ggsave(paste0(goi, "_dtw.png"),
-#        path = "presentations/figures/250612_clust_metrics",
+#        path = dir_figures,
 #        width = 60, height = 50, units = "mm",
 #        scale = 2)
 # ggsave(paste0(goi, "_dtw.pdf"),
-#        path = "presentations/figures/250612_clust_metrics",
+#        path = dir_figures,
 #        width = 60, height = 50, units = "mm",
 #        scale = 2)
 
@@ -582,11 +584,11 @@ ggplot() +
 
 
 # ggsave(paste0(goi, "_devexpl.png"),
-#        path = "presentations/figures/250612_clust_metrics",
+#        path = dir_figures,
 #        width = 60, height = 50, units = "mm",
 #        scale = 2)
 # ggsave(paste0(goi, "_devexpl.pdf"),
-#        path = "presentations/figures/250612_clust_metrics",
+#        path = dir_figures,
 #        width = 60, height = 50, units = "mm",
 #        scale = 2)
 
