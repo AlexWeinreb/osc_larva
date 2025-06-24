@@ -16,22 +16,21 @@ gids <- wb_load_gene_ids(295) |>
 
 source("R/utils_heatmap_processing.R")
 
-dir_clust <- "intermediates/2502/250609_cluster"
+dir_clust <- "intermediates/2502/250624_cluster"
 
-dir_step2 <- "intermediates/2502/250606_step2/"
-# dir_step2 <- "E:/backups/Projects_june2025/glia/osc_larva/intermediates/2502/250609_step2/"
-
-
-dir_step3 <- "intermediates/2502/250606_step3_genes_by_celltype/"
+dir_step2 <- "intermediates/2502/250624_step2/"
+# dir_step2 <- "E:/backups/Projects_june2025/glia/osc_larva/intermediates/2502/250624_step2/"
 
 
+dir_step3 <- "intermediates/2502/250624_step3_genes_by_celltype/"
+# dir.create(dir_step3)
 
-# ct2tissue <- read_csv("data/cell_type2tissue.csv")
-
+dir_figures3 <- "presentations/figures/250624_celltype_osc"
+# dir.create(dir_figures3)
 
 
 # Load ----
-cluster_results <- read_csv(file.path(dir_clust, "250610_cluster_results.csv"))
+cluster_results <- read_csv(file.path(dir_clust, "250624_cluster_results.csv"))
 
 smooth_noncentered <- list.files(dir_step2,
                                  pattern = "_preds\\.qs$") |>
@@ -401,10 +400,10 @@ cell_types_both |>
                  shape = p_coherence_adj < .05),
              size = 3)
 
-# ggsave("phasic_cell_types_unannot.png", path = "presentations/figures/250612_celltype_osc",
+# ggsave("phasic_cell_types_unannot.png", path = dir_figures3,
 #        width = 80, height = 50, units = "mm",
 #        scale = 2)
-# ggsave("phasic_cell_types_unannot.pdf", path = "presentations/figures/250612_celltype_osc",
+# ggsave("phasic_cell_types_unannot.pdf", path = dir_figures3,
 #        width = 80, height = 50, units = "mm",
 #        scale = 2)
 
@@ -421,10 +420,10 @@ cell_types_both |>
   ggrepel::geom_text_repel(aes(x = mean_coherence, y = perplexity, label = cell_type))
 
 
-# ggsave("phasic_cell_types_annot.png", path = "presentations/figures/250612_celltype_osc",
+# ggsave("phasic_cell_types_annot.png", path = dir_figures3,
 #        width = 80, height = 50, units = "mm",
 #        scale = 2)
-# ggsave("phasic_cell_types_annot.pdf", path = "presentations/figures/250612_celltype_osc",
+# ggsave("phasic_cell_types_annot.pdf", path = dir_figures3,
 #        width = 80, height = 50, units = "mm",
 #        scale = 2)
 
@@ -441,8 +440,7 @@ cell_types_both |>
 
 # by_cell_type |>
 #   qs::qsave(file.path(dir_step3, "cell_types_sc.qs"))
-
-
+# 
 # cell_types_both |>
 #   qs::qsave(file.path(dir_step3, "cell_types.qs"))
 
@@ -450,6 +448,7 @@ cell_types_both |>
 
 
 
+# dir.create(file.path(dir_step3, "heatmaps_cts"))
 
 iwalk(heatmaps_list,
       \(.hm, .ct){
@@ -460,9 +459,11 @@ iwalk(heatmaps_list,
           (x - min(x)) / (max(x) - min(x))
         })
           
-        squash::savemat(t(hm_norm)[, nrow(hm_norm):1],
-                        filename = file.path(dir_step3, "heatmaps_cts",
-                                             paste0(.ct, "_heatmap.png")))
+        squash::savemat(
+          t(hm_norm)[, nrow(hm_norm):1],
+          filename = file.path(dir_step3, "heatmaps_cts",
+                               paste0(.ct, "_heatmap.png"))
+        )
           
         })
 
@@ -544,7 +545,7 @@ iwalk(heatmaps_list[c("gonad_1", "ILso")],
                            cluster_cols = FALSE,
                            show_rownames = FALSE,
                            fontsize = 6,
-                           filename = paste0("presentations/figures/250612_celltype_osc/heatmap_", ct, ".png"),
+                           filename = paste0(dir_figures3, "/heatmap_", ct, ".png"),
                            width = 5,
                            height = 2.5,
                            main = ct)
@@ -554,7 +555,7 @@ iwalk(heatmaps_list[c("gonad_1", "ILso")],
                            cluster_cols = FALSE,
                            show_rownames = FALSE,
                            fontsize = 6,
-                           filename = paste0("presentations/figures/250612_celltype_osc/heatmap_", ct, ".pdf"),
+                           filename = paste0(dir_figures3, "/heatmap_", ct, ".pdf"),
                            width = 5,
                            height = 2.5,
                            main = ct)
