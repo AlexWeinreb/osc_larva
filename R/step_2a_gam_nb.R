@@ -37,7 +37,7 @@ if(! interactive()){
   # Options for interactive
   params <- list(
     dir_step1 = "intermediates/2502/250609_step1",
-    out_dir = "intermediates/2502/250609_step2",
+    out_dir = "intermediates/2502/250624_step2",
     i = 8,
     prop_thres = 0.1,
     cnt_thres = 30
@@ -90,6 +90,11 @@ gene_expressions <- qs::qread(
 seu <- qs::qread(
   file.path(params$dir_step1,
             paste0(cell_type, "_seu.qs"))
+)
+
+seu_unsmoothed <- qs::qread(
+  file.path(params$dir_step1,
+            paste0(cell_type, "_seu_unsmoothed.qs"))
 )
 
 message("Number of cells: ", ncol(seu))
@@ -210,7 +215,7 @@ pseudotime <- getPseudotime(ProjStruct = ProjStruct, NodeSeq = names(subgraph))[
 #~  GAM uncentered ----
 message("---- fit GAM uncentered")
 
-mat_cnt_all <- GetAssayData(seu, assay = "RNA", layer = "count")
+mat_cnt_all <- GetAssayData(seu_unsmoothed, assay = "RNA", layer = "count")
 mat_cnt <- mat_cnt_all[high_genes,]
 
 nf <- edgeR::calcNormFactors(mat_cnt_all)

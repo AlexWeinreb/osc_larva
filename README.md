@@ -287,8 +287,7 @@ note older versions: `250330_step1`: only kept cell types with cells from L2 and
 
 ### Step 2a: GAM fit and smooth curve processing
 
-
-We fit GAM twice in a row: once without centering, that we use for representations and timings.
+Compute pseudotime (from smoothed PCA step 1) and fit GAM (using unsmoothed counts). We fit GAM twice in a row: once without centering, that we use for representations and timings.
 
 We use the peak of the uncentered to run a second fit, on a pre-centered curve. From this, we keep
 * coefficients of the GAM
@@ -301,10 +300,10 @@ These are used for clustering.
 
 
 
-`step_2a_gam_nb.R` is to be run on cluster as dsq jobarray, called from dSQ. Contents:
-* load intermediates from step 1 `250522_step1`
+`step_2a_gam.R` is to be run on cluster as dsq jobarray, called from dSQ. Contents:
+* load intermediates from step 1 `250609_step1`
 * prefilter, run ElPiGraph and a NB-GAM (with size factors), save the models, descriptors, smooth fits
-* save intermediates in "intermediates/2502/250522_step2"
+* save intermediates in "intermediates/2502/250624_step2"
 
 Outputs:
 * `{cell_type}_descriptors.qs` used for clustering (step 3)
@@ -317,7 +316,7 @@ Jobfile created with:
 ```r
 paste("module load mlq; ml R; Rscript R/step_2a_gam_nb.R",
        "--dir_step1 'intermediates/2502/250609_step1'",
-      "--out_dir 'intermediates/2502/250609_step2'",
+      "--out_dir 'intermediates/2502/250624_step2'",
       "--i", seq_along(list.files('intermediates/2502/250609_step1', pattern = "_seu\\.qs$")),
       "--prop_thres 0.05 --cnt_thres 20") |>
   writeLines("joblists/step_2a_gam.dsq.txt")
