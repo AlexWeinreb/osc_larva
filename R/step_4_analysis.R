@@ -1241,15 +1241,15 @@ Seurat::FeaturePlot(amphso_subseu,
 
 #~ load ----
 
-dir_step2 <- "intermediates/2502/250609_step2/"
+dir_step2 <- "intermediates/2502/250624_step2/"
 dir_step1 <- "intermediates/2502/250609_step1/"
 
 # if working from external HDD
-# dir_step2 <- "E:/backups/Projects_june2025/glia/osc_larva/intermediates/2502/250609_step2/"
+# dir_step2 <- "E:/backups/Projects_june2025/glia/osc_larva/intermediates/2502/250624_step2/"
 # dir_step1 <- "E:/backups/Projects_june2025/glia/osc_larva/intermediates/2502/250609_step1/"
 
-
-
+dir_fig_gam <- "presentations/figures/250625_gam_illustrations"
+# dir.create(dir_fig_gam)
 
 ilso_subseu <- qs::qread( file.path(dir_step1,
                                     paste0("ILso", "_seu.qs")) )
@@ -1279,13 +1279,7 @@ smooth_centered <- list.files(dir_step2,
 
 
 
-# # computed same for all genes
-# mean_sf <- lapply(mods_centered,
-#                   \(.mod) exp(mod$model$`offset(log(size_factors))`)) |>
-#   unlist() |>
-#   log() |>
-#   mean() |>
-#   exp()
+
 
 
 
@@ -1313,14 +1307,14 @@ Seurat::FeaturePlot(ilso_subseu,
                     alpha = .5) +
   ggtitle(goi, "ILso")
 
-ggsave(paste0(goi, "_expr.png"),
-       path = "presentations/figures/250613_gam_illustrations",
-       width = 60, height = 60, units = "mm",
-       scale = 2)
-ggsave(paste0(goi, "_expr.pdf"),
-       path = "presentations/figures/250613_gam_illustrations",
-       width = 60, height = 60, units = "mm",
-       scale = 2)
+# ggsave(paste0(goi, "_expr.png"),
+#        path = dir_fig_gam,
+#        width = 60, height = 60, units = "mm",
+#        scale = 2)
+# ggsave(paste0(goi, "_expr.pdf"),
+#        path = dir_fig_gam,
+#        width = 60, height = 60, units = "mm",
+#        scale = 2)
 
 
 #~| GAM ----
@@ -1358,14 +1352,14 @@ dat |>
 
 
 
-ggsave(paste0(goi, "_devexpl.png"),
-       path = "presentations/figures/250613_gam_illustrations",
-       width = 60, height = 50, units = "mm",
-       scale = 2)
-ggsave(paste0(goi, "_devexpl.pdf"),
-       path = "presentations/figures/250613_gam_illustrations",
-       width = 60, height = 50, units = "mm",
-       scale = 2)
+# ggsave(paste0(goi, "_devexpl.png"),
+#        path = dir_fig_gam,
+#        width = 60, height = 50, units = "mm",
+#        scale = 2)
+# ggsave(paste0(goi, "_devexpl.pdf"),
+#        path = dir_fig_gam,
+#        width = 60, height = 50, units = "mm",
+#        scale = 2)
 
 
 
@@ -1382,7 +1376,13 @@ ggsave(paste0(goi, "_devexpl.pdf"),
 
 
 # Old ----
-
+# # computed same for all genes
+# mean_sf <- lapply(mods_centered,
+#                   \(.mod) exp(mod$model$`offset(log(size_factors))`)) |>
+#   unlist() |>
+#   log() |>
+#   mean() |>
+#   exp()
 
 smooth_preds <- list.files(dir_step2,
                            pattern = "_preds\\.qs$") |>
