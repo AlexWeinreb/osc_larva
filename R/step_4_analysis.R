@@ -21,13 +21,13 @@ opar <- par(no.readonly = TRUE)
 
 
 
-out_dir <- "presentations/figures/250612_puls_genes"
+out_dir <- "presentations/figures/250624_puls_genes"
 
 
 dir_assembled <- "intermediates/2502/250605_assembled/"
 
-dir_step3 <- "intermediates/2502/250606_step3_genes_by_celltype/"
-dir_clust <- "intermediates/2502/250609_cluster"
+dir_step3 <- "intermediates/2502/250624_step3_genes_by_celltype/"
+dir_clust <- "intermediates/2502/250624_cluster"
 
 
 # Load ----
@@ -102,7 +102,7 @@ stopifnot(anyDuplicated(osc_table$gene_name) == 0L)
 
 cell_types_info <- qs::qread(file.path(dir_step3, "cell_types.qs"))
 
-all_genes <- read_csv(file.path(dir_clust, "250610_cluster_results.csv")) |>
+all_genes <- read_csv(file.path(dir_clust, "250624_cluster_results.csv")) |>
   mutate(cellgene = paste0(cell_type, "|", gene_name)) |>
   filter(cell_type %in% cell_types_info$cell_type)
 
@@ -222,7 +222,7 @@ cell_types_info |>
   geom_point(aes(x = mean_coherence, y = perplexity, color = tissue,
                  shape = p_coherence_adj < .05),
              size = 3)
-
+# note same plot was saved in step 3 (use that one for figures)
 
 
 cell_types_osc <- cell_types_info |>
@@ -313,6 +313,9 @@ all_genes |>
 
 
 
+
+
+
 # intersections of genes ----
 
 
@@ -375,16 +378,16 @@ pheatmap::pheatmap(mat_intersections,
                    cluster_rows = hc,
                    cluster_cols = hc,
                    # width = 6, height = 5,
-                   # filename = file.path(out_dir, "intersections.png"),
-                   annotation_row = cell_types_info |> column_to_rownames("cell_type") |> select(tissue),
-                   annotation_col = cell_types_info |> column_to_rownames("cell_type") |> select(tissue),
+                   # filename = file.path(out_dir, "intersections_expr.png"),
+                   annotation_row = cell_types_info |> filter(cell_type %in% rownames(mat_intersections)) |> column_to_rownames("cell_type") |> select(tissue),
+                   annotation_col = cell_types_info |> filter(cell_type %in% rownames(mat_intersections)) |> column_to_rownames("cell_type") |> select(tissue),
                    annotation_colors = list(tissue = c(
                      glia = scales::hue_pal()(8)[[1]],
-                     muscle = scales::hue_pal()(8)[[2]],
-                     neuron = scales::hue_pal()(8)[[3]],
+                     # muscle = scales::hue_pal()(8)[[2]],
+                     # neuron = scales::hue_pal()(8)[[3]],
                      other = scales::hue_pal()(8)[[4]],
                      pharynx = scales::hue_pal()(8)[[5]],
-                     reproductive = scales::hue_pal()(8)[[6]],
+                     # reproductive = scales::hue_pal()(8)[[6]],
                      skin = scales::hue_pal()(8)[[7]]
                    )),
                    main = "Proportion of pulsatile among expressed genes")
@@ -443,16 +446,16 @@ pheatmap::pheatmap(mat_intersections,
                    cluster_rows = hc,
                    cluster_cols = hc,
                    # width = 6, height = 5,
-                   # filename = file.path(out_dir, "intersections.png"),
-                   annotation_row = cell_types_info |> column_to_rownames("cell_type") |> select(tissue),
-                   annotation_col = cell_types_info |> column_to_rownames("cell_type") |> select(tissue),
+                   # filename = file.path(out_dir, "intersections_pulsFirst.png"),
+                   annotation_row = cell_types_info |> filter(cell_type %in% rownames(mat_intersections)) |> column_to_rownames("cell_type") |> select(tissue),
+                   annotation_col = cell_types_info |> filter(cell_type %in% rownames(mat_intersections)) |> column_to_rownames("cell_type") |> select(tissue),
                    annotation_colors = list(tissue = c(
                      glia = scales::hue_pal()(8)[[1]],
-                     muscle = scales::hue_pal()(8)[[2]],
-                     neuron = scales::hue_pal()(8)[[3]],
+                     # muscle = scales::hue_pal()(8)[[2]],
+                     # neuron = scales::hue_pal()(8)[[3]],
                      other = scales::hue_pal()(8)[[4]],
                      pharynx = scales::hue_pal()(8)[[5]],
-                     reproductive = scales::hue_pal()(8)[[6]],
+                     # reproductive = scales::hue_pal()(8)[[6]],
                      skin = scales::hue_pal()(8)[[7]]
                    )),
                    main = "Prop pulsatile in both (among puls in first)")
@@ -516,7 +519,7 @@ pheatmap::pheatmap(mat_intersections,
                    cluster_cols = hc,
                    # width = 6, height = 5,
                    # fontsize = 7,
-                   # filename = file.path(out_dir, "intersections.pdf"),
+                   # filename = file.path(out_dir, "intersections_pulsOne.pdf"),
                    annotation_row = cell_types_info |> column_to_rownames("cell_type") |> select(tissue),
                    annotation_col = cell_types_info |> column_to_rownames("cell_type") |> select(tissue),
                    annotation_colors = list(tissue = c(
@@ -675,6 +678,7 @@ manual_annot_panther_families <- readxl::read_excel("data/gene_families/manual_a
 
 
 all(panther_filt$family_id %in% manual_annot_panther_families$family)
+# panther_filt$family_id[! panther_filt$family_id %in% manual_annot_panther_families$family]
 
 panther_filt <- left_join(panther_filt,
                           manual_annot_panther_families,
@@ -781,9 +785,16 @@ panther_filt |>
                  color = -log10(FDR + 1e-16),
                  size = log2(enrichment_fc)))
 
-# ggsave("panther_terms_enrichement_dotplot.pdf", path = out_dir,
-#        width = 100, height = 100, units = "mm",
-#        scale = 3)
+ggsave("panther_terms_enrichement_dotplot.pdf", path = out_dir,
+       width = 100, height = 100, units = "mm",
+       scale = 3)
+
+
+# With description on the right
+# https://github.com/tidyverse/ggplot2/issues/3171#issuecomment-1340221650
+# note, sec.axis should become possible with next version of ggplot2 (3.5.1 doesn't have it)
+
+
 
 
 
@@ -868,37 +879,41 @@ rm(genelist)
 
 man_fam <- "cutl"
 
-genelist <- switch (man_fam,
-  collagens = genelist_collagen_by_panther,
-  hedgehog = s2i(genelist_hedgehog, gids),
-  appg = appg_genes |> wb_clean_gene_names(),
-  cutl = genelist_cutl_extended
-)
-
-
-all_genes |>
-  filter(gene_name %in% i2s(genelist, gids),
-         cell_type %in% cell_types_osc) |>
-  summarize(n_puls = sum(shape == "pulsatile"),
-            n_non_puls = sum(shape != "pulsatile"),
-            .by = cell_type) |>
-  arrange(n_puls) |> mutate(cell_type = fct_inorder(cell_type)) |>
-  pivot_longer(-cell_type,
-               names_to = "category",
-               values_to = "count",
-               names_prefix = "n_") |>
-  ggplot() +
-  theme_classic() +
-  coord_flip() +
-  xlab(NULL) + ylab("Number of genes") +
-  scale_fill_manual(values = c("puls" = scales::muted("red"), "non_puls" = "grey40")) +
-  geom_col(aes(x = cell_type, y = count, fill = category),
-           show.legend = FALSE) +
-  ggtitle(label = NULL, subtitle = paste0(man_fam, ": ", length(genelist)))
-
-# ggsave(paste0(man_fam,"_proportions.pdf"), path = out_dir,
-#        width = 40, height = 70, units = "mm",
-#        scale = 2)
+for(man_fam in c("collagens", "hedgehog","appg","cutl")){
+  
+  genelist <- switch (man_fam,
+                      collagens = genelist_collagen_by_panther,
+                      hedgehog = s2i(genelist_hedgehog, gids),
+                      appg = appg_genes |> wb_clean_gene_names(),
+                      cutl = genelist_cutl_extended
+  )
+  
+  
+  all_genes |>
+    filter(gene_name %in% i2s(genelist, gids),
+           cell_type %in% cell_types_osc) |>
+    summarize(n_puls = sum(shape == "pulsatile"),
+              n_non_puls = sum(shape != "pulsatile"),
+              .by = cell_type) |>
+    arrange(n_puls) |> mutate(cell_type = fct_inorder(cell_type)) |>
+    pivot_longer(-cell_type,
+                 names_to = "category",
+                 values_to = "count",
+                 names_prefix = "n_") |>
+    ggplot() +
+    theme_classic() +
+    coord_flip() +
+    xlab(NULL) + ylab("Number of genes") +
+    scale_fill_manual(values = c("puls" = scales::muted("red"), "non_puls" = "grey40")) +
+    geom_col(aes(x = cell_type, y = count, fill = category),
+             show.legend = FALSE) +
+    ggtitle(label = NULL, subtitle = paste0(man_fam, ": ", length(genelist)))
+  
+  # ggsave(paste0(man_fam,"_proportions.pdf"), path = out_dir,
+  #        width = 40, height = 70, units = "mm",
+  #        scale = 2)
+  
+}
 
 
 
@@ -974,7 +989,7 @@ all_genes |>
              by = "gene_name") |>
   relocate(family_description, .after = gene_name) |>
   left_join(osc_table_nodup) |> View()
-  # writexl::write_xlsx("data/gene_families/250612_ILso_osc_genes_from_defined_families.xlsx")
+  # writexl::write_xlsx("data/gene_families/250625_ILso_osc_genes_from_defined_families.xlsx")
 
 all_genes |>
   filter(cell_type == "ILso") |>
