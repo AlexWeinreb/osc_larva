@@ -561,9 +561,9 @@ in_osc_ct |>
   geom_col(aes(x = nb_cell_types, y = nb_genes))
 
 
-ggsave("puls_per_ct_intersections.pdf",
-       path = out_dir,
-       width = 70, height = 40, units = "mm")
+# ggsave("puls_per_ct_intersections.pdf",
+#        path = out_dir,
+#        width = 70, height = 30, units = "mm")
 
 
 

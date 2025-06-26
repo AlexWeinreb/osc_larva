@@ -150,7 +150,7 @@ hist(by_cell_type$uniformity_index, breaks = 50)
 
 #~ entropy ----
 
-# 
+## tests and explorations
 # ct <- "ILso"
 # mat <- heatmaps_scaled[[ct]]
 # y <- 2*pi*apply(mat, 2, which.max) / nrow(mat)
@@ -165,11 +165,6 @@ hist(by_cell_type$uniformity_index, breaks = 50)
 # 
 # hist(pvals, breaks = 50)
 # 
-# 
-# ct <- "hypodermis"
-# mat <- heatmaps_scaled[[ct]]
-# pos_peaks <- apply(mat, 2, which.max) / nrow(mat)
-# 
 # printMat::matimage(mat)
 # points(seq_len(ncol(mat)) / ncol(mat) ,
 #        1 - apply(mat, 2, which.max) / nrow(mat),
@@ -178,12 +173,68 @@ hist(by_cell_type$uniformity_index, breaks = 50)
 # hist(apply(mat, 2, which.max)/nrow(mat), breaks = 50)
 # hist(runif(ncol(mat)), breaks = 50, add = TRUE, col = alpha('lightgreen', .2))
 # 
-# 
-# rose.diag(circular::circular(pos_peaks*2*pi), bins = 24)
-# 
-# 
 # qqplot(qunif(ppoints(ncol(mat))), apply(mat, 2, which.max)/nrow(mat))
 # abline(0, 1, col = "red")
+# 
+# 
+# circular::rose.diag(circular::circular(runif(10000)*2*pi),
+#                     bins = 24,
+#                     axes = FALSE,
+#                     col = "lightblue", border = "lightblue",
+#                     prop = 1.5)
+# 
+# circular::rose.diag(circular::circular(pos_peaks*2*pi),
+#                     bins = 24,
+#                     axes = FALSE,col = "grey",prop = 1.5,
+#                     add = TRUE)
+
+
+
+ct <- "ILso"
+ct <- "gonad_1"
+mat <- heatmaps_scaled[[ct]]
+pos_peaks <- apply(mat, 2, which.max) / nrow(mat)
+
+
+
+nbins <- 30
+
+enframe(pos_peaks,
+        name = "genecell",
+        value = "peak_pt") |>
+  mutate(peak_deg = peak_pt) |>
+  ggplot() +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 7),
+    axis.title = element_text(size = 10),
+    plot.margin = unit(c(0,0,0,0), "mm")
+  ) +
+  coord_polar() +
+  xlab(NULL) +
+  scale_y_sqrt() +
+  scale_x_continuous(breaks = c(0, .25, .5, .75)) +
+  geom_ribbon(aes(x = seq(from = 0, to = 1, length.out = length(peak_deg)),
+                  ymin = 0,
+                  ymax = length(peak_deg) / nbins),
+              fill = "purple",
+              alpha = .2) +
+  geom_hline(
+    aes(yintercept = length(peak_deg) / nbins),
+    linewidth = 1.5,
+    color = "purple2"
+  ) +
+  geom_histogram(aes(x = peak_deg),
+                 color = "black",
+                 alpha = .9,
+                 breaks = seq(0, 1, length.out = nbins + 1))
+
+# ggsave(paste0(ct,"_ histogram_circ.pdf"),
+#        path = dir_figures3,
+#        width = 48, height = 48, units = "mm")
+
+
+
 
 
 stopifnot(identical(
@@ -393,19 +444,27 @@ cell_types_both <- inner_join(
 cell_types_both |>
   ggplot() +
   theme_classic() +
+  theme(
+    axis.text = element_text(size = 7),
+    axis.title = element_text(size = 10),
+    plot.margin = unit(c(0,0,0,0), "mm"),
+    legend.title = element_text(size = 7),
+    legend.text = element_text(size = 7),
+    legend.margin = margin(),
+    legend.box.margin = margin(),
+    legend.key.size = unit(1, "mm")
+  ) +
   xlab("Mean local phase coherence") +
   ylab("Perplexity") +
-  scale_shape_manual(values = c(`TRUE` = 8, `FALSE` = 19)) +
+  scale_shape_manual(values = c(`TRUE` = 8, `FALSE` = 19),
+                     name = expression(p[adj] < .05)) +
   geom_point(aes(x = mean_coherence, y = perplexity, color = tissue,
                  shape = p_coherence_adj < .05),
-             size = 3)
+             size = 1)
 
-# ggsave("phasic_cell_types_unannot.png", path = dir_figures3,
-#        width = 80, height = 50, units = "mm",
-#        scale = 2)
+
 # ggsave("phasic_cell_types_unannot.pdf", path = dir_figures3,
-#        width = 80, height = 50, units = "mm",
-#        scale = 2)
+#        width = 90, height = 60, units = "mm")
 
 
 cell_types_both |>
@@ -420,9 +479,7 @@ cell_types_both |>
   ggrepel::geom_text_repel(aes(x = mean_coherence, y = perplexity, label = cell_type))
 
 
-# ggsave("phasic_cell_types_annot.png", path = dir_figures3,
-#        width = 80, height = 50, units = "mm",
-#        scale = 2)
+
 # ggsave("phasic_cell_types_annot.pdf", path = dir_figures3,
 #        width = 80, height = 50, units = "mm",
 #        scale = 2)
@@ -501,6 +558,8 @@ iwalk(heatmaps_list,
 # hmp_sparsified <- heatmaps_list[[9]]
 # ct <- names(heatmaps_list)[[9]]
 
+mm_to_in <- 0.03937008
+
 iwalk(heatmaps_list[c("gonad_1", "ILso")],
       \(hmp_sparsified, ct){
         
@@ -540,15 +599,19 @@ iwalk(heatmaps_list[c("gonad_1", "ILso")],
         head(colnames(hmp_sparsified), 20)
         
         
+        png(paste0(dir_figures3, "/heatmap_", ct, ".png"),
+            width = 100, height = 45, units = "mm", res = 500)
         pheatmap::pheatmap(hmp_sparsified,
                            cluster_rows = FALSE,
                            cluster_cols = FALSE,
                            show_rownames = FALSE,
                            fontsize = 6,
-                           filename = paste0(dir_figures3, "/heatmap_", ct, ".png"),
-                           width = 5,
-                           height = 2.5,
+                           # filename = paste0(dir_figures3, "/heatmap_", ct, ".png"),
+                           # width = 4,
+                           # height = 1.2,
                            main = ct)
+        dev.off()
+        
         
         pheatmap::pheatmap(hmp_sparsified,
                            cluster_rows = FALSE,
@@ -556,9 +619,10 @@ iwalk(heatmaps_list[c("gonad_1", "ILso")],
                            show_rownames = FALSE,
                            fontsize = 6,
                            filename = paste0(dir_figures3, "/heatmap_", ct, ".pdf"),
-                           width = 5,
-                           height = 2.5,
+                           width = 100 * mm_to_in,
+                           height = 45 * mm_to_in,
                            main = ct)
+        
         
         message("saved: ", ct)
       })

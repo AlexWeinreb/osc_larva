@@ -92,6 +92,8 @@ annot_clusts <- clusters |>
 
 
 #~ plot metrics ----
+# png("presentations/figures/250624_hclust/heatmap_genes_pred.png",
+#     width = 9, height = 4, units = "in", res = 500)
 pheatmap::pheatmap(t(mat_pred),
                    cluster_rows = FALSE,
                    cluster_cols = hc,
