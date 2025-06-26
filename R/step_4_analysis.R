@@ -161,9 +161,7 @@ cell_types_info |>
 # ggsave("nb_puls_genes_by_celltype.png",
 #        path = out_dir,
 #        width = 20, height = 15, units = "cm")
-# ggsave("nb_puls_genes_by_celltype.pdf",
-#        path = out_dir,
-#        width = 20, height = 15, units = "cm")
+
 
 
 
@@ -264,7 +262,7 @@ list(
 # dev.off()
 
 
-
+## Compare OscAmplitude
 osc_genes_compare |>
   filter(bulk_class == "Osc") |>
   ggplot() +
@@ -282,33 +280,37 @@ osc_genes_compare |>
 #        scale = 1.5)
 
 
+# Save pre-scaled plot
 
 
-#~ abu genes in pha muscle ----
+osc_genes_compare |>
+  filter(bulk_class == "Osc") |>
+  ggplot() +
+  theme_classic() +
+  theme(
+    legend.position = "inside",
+    legend.position.inside = c(.8,.7),
+    axis.title = element_text(size = 10),
+    axis.text = element_text(size = 7),
+    legend.text = element_text(size = 7),
+    legend.title = element_text(size = 10),
+    plot.margin = unit(c(0,0,0,0), "mm")
+  ) +
+  xlab("Bulk-annotated amplitude") +
+  geom_density(aes(x = osc_amplitude, fill = `single-cell`),
+               alpha = .5)
 
-appg_genes <- c("abu-5", "abu-2", "pqn-76", "pqn-78", "pqn-79", "Y5H2A.4", "pqn-91",
-                "pqn-90", "pqn-2", "abu-3", "abu-1", "abu-4", "F07H5.8", "pqn-71",
-                "pqn-16", "M02G9.1", "abu-6", "abu-7", "abu-15", "abu-8",
-                "M02G9.2", "pqn-54", "pqn-57", "abu-9", "M02G9.3", "abu-14",
-                "abu-11", "pqn-13", "F35A5.4")
-
-appg_genes_strict <- c("abu-11", "pqn-54", "pqn-2","abu-15","abu-1","abu-7","abu-8",
-                       "abu-6","abu-14","abu-4","pqn-57", "pqn-71","pqn-13")
+ggsave("osc_vs_pulsatile_density2.pdf",
+       path = out_dir,
+       width = 75, height = 45, units = "mm")
 
 
-length(appg_genes)
-length(appg_genes_strict)
 
 
-all_genes |>
-  filter(cell_type %in% c("pharyngeal_muscle", "pharynx_epithelial")) |>
-  filter(gene_name %in% appg_genes_strict) |>
-  pivot_wider(id_cols = gene_name,
-              names_from = "cell_type",
-              values_from = "shape") |>
-  left_join(osc_table |> select(gene_name, bulk_class),
-            by = "gene_name") |>
-  relocate(bulk_class, .after = gene_name)
+
+
+
+
 
 
 
@@ -377,7 +379,7 @@ hc <- as.dist(1-dist_mat_prop) |>
 pheatmap::pheatmap(mat_intersections,
                    cluster_rows = hc,
                    cluster_cols = hc,
-                   # width = 6, height = 5,
+                   # width = 3.15, height = 2.5,
                    # filename = file.path(out_dir, "intersections_expr.png"),
                    annotation_row = cell_types_info |> filter(cell_type %in% rownames(mat_intersections)) |> column_to_rownames("cell_type") |> select(tissue),
                    annotation_col = cell_types_info |> filter(cell_type %in% rownames(mat_intersections)) |> column_to_rownames("cell_type") |> select(tissue),
@@ -445,7 +447,7 @@ hc <- as.dist(1-dist_mat_prop) |>
 pheatmap::pheatmap(mat_intersections,
                    cluster_rows = hc,
                    cluster_cols = hc,
-                   # width = 6, height = 5,
+                   # width = 3.15, height = 2.5,
                    # filename = file.path(out_dir, "intersections_pulsFirst.png"),
                    annotation_row = cell_types_info |> filter(cell_type %in% rownames(mat_intersections)) |> column_to_rownames("cell_type") |> select(tissue),
                    annotation_col = cell_types_info |> filter(cell_type %in% rownames(mat_intersections)) |> column_to_rownames("cell_type") |> select(tissue),
@@ -517,9 +519,9 @@ hc <- as.dist(1-dist_mat_prop) |>
 pheatmap::pheatmap(mat_intersections,
                    cluster_rows = hc,
                    cluster_cols = hc,
-                   # width = 6, height = 5,
-                   # fontsize = 7,
-                   # filename = file.path(out_dir, "intersections_pulsOne.pdf"),
+                   width = 6, height = 5,
+                   fontsize = 7,
+                   filename = file.path(out_dir, "intersections_pulsOne.pdf"),
                    annotation_row = cell_types_info |> column_to_rownames("cell_type") |> select(tissue),
                    annotation_col = cell_types_info |> column_to_rownames("cell_type") |> select(tissue),
                    annotation_colors = list(tissue = c(
@@ -547,6 +549,11 @@ in_osc_ct |>
             .by = nb_cell_types) |>
   ggplot() +
   theme_classic() +
+  theme(
+    axis.title = element_text(size = 10),
+    axis.text = element_text(size = 7),
+    plot.margin = unit(c(0,0,0,0), "mm")
+  ) +
   xlab("Number of cell types in which pulsatile") +
   ylab("Number of genes") +
   scale_x_continuous(breaks = seq(1,14,by = 2)) +
@@ -554,12 +561,9 @@ in_osc_ct |>
   geom_col(aes(x = nb_cell_types, y = nb_genes))
 
 
-# ggsave("puls_per_ct_intersections.pdf",
-#        path = out_dir,
-#        width = 85, height = 35, units = "mm",
-#        scale = 1.5)
-
-
+ggsave("puls_per_ct_intersections.pdf",
+       path = out_dir,
+       width = 70, height = 40, units = "mm")
 
 
 
@@ -683,63 +687,26 @@ all(panther_filt$family_id %in% manual_annot_panther_families$family)
 panther_filt <- left_join(panther_filt,
                           manual_annot_panther_families,
                           by = c(family_id = "family")) |>
-  select(cell_type, description, family_id, expected, observed, enrichment_fc, FDR)
+  select(cell_type, description = short_description, family_id, expected, observed, enrichment_fc, FDR)
 
 
-# since both family and subfamily, only keep main family
+# when both family and subfamily, only keep main family
 subfams <- str_match(panther_filt$family_id, "^(PTHR[0-9]+)\\:SF[0-9]+$")
 stopifnot(all(
   na.omit(subfams[,2]) %in% panther_filt$family_id
 ))
 
-panther_filt <- panther_filt |> filter(! family_id %in% subfams[,1])
+panther_filt <- panther_filt |>
+  filter(! family_id %in% subfams[,1])
+
 
 
 #~~ res ----
 
-panther_filt |>
-  count(description) |>
-  arrange(desc(n))
+# Remove underscores in cell types
 
-panther_filt |>
-  count(cell_type) |>
-  arrange(desc(n))
-
-
-panther_filt |>
-  arrange(cell_type, FDR) |>
-  mutate(description = fct_inorder(description)) |>
-  ggplot() +
-  theme_classic() +
-  coord_flip() +
-  facet_wrap(~ cell_type, scales = "free") +
-  geom_col(aes(x = description,
-               y = -log10(FDR))) +
-  geom_text(aes(x = description, y = 0.1, label = description), 
-            hjust = 0, color = "grey") +
-  theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
-
-
-families_in_multiple <- panther_filt |>
-  count(family_id, description) |>
-  filter(n > 3) |>
-  pull(family_id)
-
-panther_filt |>
-  filter(family_id %in% families_in_multiple) |>
-  arrange(cell_type, FDR) |>
-  mutate(description = fct_inorder(paste(cell_type, family_id, description))) |>
-  ggplot() +
-  theme_classic() +
-  coord_flip() +
-  geom_col(aes(x = description,
-               y = -log10(FDR)))
-
-# ggsave("panther_terms.pdf",
-#        path = out_dir,
-#        width = 69, height = 120, units = "mm",
-#        scale = 2)
-
+panther_filt <- panther_filt |>
+  mutate(cell_type = str_replace_all(cell_type, "_", " "))
 
 panther_filt |>
   # filter(family_id %in% families_in_multiple) |>
@@ -779,15 +746,35 @@ panther_filt |>
   ggplot() +
   theme_minimal() +
   labs(x = NULL, y = NULL) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  scale_color_gradient(low = "grey75", high = "orange2") +
-  geom_point(aes(x = cell_type, y = family,
-                 color = -log10(FDR + 1e-16),
-                 size = log2(enrichment_fc)))
+  theme(
+    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size = 7),
+    axis.text.y = element_text(size = 5),
+    legend.position = "top",
+    legend.title = element_text(size = 3),
+    legend.text = element_text(size = 6),
+    legend.key.size = unit(1, "mm"),
+    legend.margin = margin(),
+    legend.box.margin = margin(),
+    plot.margin = unit(c(0,0,0,0), "mm")
+  ) +
+  scale_color_gradient(
+    low = "grey75",
+    high = "orange2",
+    limits = c(0, NA)
+  ) +
+  scale_alpha_continuous(transform = c("log10", "reverse"),
+                         limits = c(1, 1e-8),
+                         range = c(.2,1)) +
+  geom_point(aes(
+    x = cell_type, y = family,
+    color = -log10(FDR + 1e-16),
+    size = log2(enrichment_fc),
+    alpha = FDR + 1e-16
+  ),
+  shape = 16)
 
-ggsave("panther_terms_enrichement_dotplot.pdf", path = out_dir,
-       width = 100, height = 100, units = "mm",
-       scale = 3)
+# ggsave("panther_terms_enrichement_dotplot.pdf", path = out_dir,
+#        width = 100, height = 145, units = "mm")
 
 
 # With description on the right
@@ -1300,21 +1287,46 @@ goi <- "pugs-11"
 
 
 #~| cells ----
-Seurat::FeaturePlot(ilso_subseu,
-                    features = goi,
-                    reduction = "pca",
-                    pt.size = 2, #min.cutoff = 0,max.cutoff = 1,
-                    alpha = .5) +
-  ggtitle(goi, "ILso")
 
-# ggsave(paste0(goi, "_expr.png"),
-#        path = dir_fig_gam,
-#        width = 60, height = 60, units = "mm",
-#        scale = 2)
+dat <- FetchData(ilso_subseu, vars = c("PC_1","PC_2",goi))
+
+# for ILso, invert axes for easier interpretation
+dat$PC_1 <- -dat$PC_1
+
+
+
+dat |>
+  ggplot() +
+  theme_classic() +
+  theme(
+    axis.title = element_text(size = 10),
+    axis.text = element_text(size = 7),
+    plot.title = element_text(face = "italic",
+                              size = 10),
+    legend.position = "top",
+    legend.margin = margin(),
+    legend.box.margin = margin(),
+    legend.title = element_blank(),
+    legend.text = element_text(size = 7),
+    legend.key.size = unit(3, "mm"),
+    plot.margin = unit(c(0,0,0,0), "mm")
+  ) +
+  labs(x = "PC 1", y = "PC 2") +
+  scale_color_gradient(low = "grey", high = "blue3") +
+  # ggtitle(goi) +
+  ggrastr::geom_point_rast(aes(x = PC_1, y = PC_2,
+                               color = .data[[goi]]),
+                           alpha = .5,
+                           shape = 16,
+                           raster.dpi = 500)
+
+
+
+
 # ggsave(paste0(goi, "_expr.pdf"),
 #        path = dir_fig_gam,
-#        width = 60, height = 60, units = "mm",
-#        scale = 2)
+#        width = 52, height = 57, units = "mm",
+#        scale = 1)
 
 
 #~| GAM ----
@@ -1336,30 +1348,33 @@ clip <- max(
 dat |>
   ggplot() +
   theme_classic() +
-  ylab("Expression (log, normalized)") +
+  theme(
+    axis.title = element_text(size = 10),
+    axis.text = element_text(size = 7),
+    plot.margin = unit(c(0,0,0,0), "mm")
+  ) +
+  ylab("Expression") +
+  # ggtitle(goi) +
+  scale_x_continuous(breaks = 0:1) +
   scale_y_continuous(limits = c(0, clip),
-                     oob = scales::squish) +
-  geom_point(aes(x = pseudotime,
-                 y = count),
-             alpha = .4,
-             size = 2,
-             shape = 16) +
+                     oob = scales::squish,
+                     labels = scales::label_scientific()) +
+  ggrastr::geom_point_rast(aes(x = pseudotime,
+                               y = count),
+                           alpha = .3,
+                           size = 1,
+                           shape = 16,
+                           raster.dpi = 500) +
   geom_line(aes(x = pseudotime,
                 y = fit),
             color = 'orange2',
-            linewidth = 1.5) +
-  ggtitle(goi)
+            linewidth = 1)
 
 
-
-# ggsave(paste0(goi, "_devexpl.png"),
-#        path = dir_fig_gam,
-#        width = 60, height = 50, units = "mm",
-#        scale = 2)
 # ggsave(paste0(goi, "_devexpl.pdf"),
 #        path = dir_fig_gam,
-#        width = 60, height = 50, units = "mm",
-#        scale = 2)
+#        width = 52, height = 45, units = "mm",
+#        scale = 1)
 
 
 
