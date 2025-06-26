@@ -3,6 +3,7 @@
 opar <- par(no.readonly = TRUE)
 
 library(tidyverse)
+library(ggrastr)
 library(Seurat)
 library(wbData)
 
@@ -655,6 +656,15 @@ hist(p_vals$p_val, breaks = 30)
 hist(p_vals$p_adj, breaks = 30, xlim = c(0,1))
 
 
+
+# remove spaces in names
+dotprod_by_cell <- dotprod_by_cell |>
+  mutate(cell_type = str_replace_all(cell_type, "_", " "))
+
+p_vals <- p_vals |>
+  mutate(cell_type = str_replace_all(cell_type, "_", " "))
+
+
 # filter on nb of cells
 
 cell_types_to_plot <- dotprod_by_cell |>
@@ -670,14 +680,16 @@ dotprod_agg_by_ct <- dotprod_by_cell |>
             .by = "cell_type") |>
   left_join(p_vals,
             by = c("cell_type")) |>
-  mutate(p_adj = if_else(is.na(p_adj), 1, p_adj),
-         signif = cut(p_adj, breaks = c(-Inf, 1e-3,1e-2,5e-2,Inf), labels = c("***","**","*","n.s."))) |>
-  mutate(tissue = factor(tissue,
-                         levels = c("skin", "glia","pharynx","muscle","neuron","reproductive","other"))) |>
+  mutate(
+    p_adj = if_else(is.na(p_adj), 1, p_adj),
+    tissue = factor(tissue,
+                    levels = c("skin", "glia", "pharynx", "muscle",
+                               "neuron", "reproductive", "other"))
+  ) |>
   arrange(tissue, desc(mean_coherence)) |>
   mutate(cell_type = fct_inorder(cell_type))
 
-gg_dotprod_by_cell <- dotprod_by_cell |>
+dotprod_by_cell |>
   filter(cell_type %in% cell_types_to_plot) |>
   mutate(cell_type = factor(cell_type, levels = levels(dotprod_agg_by_ct$cell_type))) |>
   ggplot() +
@@ -711,6 +723,53 @@ gg_dotprod_by_cell
 #        width = 200, height = 70, units = "mm",
 #        scale = 2)
 
+
+
+# save plot with ggrastr
+
+dotprod_by_cell |>
+  filter(cell_type %in% cell_types_to_plot) |>
+  mutate(cell_type = factor(cell_type, levels = levels(dotprod_agg_by_ct$cell_type))) |>
+  ggplot() +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size = 7),
+    axis.text.y = element_text(size = 7),
+    legend.position = "none",
+    plot.margin = unit(c(0,0,0,0), "mm")
+    ) +
+  ylab("Local phase coherence") +
+  xlab(NULL) +
+  scale_fill_manual(
+    values = c(`TRUE` = alpha("orange", alpha = .08), `FALSE` = "white")
+    ) +
+  geom_tile(
+    aes(
+      x = cell_type,
+      y = diff(range(dotprod_by_cell$coherence))/2 + min(dotprod_by_cell$coherence),
+      fill = p_adj < .05
+    ),
+    height = diff(range(dotprod_by_cell$coherence)),
+    data = dotprod_agg_by_ct
+  ) +
+  ggrastr::geom_quasirandom_rast(
+    aes(x = cell_type, y = coherence, color = tissue),
+    alpha = .3,
+    shape = 16,
+    size = 1,
+    width = .4,
+    raster.dpi = 500
+  ) +
+  geom_point(
+    aes(x = cell_type, y = mean_coherence),
+    data = dotprod_agg_by_ct,
+    size = 1
+  )
+
+
+# ggsave("local_phase_coherence.pdf",
+#        path = "presentations/figures/local_phase_coherence",
+#        width = 215, height = 75, units = "mm")
 
 
 
@@ -758,27 +817,29 @@ dat2 <- left_join(dat, samples_table,
                   by = c(orig.ident = "sample_name"))
 
 ggplot() +
-  theme_classic() +
+  theme_void() +
   scale_color_gradient(low = "bisque2", high = "darkolivegreen") +
   scale_fill_gradient(low = "bisque2", high = "dodgerblue2") +
-  theme(legend.position = "none") +
-  geom_point(aes(x = umap_1, y = umap_2, color = nsIs198),
-             alpha = .1, size = 2,
-             data = filter(dat2, promoter == "grl-18")) +
-  geom_point(aes(x = umap_1, y = umap_2, fill = nsIs198),
-             alpha = .1, size = 3, shape = 21, stroke = NA,
-             data = filter(dat2, promoter != "grl-18"))
+  theme(
+    legend.position = "none",
+    plot.margin = unit(c(0,0,0,0), "mm")
+  ) +
+  geom_point_rast(
+    aes(x = umap_1, y = umap_2, color = nsIs198),
+    alpha = .1, size = .8,
+    raster.dpi = 500,
+    data = filter(dat2, promoter == "grl-18")
+  ) +
+  geom_point_rast(
+    aes(x = umap_1, y = umap_2, fill = nsIs198),
+    alpha = .1, size = 1.5, shape = 21, stroke = NA,
+    raster.dpi = 500,
+    data = filter(dat2, promoter != "grl-18")
+  )
 
-# 650 x 500
-# ggsave("umap_both_sorts.png",
+# ggsave("umap_both_sorts_rastr.pdf",
 #        path = "presentations/figures/250610_umap",
-#        width = 60, height = 60, units = "mm",
-#        scale = 2)
-# 
-# ggsave("umap_both_sorts.pdf",
-#        path = "presentations/figures/250610_umap",
-#        width = 60, height = 60, units = "mm",
-#        scale = 2)
+#        width = 56, height = 56, units = "mm")
 
 
 

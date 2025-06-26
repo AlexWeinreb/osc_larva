@@ -266,7 +266,7 @@ In `assemble_osc.R` (interactive on cluster) assemble all cell types from L2 and
   * produces several plots (copied out), several intermediates (saved in `250509_assembled`)
 * outputs:
   * Main Seurat object saved as `250509_assembled/250509_seu_all_herma.qs`
-  * Re-exporting individual cell types in `250509_assembled/250330_cell_types/{cell_type.qs}`
+
 
 
 
