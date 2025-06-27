@@ -1214,7 +1214,6 @@ Seurat::FeaturePlot(amphso_subseu,
 # Illustrate GAM ----
 
 
-#~ load ----
 
 dir_step2 <- "intermediates/2502/250624_step2/"
 dir_step1 <- "intermediates/2502/250609_step1/"
@@ -1226,8 +1225,12 @@ dir_step1 <- "intermediates/2502/250609_step1/"
 dir_fig_gam <- "presentations/figures/250625_gam_illustrations"
 # dir.create(dir_fig_gam)
 
+
+
+#~ ILso ----
+
 ilso_subseu <- qs::qread( file.path(dir_step1,
-                                    paste0("ILso", "_seu.qs")) )
+                                    paste0("ILso", "_seu_unsmoothed.qs")) )
 
 mods_uncentered <- qs::qread(file.path(dir_step2, paste0("ILso", "_mods_uncentered.qs")))
 
@@ -1254,7 +1257,7 @@ smooth_centered <- list.files(dir_step2,
 
 
 # computed same for all genes
-mean_sf <- lapply(mods_centered,
+mean_sf <- lapply(mods_uncentered,
                   \(.mod) exp(.mod$model$`offset(log(size_factors))`)) |>
   unlist() |>
   log() |>
@@ -1268,9 +1271,9 @@ mean_sf <- lapply(mods_centered,
 
 
 
-#~ gene ----
+#~~ genes ----
 
-goi <- "grl-18"
+# goi <- "grl-18"
 # goi <- "nhr-23"
 # goi <- "col-109"
 # goi <- "pugs-11"
@@ -1278,6 +1281,8 @@ goi <- "grl-18"
 # 
 # goi <- "rps-27A"
 # goi <- "dnj-1"
+
+# for(goi in c("grl-18", "nhr-23", "col-109", "pugs-11", "rps-27A", "dnj-1")){
 
 
 
@@ -1307,21 +1312,24 @@ dat |>
     plot.margin = unit(c(0,0,0,0), "mm")
   ) +
   labs(x = "PC 1", y = "PC 2") +
-  scale_color_gradient(low = "grey", high = "blue3") +
+  scale_color_gradient(low = alpha("grey", .3), high = alpha("blue2", .8)) +
   # ggtitle(goi) +
   ggrastr::geom_point_rast(aes(x = PC_1, y = PC_2,
                                color = .data[[goi]]),
-                           alpha = .5,
                            shape = 16,
+                           size = 1.5,
                            raster.dpi = 500)
-
 
 
 
 ggsave(paste0(goi, "_expr.pdf"),
        path = dir_fig_gam,
-       width = 52, height = 57, units = "mm",
+       width = 55, height = 55, units = "mm",
        scale = 1)
+
+
+
+
 
 
 #~| GAM ----
@@ -1364,30 +1372,33 @@ dat |>
             color = 'orange2',
             linewidth = 1)
 
-
 ggsave(paste0(goi, "_devexpl.pdf"),
        path = dir_fig_gam,
-       width = 52, height = 45, units = "mm",
+       width = 50, height = 45, units = "mm",
        scale = 1)
 
+# }
 
 
 
 
+#~ BWM ----
 
 
-
-
-
-
-# Illustrate BWM ----
-
-
-bwm_subseu <- qs::qread( file.path(dir_step1,
-                                    paste0("BWM", "_seu.qs")) )
+subseu <- qs::qread( file.path(dir_step1,
+                                        paste0("BWM", "_seu_unsmoothed.qs")) )
 
 mods_uncentered <- qs::qread(file.path(dir_step2, paste0("BWM", "_mods_uncentered.qs")))
 
+
+
+# computed same for all genes
+mean_sf <- lapply(mods_uncentered,
+                  \(.mod) exp(.mod$model$`offset(log(size_factors))`)) |>
+  unlist() |>
+  log() |>
+  mean() |>
+  exp()
 
 
 
@@ -1396,14 +1407,11 @@ mods_uncentered <- qs::qread(file.path(dir_step2, paste0("BWM", "_mods_uncentere
 #~ gene ----
 
 goi <- "lgc-34"
-goi <- "egal-1"
-
 
 
 #~| cells ----
 
-dat <- FetchData(bwm_subseu, vars = c("PC_1","PC_2",goi))
-
+dat <- FetchData(subseu, vars = c("PC_1","PC_2",goi))
 
 
 
@@ -1424,32 +1432,33 @@ dat |>
     plot.margin = unit(c(0,0,0,0), "mm")
   ) +
   labs(x = "PC 1", y = "PC 2") +
-  scale_color_gradient(low = "grey", high = "blue3") +
+  scale_color_gradient(low = alpha("grey", .3), high = alpha("blue2", .8)) +
   # ggtitle(goi) +
   ggrastr::geom_point_rast(aes(x = PC_1, y = PC_2,
                                color = .data[[goi]]),
-                           alpha = .5,
                            shape = 16,
+                           size = 1.5,
                            raster.dpi = 500)
 
 
 
+ggsave(paste0(goi, "_bwm_expr.pdf"),
+       path = dir_fig_gam,
+       width = 55, height = 55, units = "mm")
 
-# ggsave(paste0(goi, "_bwm_expr.pdf"),
-#        path = dir_fig_gam,
-#        width = 52, height = 57, units = "mm",
-#        scale = 1)
+
 
 
 #~| GAM ----
+
 
 # clipped
 mod <- mods_uncentered[[goi]]
 
 dat <- data.frame(
   pseudotime = mod$model$pseudotime,
-  count = log10( 1 + mod$model$expr / exp(mod$model$`offset(log(size_factors))`) ),
-  fit = log10( 1 + mod$fitted.values / exp(mod$model$`offset(log(size_factors))`) )
+  count = log10( 1 + mean_sf * mod$model$expr / exp(mod$model$`offset(log(size_factors))`) ),
+  fit = log10( 1 + mean_sf * mod$fitted.values / exp(mod$model$`offset(log(size_factors))`) )
 )
 
 clip <- max(
@@ -1469,8 +1478,7 @@ dat |>
   # ggtitle(goi) +
   scale_x_continuous(breaks = 0:1) +
   scale_y_continuous(limits = c(0, clip),
-                     oob = scales::squish,
-                     labels = scales::label_scientific()) +
+                     oob = scales::squish) +
   ggrastr::geom_point_rast(aes(x = pseudotime,
                                y = count),
                            alpha = .3,
@@ -1483,12 +1491,9 @@ dat |>
             linewidth = 1)
 
 
-# ggsave(paste0(goi, "_bwm_devexpl.pdf"),
-#        path = dir_fig_gam,
-#        width = 52, height = 45, units = "mm",
-#        scale = 1)
-
-
+ggsave(paste0(goi, "_bwm_devexpl.pdf"),
+       path = dir_fig_gam,
+       width = 50, height = 45, units = "mm")
 
 
 

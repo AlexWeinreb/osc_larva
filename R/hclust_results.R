@@ -487,6 +487,12 @@ osc_genes_compare |>
 
 # illustrate metrics ----
 
+dir_step1 <- "E:/backups/Projects_june2025/glia/osc_larva/intermediates/2502/250609_step1/"
+
+ilso_subseu <- qs::qread( file.path(dir_step1,
+                                    paste0("ILso", "_seu_unsmoothed.qs")) )
+
+
 
 mods_centered <- qs::qread(file.path(dir_step2, paste0("ILso", "_mods_centered.qs")))
 
@@ -523,6 +529,7 @@ expr_smooth <- smooth_centered[,paste0("ILso|",goi)]
 
 #~| cells ----
 
+
 dat <- Seurat::FetchData(ilso_subseu, vars = c("PC_1","PC_2",goi))
 
 # for ILso, invert axes for easier interpretation
@@ -544,12 +551,12 @@ dat |>
     plot.margin = unit(c(0,0,0,0), "mm")
   ) +
   labs(x = "PC 1", y = "PC 2") +
-  scale_color_gradient(low = "grey", high = "blue3") +
+  scale_color_gradient(low = alpha("grey", .2), high = alpha("blue2", .8)) +
   # ggtitle(goi) +
   ggrastr::geom_point_rast(aes(x = PC_1, y = PC_2,
                                color = .data[[goi]]),
-                           alpha = .5,
                            shape = 16,
+                           size = 1.5,
                            raster.dpi = 500)
 
 
