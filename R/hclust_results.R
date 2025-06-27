@@ -272,6 +272,111 @@ cluster_results <- all_clustered_fits |>
 
 
 
+
+
+# Agreement with bulk ----
+
+
+dir_step3 <- "intermediates/2502/250624_step3_genes_by_celltype/"
+
+cell_types_osc <- qs::qread(file.path(dir_step3, "cell_types.qs")) |>
+  filter(p_coherence_adj < .05) |>
+  pull(cell_type)
+
+all_genes <- read_csv(file.path(dir_clust, "250624_cluster_results.csv")) |>
+  filter(cell_type %in% cell_types_osc)
+
+
+
+# see step_4 script for deduplication comments
+osc_table <- readxl::read_excel("data/msb209498-sup-0003-datasetev1.xlsx",
+                              sheet = "Dataset EV1 WBidToGeneNames_Osc",
+                              na = "NA") |>
+  mutate(gene_id = wbData::wb_clean_gene_names(WB_ID),
+         gene_name = wbData::i2s(gene_id, wbData::wb_load_gene_ids(295)) ) |>
+  filter(! is.na(gene_name)) |>
+  mutate(osc_amplitude = if_else(is.na(OscAmplitude), 0, OscAmplitude)) |>
+  select(gene_name, bulk_class = Class, osc_amplitude) |>
+  group_by(gene_name) |>
+  slice_max(osc_amplitude,
+            with_ties = FALSE) |>
+  ungroup()
+
+
+
+osc_genes_compare <- all_genes |>
+  filter(cell_type %in% cell_types_osc) |>
+  select(gene_name, shape) |>
+  summarize(is_puls = any(shape == "pulsatile"),
+            .by = gene_name) |>
+  left_join(osc_table, by = "gene_name") |>
+  mutate(`single-cell` = if_else(is_puls, "pulsatile", "nonpulsatile"))
+
+osc_genes_compare |>
+  (\(df) table(bulk = df$bulk_class, `single-cell` = df$`single-cell`))()
+
+
+# pdf(file.path(dir_figures, "osc_vs_pulsatile_euler.pdf"),
+#     width = 2, height = 2)
+list(
+  bulk = osc_genes_compare$gene_name[which(osc_genes_compare$bulk_class == "Osc")],
+  sc = osc_genes_compare$gene_name[which(osc_genes_compare$`single-cell` == "pulsatile")]
+) |>
+  eulerr::euler() |>
+  plot(quantities = TRUE,
+       edges = FALSE)
+
+# dev.off()
+
+
+
+## Compare OscAmplitude
+
+
+osc_genes_compare |>
+  filter(bulk_class == "Osc") |>
+  ggplot() +
+  theme_classic() +
+  theme(
+    legend.position = "inside",
+    legend.position.inside = c(.8,.7),
+    axis.title = element_text(size = 10),
+    axis.text = element_text(size = 7),
+    legend.text = element_text(size = 7),
+    legend.title = element_text(size = 10),
+    plot.margin = unit(c(0,0,0,0), "mm")
+  ) +
+  xlab("Bulk-annotated amplitude") +
+  geom_density(aes(x = osc_amplitude, fill = `single-cell`),
+               alpha = .5)
+
+# ggsave("osc_vs_pulsatile_density.pdf",
+#        path = dir_figures,
+#        width = 75, height = 45, units = "mm")
+
+
+## stat test
+
+osc_genes_compare |>
+  filter(bulk_class == "Osc") |>
+  wilcox.test(osc_amplitude ~ `single-cell`, data = _)
+
+osc_genes_compare |>
+  filter(bulk_class == "Osc") |>
+  summarize(median_amplitude = median(osc_amplitude),
+            mad = mad(osc_amplitude),
+            .by = `single-cell`)
+
+
+
+
+
+
+
+
+
+
+
 # # Compare euclidean and manhattan ----
 # res_eucl <- read_csv(file.path(dir_clust, "250610_cluster_results.csv")) |>
 #   mutate(cell_gene = paste0(cell_type, "_", gene_name))
@@ -376,43 +481,6 @@ cluster_results <- all_clustered_fits |>
 
 
 
-
-cluster_results |> filter(cell_type == "ILso") |> View()
-
-
-
-
-
-# plot raw genes sc/PCA ----
-dir_step1 <- "E:/backups/Projects_june2025/glia/osc_larva/intermediates/2502/250609_step1/"
-
-ilso_subseu <- qs::qread( file.path(dir_step1,
-                                    paste0("ILso", "_seu.qs")) )
-
-
-goi <- "Y43F4A.1"
-
-
-Seurat::FeaturePlot(ilso_subseu,
-                    features = goi,
-                    reduction = "pca",
-                    pt.size = 2, #min.cutoff = 0,max.cutoff = 1,
-                    alpha = .5) +
-  ggtitle(goi, "ILso")
-
-
-
-
-
-geneset <- cluster_results |>
-  filter(shape == "pulsatile",
-         cell_type == "ILso") |>
-  mutate(cell_gene = paste0(cell_type, "|", gene_name)) |>
-  pull(cell_gene)
-
-
-log1p(smooth_centered[,geneset]) |>
-  matplot(type = "l")
 
 
 

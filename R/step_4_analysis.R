@@ -211,6 +211,9 @@ cell_types_info |>
 
 # Compare clusters to bulk ----
 
+
+# Note: the version in paper is done in `hclust_results.R`, before running step3.
+
 cell_types_info |>
   ggplot() +
   theme_classic() +
@@ -261,27 +264,11 @@ list(
 
 # dev.off()
 
+# > not used in figures
+
+
 
 ## Compare OscAmplitude
-osc_genes_compare |>
-  filter(bulk_class == "Osc") |>
-  ggplot() +
-  theme_classic() +
-  theme(legend.position = "inside",
-        legend.position.inside = c(.8,.7)) +
-  xlab("Osc amplitude (bulk)") +
-  # scale_y_continuous(transform = "log1p") +
-  geom_density(aes(x = osc_amplitude, fill = `single-cell`),
-               alpha = .5)
-
-# ggsave("osc_vs_pulsatile_density.pdf",
-#        path = out_dir,
-#        width = 75, height = 45, units = "mm",
-#        scale = 1.5)
-
-
-# Save pre-scaled plot
-
 
 osc_genes_compare |>
   filter(bulk_class == "Osc") |>
@@ -300,10 +287,11 @@ osc_genes_compare |>
   geom_density(aes(x = osc_amplitude, fill = `single-cell`),
                alpha = .5)
 
-ggsave("osc_vs_pulsatile_density2.pdf",
-       path = out_dir,
-       width = 75, height = 45, units = "mm")
+# ggsave("osc_vs_pulsatile_density.pdf",
+#        path = out_dir,
+#        width = 75, height = 45, units = "mm")
 
+# > not used in figures
 
 
 
