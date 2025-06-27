@@ -1,6 +1,7 @@
 # Inits ----
 
 library(tidyverse)
+library(ggrastr)
 
 
 source("R/utils_fit.R")
@@ -12,8 +13,8 @@ dir_step2 <- "intermediates/2502/250624_step2"
 # if working from external HDD
 # dir_step2 <- "E:/backups/Projects_june2025/glia/osc_larva/intermediates/2502/250624_step2"
 
-dir_figures <- "presentations/figures/250624_clust_metrics/"
-
+dir_figures <- "presentations/figures/250627_clust_metrics/"
+# dir.create(dir_figures)
 
 
 # Descriptors ----
@@ -449,28 +450,49 @@ expr_smooth <- smooth_centered[,paste0("ILso|",goi)] / mean_sf
 
 #~| cells ----
 
-Seurat::FeaturePlot(ilso_subseu,
-                    features = goi,
-                    reduction = "pca",
-                    pt.size = 2, #min.cutoff = 0,max.cutoff = 1,
-                    alpha = .5) +
-  ggtitle(goi, "ILso")
+dat <- Seurat::FetchData(ilso_subseu, vars = c("PC_1","PC_2",goi))
 
-# ggsave(paste0(goi, "_expr.png"),
-#        path = dir_figures,
-#        width = 50, height = 50, units = "mm",
-#        scale = 2)
-# ggsave(paste0(goi, "_expr.pdf"),
-#        path = dir_figures,
-#        width = 50, height = 50, units = "mm",
-#        scale = 2)
+# for ILso, invert axes for easier interpretation
+dat$PC_1 <- -dat$PC_1
+
+
+
+dat |>
+  ggplot() +
+  theme_classic() +
+  theme(
+    axis.title = element_text(size = 10),
+    axis.text = element_text(size = 7),
+    legend.margin = margin(),
+    legend.box.margin = margin(),
+    legend.title = element_blank(),
+    legend.text = element_text(size = 7),
+    legend.key.size = unit(3, "mm"),
+    plot.margin = unit(c(0,0,0,0), "mm")
+  ) +
+  labs(x = "PC 1", y = "PC 2") +
+  scale_color_gradient(low = "grey", high = "blue3") +
+  # ggtitle(goi) +
+  ggrastr::geom_point_rast(aes(x = PC_1, y = PC_2,
+                               color = .data[[goi]]),
+                           alpha = .5,
+                           shape = 16,
+                           raster.dpi = 500)
+
+
+
+ggsave(paste0(goi, "_expr.pdf"),
+       path = dir_figures,
+       width = 55, height = 45, units = "mm")
+
+
 
 
 #~| peak/baseline ----
 
 
 dat <- tibble(
-  pseudotime = seq_len(len) - 1,
+  pseudotime = (seq_len(len) - 1)/(len - 1),
   expr = log10( 1 + expr_smooth )
 ) |>
   arrange(expr) |>
@@ -487,32 +509,44 @@ dat2 <- dat |>
 dat |>
   ggplot() +
   theme_classic() +
-  labs(title = goi,
-       x = "pseudotime",
-       y = "Smoothed expression") +
-  geom_line(aes(x = pseudotime, y = expr), 
-            linewidth = 1.2) +
-  # scale_alpha_manual(values = c(`FALSE` = 0, `TRUE` = .5)) +
-  # scale_fill_manual(values = c(`FALSE` = "green3", `TRUE` = "red4")) +
+  theme(
+    axis.title = element_text(size = 10),
+    axis.text = element_text(size = 7),
+    plot.margin = unit(c(0,0,0,0), "mm")
+  ) +
+  labs(x = "pseudotime",
+       y = "Expression") +
+  scale_x_continuous(breaks = 0:1) +
+  scale_y_continuous(labels = scales::label_scientific()) +
   geom_ribbon(aes(x = pseudotime, group = region_nb,
                   ymin = -Inf, ymax = Inf),
               dat = dat2,
               alpha = .2, fill = "brown3") +
-  geom_hline(aes(
-    yintercept = log10( 1 + all_descriptors$baseline[all_descriptors$cell_type == "ILso" &
-                                                       all_descriptors$gene_name == goi]/mean_sf)
-                 ),
-    linetype = "dashed", color = "grey")
+  geom_line(aes(x = pseudotime, y = expr), 
+            linewidth = .8) +
+  geom_hline(
+    aes(
+      yintercept = log10( 1 + all_descriptors$baseline[all_descriptors$cell_type == "ILso" &
+                                                         all_descriptors$gene_name == goi]/mean_sf)
+    ),
+    linetype = "dashed", color = "grey"
+  ) +
+  geom_segment(
+    aes(x = pseudotime,
+        y = 0,
+        yend = expr),
+    color = "cyan3",
+    arrow = arrow(ends = "both",
+                  length = unit(3, "mm"),
+                  angle = 20),
+    data = dat |> filter(expr == max(expr))
+  )
 
 
-# ggsave(paste0(goi, "_baseline.png"),
-#        path = dir_figures,
-#        width = 60, height = 50, units = "mm",
-#        scale = 2)
-# ggsave(paste0(goi, "_baseline.pdf"),
-#        path = dir_figures,
-#        width = 60, height = 50, units = "mm",
-#        scale = 2)
+
+ggsave(paste0(goi, "_baseline.pdf"),
+       path = dir_figures,
+       width = 55, height = 45, units = "mm")
 
 
 
@@ -520,33 +554,35 @@ dat |>
 #~| dtw ----
 
 tibble(
-  x = seq_len(len) - 1,
+  pseudotime = (seq_len(len) - 1)/(len - 1),
   sig = expr_smooth,
   sig_norm = sig / max(sig),
   ref = ref
 ) |>
   ggplot() +
   theme_classic() +
-  labs(title = goi,
-       x = "pseudotime",
-       y = "Smoothed expression") +
-  geom_ribbon(aes(x = x, ymin = ref, ymax = sig_norm), 
+  theme(
+    axis.title = element_text(size = 10),
+    axis.text = element_text(size = 7),
+    plot.margin = unit(c(0,0,0,0), "mm")
+  ) +
+  labs(x = "pseudotime",
+       y = "Scaled expression") +
+  scale_x_continuous(breaks = 0:1) +
+  geom_ribbon(aes(x = pseudotime, ymin = ref, ymax = sig_norm), 
               fill = alpha("cornsilk", 0.8), 
               color = NA) +
-  geom_line(aes(x = x, y = sig_norm), 
-            linewidth = 1.2) +
-  geom_line(aes(x = x, y = ref), 
-            linewidth = 1, 
+  geom_line(aes(x = pseudotime, y = sig_norm), 
+            linewidth = .8) +
+  geom_line(aes(x = pseudotime, y = ref), 
+            linewidth = .5, 
             linetype = c("22"))
 
-# ggsave(paste0(goi, "_dtw.png"),
-#        path = dir_figures,
-#        width = 60, height = 50, units = "mm",
-#        scale = 2)
-# ggsave(paste0(goi, "_dtw.pdf"),
-#        path = dir_figures,
-#        width = 60, height = 50, units = "mm",
-#        scale = 2)
+
+
+ggsave(paste0(goi, "_dtw.pdf"),
+       path = dir_figures,
+       width = 55, height = 45, units = "mm")
 
 
 
@@ -564,16 +600,26 @@ clip <- log10( 1 + mod$model$expr / exp(mod$model$`offset(log(size_factors))`) )
 
 ggplot() +
   theme_classic() +
-  ylab("Expression (log, normalized)") +
+  theme(
+    axis.title = element_text(size = 10),
+    axis.text = element_text(size = 7),
+    plot.margin = unit(c(0,0,0,0), "mm")
+  ) +
+  ylab("Expression") +
+  scale_x_continuous(breaks = 0:1) +
   scale_y_continuous(limits = c(0, clip),
-                     oob = scales::squish) +
-  geom_point(aes(x = pseudotime,
-                 y = count),
-             data = tibble(pseudotime = mod$model$pseudotime,
-                           count = log10(1 + mod$model$expr / exp(mod$model$`offset(log(size_factors))`) )),
-             alpha = .4,
-             size = 2,
-             shape = 16) +
+                     oob = scales::squish,
+                     labels = scales::label_scientific()) +
+  geom_point_rast(
+    aes(x = pseudotime,
+        y = count),
+    data = tibble(pseudotime = mod$model$pseudotime,
+                  count = log10(1 + mod$model$expr / exp(mod$model$`offset(log(size_factors))`) )),
+    alpha = .3,
+    size = 1,
+    shape = 16,
+    raster.dpi = 500
+  ) +
   geom_line(aes(x = pseudotime,
                 y = prediction),
             data = tibble(
@@ -581,24 +627,31 @@ ggplot() +
               prediction = log10( 1 + expr_smooth )
             ),
             color = 'orange2',
-            linewidth = 1.5) +
-  ggtitle(goi)
-
-
-# ggsave(paste0(goi, "_devexpl.png"),
-#        path = dir_figures,
-#        width = 60, height = 50, units = "mm",
-#        scale = 2)
-# ggsave(paste0(goi, "_devexpl.pdf"),
-#        path = dir_figures,
-#        width = 60, height = 50, units = "mm",
-#        scale = 2)
+            linewidth = .8)
 
 
 
 
+  
+ggsave(paste0(goi, "_devexpl.pdf"),
+       path = dir_figures,
+       width = 55, height = 45, units = "mm")
 
 
+
+
+#~| metrics ----
+
+all_descriptors |>
+  filter(cell_type == "ILso",
+         gene_name %in% c("col-33", "his-35")) |>
+  select(gene_name,
+         baseline, max_peak, dist_dtw, dev_expl) |>
+  mutate(baseline = log10(1 + baseline/mean_sf),
+         max_peak = log10(1 + max_peak/mean_sf))
+
+
+mat_pred[c("ILso|col-33", "ILso|his-35"),]
 
 
 
