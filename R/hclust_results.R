@@ -173,76 +173,81 @@ pheatmap::pheatmap(log1p(smooth_centered[,rownames(mat_pred)]),
 
 
 #~ plot average curves ----
+len <- nrow(smooth_centered)
+
 all_clustered_fits <- log1p(smooth_centered[,rownames(mat_pred)]) |>
   as.data.frame() |>
-  rownames_to_column("time") |>
+  rownames_to_column("pseudotime") |>
+  mutate(pseudotime = as.numeric(pseudotime)/len) |>
   as_tibble() |>
-  pivot_longer(-time,
+  pivot_longer(-pseudotime,
                names_to = "cellgene",
                values_to = "log_cnt") |>
   left_join(clusters,
             by = join_by(cellgene)) |>
   separate_wider_delim(cellgene,
                        delim = "|",
-                       names = c("cell_type", "gene_name")) |>
-  mutate(time = as.numeric(time))
+                       names = c("cell_type", "gene_name"))
 
 
 set.seed(123)
-selected <- all_clustered_fits |>
+selected_fits <- all_clustered_fits |>
   select(cluster, cell_type, gene_name) |>
   distinct() |>
   group_by(cluster) |>
   slice_sample(n = 10) |>
-  ungroup()
+  ungroup() |>
+  inner_join(all_clustered_fits)
 
-all_clustered_fits |>
-  inner_join(selected) |>
+fits_averaged_by_clust <- all_clustered_fits |>
+  summarize(
+    average_signal = mean(log_cnt),
+    sd_signal = sd(log_cnt),
+    .by = c(cluster, pseudotime)
+  ) |>
+  mutate(cluster = paste("cluster ", cluster))
+
+selected_fits |>
+  mutate(cluster = paste("cluster ", cluster)) |>
   ggplot() +
   theme_classic() +
+  theme(
+    axis.title = element_text(size = 10),
+    axis.text = element_text(size = 7),
+    strip.text = element_text(size = 10),
+    plot.margin = unit(c(0,0,0,0), "mm")
+  ) +
+  ylab("Expression") +
   scale_color_brewer(type = "qual", palette = "Set2") +
   scale_fill_brewer(type = "qual", palette = "Set2") +
-  # facet_grid(rows = vars(cluster)) +
-  facet_wrap(~ cluster) +
+  scale_x_continuous(breaks = 0:1) +
+  scale_y_continuous(n.breaks = 3) +
+  facet_wrap(~ cluster, scales = "free_y") +
   geom_hline(aes(yintercept = 0),
              linetype = 'dashed', color = 'grey80') +
   geom_ribbon(
-    aes(x = time, ymin = average_signal - sd_signal, ymax = average_signal + sd_signal),
+    aes(x = pseudotime, ymin = average_signal - sd_signal, ymax = average_signal + sd_signal),
     alpha = .2,
     fill = "orange2",
-    data = all_clustered_fits |>
-      summarize(average_signal = mean(log_cnt),
-                sd_signal = sd(log_cnt),
-                .by = c(cluster, time))
+    data = fits_averaged_by_clust
   ) +
   geom_line(
-    aes(x = time, y = log_cnt, group = interaction(cell_type, gene_name)),
+    aes(x = pseudotime, y = log_cnt, group = interaction(cell_type, gene_name)),
     alpha = .4,
     linewidth = .2
   ) +
   geom_line(
-    aes(x = time, y = average_signal),
+    aes(x = pseudotime, y = average_signal),
     linewidth = 1.5,
     color = "orange2",
-    data = all_clustered_fits |>
-      summarize(average_signal = mean(log_cnt),
-                sd_signal = sd(log_cnt),
-                .by = c(cluster, time))
+    data = fits_averaged_by_clust
   )
 
-# ggsave("cluster_average.png",
-#        path = "presentations/figures/250624_hclust/",
-#        width = 120, height = 75, units = "mm",
-#        scale = 1.5)
-# ggsave("cluster_average.pdf",
-#        path = "presentations/figures/250624_hclust/",
-#        width = 120, height = 75, units = "mm",
-#        scale = 2)
 
-# ggsave("cluster_average_vert.pdf",
-#        path = "presentations/figures/250624_hclust/",
-#        width = 70, height = 9*24, units = "mm",
-#        scale = 2)
+ggsave("cluster_average.pdf",
+       path = "presentations/figures/250624_hclust/",
+       width = 105, height = 96, units = "mm")
+
 
 
 
@@ -443,7 +448,7 @@ goi <- "his-35"
 
 mod <- mods_centered[[goi]]
 
-expr_smooth <- smooth_centered[,paste0("ILso|",goi)] / mean_sf
+expr_smooth <- smooth_centered[,paste0("ILso|",goi)]
 
 
 
@@ -483,7 +488,7 @@ dat |>
 
 ggsave(paste0(goi, "_expr.pdf"),
        path = dir_figures,
-       width = 55, height = 45, units = "mm")
+       width = 50, height = 45, units = "mm")
 
 
 
@@ -517,7 +522,7 @@ dat |>
   labs(x = "pseudotime",
        y = "Expression") +
   scale_x_continuous(breaks = 0:1) +
-  scale_y_continuous(labels = scales::label_scientific()) +
+  scale_y_continuous() +
   geom_ribbon(aes(x = pseudotime, group = region_nb,
                   ymin = -Inf, ymax = Inf),
               dat = dat2,
@@ -527,7 +532,7 @@ dat |>
   geom_hline(
     aes(
       yintercept = log10( 1 + all_descriptors$baseline[all_descriptors$cell_type == "ILso" &
-                                                         all_descriptors$gene_name == goi]/mean_sf)
+                                                         all_descriptors$gene_name == goi])
     ),
     linetype = "dashed", color = "grey"
   ) +
@@ -546,7 +551,7 @@ dat |>
 
 ggsave(paste0(goi, "_baseline.pdf"),
        path = dir_figures,
-       width = 55, height = 45, units = "mm")
+       width = 50, height = 45, units = "mm")
 
 
 
@@ -582,7 +587,7 @@ tibble(
 
 ggsave(paste0(goi, "_dtw.pdf"),
        path = dir_figures,
-       width = 55, height = 45, units = "mm")
+       width = 50, height = 45, units = "mm")
 
 
 
@@ -595,7 +600,7 @@ ggsave(paste0(goi, "_dtw.pdf"),
 
 # clipped
 
-clip <- log10( 1 + mod$model$expr / exp(mod$model$`offset(log(size_factors))`) ) |>
+clip <- log10( 1 + mean_sf * mod$model$expr / exp(mod$model$`offset(log(size_factors))`) ) |>
   quantile(probs = .95)
 
 ggplot() +
@@ -608,13 +613,12 @@ ggplot() +
   ylab("Expression") +
   scale_x_continuous(breaks = 0:1) +
   scale_y_continuous(limits = c(0, clip),
-                     oob = scales::squish,
-                     labels = scales::label_scientific()) +
+                     oob = scales::squish) +
   geom_point_rast(
     aes(x = pseudotime,
         y = count),
     data = tibble(pseudotime = mod$model$pseudotime,
-                  count = log10(1 + mod$model$expr / exp(mod$model$`offset(log(size_factors))`) )),
+                  count = log10(1 + mean_sf * mod$model$expr / exp(mod$model$`offset(log(size_factors))`) )),
     alpha = .3,
     size = 1,
     shape = 16,
@@ -624,7 +628,7 @@ ggplot() +
                 y = prediction),
             data = tibble(
               pseudotime = (0:(len-1))/len,
-              prediction = log10( 1 + expr_smooth )
+              prediction = log10( 1 + expr_smooth  )
             ),
             color = 'orange2',
             linewidth = .8)
@@ -635,7 +639,7 @@ ggplot() +
   
 ggsave(paste0(goi, "_devexpl.pdf"),
        path = dir_figures,
-       width = 55, height = 45, units = "mm")
+       width = 50, height = 45, units = "mm")
 
 
 
@@ -647,8 +651,8 @@ all_descriptors |>
          gene_name %in% c("col-33", "his-35")) |>
   select(gene_name,
          baseline, max_peak, dist_dtw, dev_expl) |>
-  mutate(baseline = log10(1 + baseline/mean_sf),
-         max_peak = log10(1 + max_peak/mean_sf))
+  mutate(baseline = log10(1 + baseline),
+         max_peak = log10(1 + max_peak))
 
 
 mat_pred[c("ILso|col-33", "ILso|his-35"),]

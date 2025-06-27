@@ -1265,6 +1265,13 @@ smooth_centered <- list.files(dir_step2,
   do.call(cbind, args = _)
 
 
+# computed same for all genes
+mean_sf <- lapply(mods_centered,
+                  \(.mod) exp(.mod$model$`offset(log(size_factors))`)) |>
+  unlist() |>
+  log() |>
+  mean() |>
+  exp()
 
 
 
@@ -1276,13 +1283,13 @@ smooth_centered <- list.files(dir_step2,
 #~ gene ----
 
 goi <- "grl-18"
-goi <- "nhr-23"
-goi <- "col-109"
-goi <- "pugs-11"
-
-
-goi <- "rps-27A"
-goi <- "dnj-1"
+# goi <- "nhr-23"
+# goi <- "col-109"
+# goi <- "pugs-11"
+# 
+# 
+# goi <- "rps-27A"
+# goi <- "dnj-1"
 
 
 
@@ -1323,10 +1330,10 @@ dat |>
 
 
 
-# ggsave(paste0(goi, "_expr.pdf"),
-#        path = dir_fig_gam,
-#        width = 52, height = 57, units = "mm",
-#        scale = 1)
+ggsave(paste0(goi, "_expr.pdf"),
+       path = dir_fig_gam,
+       width = 52, height = 57, units = "mm",
+       scale = 1)
 
 
 #~| GAM ----
@@ -1336,8 +1343,8 @@ mod <- mods_uncentered[[goi]]
 
 dat <- data.frame(
   pseudotime = mod$model$pseudotime,
-  count = log10( 1 + mod$model$expr / exp(mod$model$`offset(log(size_factors))`) ),
-  fit = log10( 1 + mod$fitted.values / exp(mod$model$`offset(log(size_factors))`) )
+  count = log10( 1 + mean_sf * mod$model$expr / exp(mod$model$`offset(log(size_factors))`) ),
+  fit = log10( 1 + mean_sf * mod$fitted.values / exp(mod$model$`offset(log(size_factors))`) )
 )
 
 clip <- max(
@@ -1357,8 +1364,7 @@ dat |>
   # ggtitle(goi) +
   scale_x_continuous(breaks = 0:1) +
   scale_y_continuous(limits = c(0, clip),
-                     oob = scales::squish,
-                     labels = scales::label_scientific()) +
+                     oob = scales::squish) +
   ggrastr::geom_point_rast(aes(x = pseudotime,
                                y = count),
                            alpha = .3,
@@ -1371,10 +1377,10 @@ dat |>
             linewidth = 1)
 
 
-# ggsave(paste0(goi, "_devexpl.pdf"),
-#        path = dir_fig_gam,
-#        width = 52, height = 45, units = "mm",
-#        scale = 1)
+ggsave(paste0(goi, "_devexpl.pdf"),
+       path = dir_fig_gam,
+       width = 52, height = 45, units = "mm",
+       scale = 1)
 
 
 
