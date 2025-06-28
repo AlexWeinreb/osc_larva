@@ -191,7 +191,7 @@ hist(by_cell_type$uniformity_index, breaks = 50)
 
 
 ct <- "ILso"
-ct <- "gonad_1"
+ct <- "BWM"
 mat <- heatmaps_scaled[[ct]]
 pos_peaks <- apply(mat, 2, which.max) / nrow(mat)
 
@@ -261,6 +261,14 @@ by_cell_type$perplexity <- heatmaps_list |>
 
 
 hist(by_cell_type$perplexity, breaks = 50)
+
+
+# for annotation
+circ_entropy(2*pi * (apply(heatmaps_list[["ILso"]], 2, which.max) / 128))
+circ_entropy(2*pi * (apply(heatmaps_list[["BWM"]], 2, which.max) / 128))
+by_cell_type |> filter(cell_type %in% c("ILso", "BWM"))
+
+
 
 
 
@@ -560,7 +568,7 @@ iwalk(heatmaps_list,
 
 mm_to_in <- 0.03937008
 
-iwalk(heatmaps_list[c("gonad_1", "ILso")],
+iwalk(heatmaps_list[c("BWM", "ILso")],
       \(hmp_sparsified, ct){
         
         if(ncol(hmp_sparsified) <= 200){
@@ -622,6 +630,7 @@ iwalk(heatmaps_list[c("gonad_1", "ILso")],
                            width = 100 * mm_to_in,
                            height = 45 * mm_to_in,
                            main = ct)
+        
         
         
         message("saved: ", ct)
