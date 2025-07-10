@@ -19,7 +19,7 @@ source("R/utils_heatmap_processing.R")
 dir_clust <- "intermediates/2502/250624_cluster"
 
 dir_step2 <- "intermediates/2502/250624_step2/"
-# dir_step2 <- "E:/backups/Projects_june2025/glia/osc_larva/intermediates/2502/250624_step2/"
+# dir_step2 <- "E:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250624_step2/"
 
 
 dir_step3 <- "intermediates/2502/250624_step3_genes_by_celltype/"

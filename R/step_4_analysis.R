@@ -620,7 +620,8 @@ all_panther <- map_dfr(
     enr_res <- wormbaseEnrich::enrichment_analysis(
       gene_list = gene_list,
       dictionary = dict_panther,
-      background_genes = background_genes
+      background_genes = background_genes,
+      filter = FALSE
     )
     
     enr_res |>
@@ -632,7 +633,9 @@ all_panther <- map_dfr(
       separate_wider_regex(term_name,
                            patterns = c(family_terms = "^[[:print:] ]+", " ",
                                         family_id = "PTHR[[:digit:]]+(?:\\:SF[[:digit:]]+)?$"))
-  })
+  }) |>
+  filter(expected > 0) |>
+  mutate(FDR = p.adjust(p_value, method = "BH"))
 
 
 
@@ -777,116 +780,117 @@ panther_filt |>
 
 #~ manually defined families ----
 
-
-genelist_cutl_extended <- dict_panther$wbid[dict_panther[str_detect(colnames(dict_panther), paste0("PTHR47327", " WBbt:0000000"))] == 1L |
-                                              dict_panther[str_detect(colnames(dict_panther), paste0("PTHR22907", " WBbt:0000000"))] == 1L ]
-
-genelist_cutl <- gids$gene_id[which(startsWith(gids$symbol, "cutl-"))]
-
-genelist_nas_metalloproteases <- dict_panther$wbid[dict_panther[str_detect(colnames(dict_panther),
-                                                                           paste0("PTHR10127", " WBbt:0000000"))] == 1L  ]
-
 genelist_hedgehog <- readxl::read_excel("data/gene_families/hedgehog_hao2006_table1.xlsx", skip = 1) |>
-  pull(gene_name)
-
-genelist_collagen_by_panther <- dict_panther$wbid[dict_panther[str_detect(colnames(dict_panther),
-                                                                          paste0("PTHR24637", " WBbt:0000000"))] == 1L  ]
+  pull(gene_name) |>
+  wb_clean_gene_names()
 
 
-genelist_patched <- dict_panther$wbid[dict_panther[str_detect(colnames(dict_panther),
-                                                              paste0("PTHR10796", " WBbt:0000000"))] == 1L  ]
+genelist_zp <- read_tsv("data/gene_families/IPR001507_ZP_proteins.tsv",
+                        skip = 1L) |>
+  pull(`WormBase Gene ID`) |>
+  unique()
 
-genelist_abu <- str_match(read_lines("data/gene_families/panther_abu.txt"),
-                          "WormBase=(WBGene[0-9]{8})")[,2] |>
-  na.omit()
+genelist_col <- read_tsv("data/gene_families/IPR008160_col.tsv",
+                         skip = 1L) |>
+  pull(`WormBase Gene ID`) |>
+  unique()
 
-genelist_mam <- gids$name[which(startsWith(gids$symbol, "mam-"))] |>
-  c("mlt-9", "CD4.11","R04B3.1", "R04B3.3", "Y43D4A.5") |>
-  s2i(gids)
-
-
-
-genelist_sundaram <- readxl::read_excel("data/gene_families/sundaram.xlsx",
-                                        skip = 1L) |>
-  pull(gene_id)
-
-
-
-
-
-
-
-genelist <- genelist_abu
-genelist <- appg_genes |> wb_clean_gene_names()
-genelist <- s2i(genelist_hedgehog, gids)
-genelist <- genelist_collagen_by_panther
-genelist <- genelist_cutl_extended
-genelist <- genelist_patched
-genelist <-  genelist_nas_metalloproteases
-genelist <- genelist_mam
-genelist <- genelist_sundaram
-
-
-
-if(any(is.na(genelist))) warning("NA")
-
-
-length(genelist)
-
-i2s(genelist, gids) |>
-  paste0(collapse = ", ") |>
-  message()
-
-all_genes |>
-  filter(gene_name %in% i2s(genelist, gids),
-         cell_type %in% cell_types_osc) |>
-  summarize(n_puls = sum(shape == "pulsatile"),
-            n_tot = n(),
-            `%` = round(100*n_puls / n_tot),
-            .by = cell_type) |>
-  arrange(desc(n_puls))
-
-rm(genelist)
+genelist_appg <- readxl::read_excel("data/gene_families/David-Raizen_2014_bio20147500-sup-table_s5.xlsx",
+                                 sheet = 1,
+                                 range = readxl::cell_cols(2),
+                                 col_names = "gene_name") |>
+  pull(gene_name) |>
+  wb_clean_gene_names()
 
 
 
 #~| Plot proportions ----
 
-man_fam <- "cutl"
 
-for(man_fam in c("collagens", "hedgehog","appg","cutl")){
+
+
+bind_rows(
+  tibble(family = "collagens",
+         gene_id = genelist_col),
+  tibble(family = "Hh",
+         gene_id = genelist_hedgehog),
+  tibble(family = "APPG",
+         gene_id = genelist_appg),
+  tibble(family = "ZP",
+         gene_id = genelist_zp)
+) |>
+  mutate(gene_name = i2s(gene_id, gids, warn_missing = TRUE)) |>
+  inner_join(all_genes |> filter(cell_type %in% cell_types_osc),
+            by = "gene_name") |>
+  summarize(n_puls = sum(shape == "pulsatile"),
+            n_non_puls = sum(shape != "pulsatile"),
+            .by = c(family, cell_type)) |>
+  arrange(family, n_puls) |>
+  mutate(cell_type = fct_inorder(cell_type)) |>
+  pivot_longer(-c(family, cell_type),
+               names_to = "category",
+               values_to = "count",
+               names_prefix = "n_") |>
+  ggplot() +
+  theme_classic() +
+  coord_flip() +
+  xlab(NULL) + ylab("Number of genes") +
+  scale_fill_manual(values = c("puls" = scales::muted("red"), "non_puls" = "grey40")) +
+  facet_wrap(~family) +
+  geom_col(aes(x = cell_type, y = count, fill = category),
+           show.legend = FALSE)
+
+# ggsave(paste0(man_fam,"_proportions.pdf"), path = out_dir,
+#        width = 40, height = 70, units = "mm")
+
+
+
+
+man_fam <- "collagens"
+
+for(man_fam in c("collagens", "hedgehog","appg","zp")){
   
   genelist <- switch (man_fam,
-                      collagens = genelist_collagen_by_panther,
-                      hedgehog = s2i(genelist_hedgehog, gids),
-                      appg = appg_genes |> wb_clean_gene_names(),
-                      cutl = genelist_cutl_extended
+                      collagens = genelist_col,
+                      hedgehog = genelist_hedgehog,
+                      appg = genelist_appg,
+                      zp = genelist_zp
   )
   
-  
-  all_genes |>
+  dat <- all_genes |>
     filter(gene_name %in% i2s(genelist, gids),
            cell_type %in% cell_types_osc) |>
     summarize(n_puls = sum(shape == "pulsatile"),
               n_non_puls = sum(shape != "pulsatile"),
               .by = cell_type) |>
-    arrange(n_puls) |> mutate(cell_type = fct_inorder(cell_type)) |>
+    arrange(n_puls) |>
+    mutate(cell_type = str_replace_all(cell_type, "_", " "),
+           cell_type = fct_inorder(cell_type)) |>
     pivot_longer(-cell_type,
                  names_to = "category",
                  values_to = "count",
-                 names_prefix = "n_") |>
+                 names_prefix = "n_")
+  
+  n_bars <- length(unique(dat$cell_type))
+  
+  tot_height <- 3.4*n_bars + 8.7
+  
+  dat |>
     ggplot() +
     theme_classic() +
+    theme(
+      axis.text = element_text(size = 7),
+      axis.title = element_text(size = 10),
+      legend.position = "none",
+      plot.margin = unit(c(0,0,0,0), "mm")
+    ) +
     coord_flip() +
     xlab(NULL) + ylab("Number of genes") +
     scale_fill_manual(values = c("puls" = scales::muted("red"), "non_puls" = "grey40")) +
-    geom_col(aes(x = cell_type, y = count, fill = category),
-             show.legend = FALSE) +
-    ggtitle(label = NULL, subtitle = paste0(man_fam, ": ", length(genelist)))
+    geom_col(aes(x = cell_type, y = count, fill = category))
   
   # ggsave(paste0(man_fam,"_proportions.pdf"), path = out_dir,
-  #        width = 40, height = 70, units = "mm",
-  #        scale = 2)
+  #        width = 40, height = tot_height, units = "mm")
   
 }
 

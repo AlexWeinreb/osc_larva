@@ -16,12 +16,12 @@ gids <- wb_load_gene_ids(295) |>
   )
 
 
-dir_tf <- "intermediates/2502/250617_celest_tfs/"
-dir_out <- "presentations/figures/250616_celest/"
-dir_step3 <- "intermediates/2502/250606_step3_genes_by_celltype/"
-dir_clust <- "intermediates/2502/250609_cluster"
-dir_step2 <- "intermediates/2502/250609_step2/"
-# dir_step2 <- "E:/backups/Projects_june2025/glia/osc_larva/intermediates/2502/250609_step2/"
+dir_tf <- "intermediates/2502/250709_celest_tfs/"
+dir_out <- "presentations/figures/250709_celest/"
+dir_step3 <- "intermediates/2502/250624_step3_genes_by_celltype/"
+dir_clust <- "intermediates/2502/250624_cluster"
+dir_step2 <- "intermediates/2502/250624_step2/"
+# dir_step2 <- "E:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250624_step2/"
 
 
 # download.file("https://raw.githubusercontent.com/IBMB-MFP/CelEsT-MS/refs/heads/main/CelEsT_annotated_v1pt1.txt",
@@ -54,7 +54,7 @@ stopifnot(anyDuplicated(osc_table$gene_name) == 0L)
 
 cell_types_info <- qs::qread(file.path(dir_step3, "cell_types.qs"))
 
-all_genes <- read_csv(file.path(dir_clust, "250610_cluster_results.csv")) |>
+all_genes <- read_csv(file.path(dir_clust, "250624_cluster_results.csv")) |>
   mutate(cellgene = paste0(cell_type, "|", gene_name)) |>
   filter(cell_type %in% cell_types_info$cell_type)
 
@@ -141,7 +141,7 @@ all_tests <- map_dfr(
     
     stopifnot(all.equal(
       nonpuls_genes,
-      all_genes |> filter(cell_type == ct, shape == "nonpulsatile") |> pull(gene_name)
+      all_genes |> filter(cell_type == ct, shape == "nonpulsatile" | shape == "low") |> pull(gene_name)
     ))
     
     
@@ -193,48 +193,125 @@ all_tests |>
             .by = cell_type)
 
 
-all_tests |>
+# all_tests |>
+#   # filter(cell_type == "hypodermis") |>
+#   ggplot() +
+#   theme_classic() +
+#   scale_x_continuous(transform = "sqrt") +
+#   scale_alpha_manual(values = c(`TRUE` = 1, `FALSE` = .2)) +
+#   scale_color_manual(values = c(`TRUE` = "red3", `FALSE` = "black")) +
+#   facet_wrap(~cell_type) +
+#   geom_hline(aes(yintercept = -log10(.05)),
+#              linetype = "dashed", color = "grey") +
+#   geom_point(aes(x = enrichment_fc, y = -log10(p_adj),
+#                  alpha = signif, color = signif)) +
+#   ggrepel::geom_text_repel(aes(x = enrichment_fc, y = -log10(p_adj),
+#                                label = source_name),
+#                            data = all_tests |>
+#                              # filter(cell_type == "hypodermis") |>
+#                              filter(signif)
+#                            ,
+#                            force_pull = .01,force = 10,
+#                            max.overlaps = 10)
+# 
+# 
+# all_tests |>
+#   mutate(cell_type = str_replace_all(cell_type, "_", " ")) |>
+#   ggplot() +
+#   theme_classic() +
+#   theme(legend.position = "none") +
+#   scale_x_continuous(transform = "log2", labels = \(x) format(x, drop0trailing = TRUE)) +
+#   scale_alpha_manual(values = c(`TRUE` = .8, `FALSE` = .2)) +
+#   scale_color_manual(values = c(`TRUE` = "red3", `FALSE` = "black")) +
+#   xlab("Fold Change (log)") +
+#   facet_wrap(~cell_type) +
+#   geom_hline(aes(yintercept = -log10(.05)),
+#              linetype = "dashed", color = "grey") +
+#   geom_point(aes(x = enrichment_fc, y = -log10(p_adj),
+#                  alpha = signif, color = signif),
+#              shape = 16, size = 1.5)
+
+
+
+
+
+tfs_with_known_role <- tibble(
+  source_name = c("nhr-23","grh-1","blmp-1","nhr-25","myrf-1","bed-3","nhr-85"),
+  known_role = TRUE
+)
+
+
+tests_to_plot <- all_tests |>
+  left_join(tfs_with_known_role,
+            by = "source_name") |>
+  left_join(all_genes |>
+              select(cell_type, source_name = gene_name, shape),
+            by = c("cell_type", "source_name")) |>
+  mutate(label = paste0('"', source_name, '"'),
+         label = if_else(is.na(known_role),
+                         label,
+                         paste0("underline(", label,")")),
+         label = if_else(shape == "pulsatile",
+                         paste0("bold(", label,")"),
+                         label)) |>
+  mutate(cell_type = str_replace_all(cell_type, "_", " "))
+
+
+gg <- tests_to_plot |>
   # filter(cell_type == "hypodermis") |>
   ggplot() +
   theme_classic() +
-  scale_x_continuous(transform = "sqrt") +
+  theme(
+    axis.title = element_text(size = 10),
+    axis.text = element_text(size = 7),
+    legend.position = "none",
+    plot.margin = unit(c(0,0,0,0), "mm")
+  ) +
+  scale_x_continuous(transform = "log2") +
   scale_alpha_manual(values = c(`TRUE` = 1, `FALSE` = .2)) +
   scale_color_manual(values = c(`TRUE` = "red3", `FALSE` = "black")) +
-  facet_wrap(~cell_type) +
-  geom_hline(aes(yintercept = -log10(.05)),
-             linetype = "dashed", color = "grey") +
-  geom_point(aes(x = enrichment_fc, y = -log10(p_adj),
-                 alpha = signif, color = signif)) +
-  ggrepel::geom_text_repel(aes(x = enrichment_fc, y = -log10(p_adj),
-                               label = source_name),
-                           data = all_tests |>
-                             # filter(cell_type == "hypodermis") |>
-                             filter(signif)
-                           ,
-                           force_pull = .01,force = 10,
-                           max.overlaps = 10)
-
-
-all_tests |>
-  mutate(cell_type = str_replace_all(cell_type, "_", " ")) |>
-  ggplot() +
-  theme_classic() +
-  theme(legend.position = "none") +
-  scale_x_continuous(transform = "log2", labels = \(x) format(x, drop0trailing = TRUE)) +
-  scale_alpha_manual(values = c(`TRUE` = .8, `FALSE` = .2)) +
-  scale_color_manual(values = c(`TRUE` = "red3", `FALSE` = "black")) +
   xlab("Fold Change (log)") +
+  ylab(expression(-log[10](FDR))) +
   facet_wrap(~cell_type) +
   geom_hline(aes(yintercept = -log10(.05)),
              linetype = "dashed", color = "grey") +
   geom_point(aes(x = enrichment_fc, y = -log10(p_adj),
                  alpha = signif, color = signif),
-             shape = 16, size = 1.5)
+             shape = 16) +
+  ggrepel::geom_text_repel(aes(x = enrichment_fc, y = -log10(p_adj),
+                               label = label),
+                           data = tests_to_plot |>
+                             # filter(cell_type == "hypodermis") |>
+                             filter(signif)
+                           ,
+                           parse = TRUE,
+                           size = 5/2.8, # convert mm to points
+                           point.padding = unit(5, "mm"),
+                           min.segment.length = unit(.5, "mm"),
+                           force_pull = .005,force = 20,
+                           direction = "x",
+                           max.overlaps = 10)
 
-# ggsave("volcano_TFs.pdf", path = dir_out,
-#        width = 200, height = 150, units = "mm",
-#        scale = 1.5)
 
+# ggsave("volcano_TFs.pdf", plot = gg, path = dir_out,
+#        width = 210, height = 150, units = "mm")
+
+
+
+tests_to_plot |>
+  filter(startsWith(cell_type, "pharyn")) |>
+  filter(signif) |>
+  summarize(FDR = min(p_adj),
+            enr = min(enrichment_fc),
+            n = n(),
+            .by = source_name) |>
+  filter(n > 1)
+
+tests_to_plot |>
+  filter(startsWith(cell_type, "pharyn")) |>
+  filter(signif) |>
+  pull(source_name) |>
+  unique()
 
 # tfs_signif <- all_tests |>
 #   filter(any(signif),
@@ -276,7 +353,15 @@ all_tests |>
     ) |>
   ggplot() +
   theme_minimal() +
+  theme(
+    axis.title = element_text(size = 10),
+    axis.text = element_text(size = 7),
+    axis.text.y = element_text(face = "italic", size = 6),
+    legend.position = "none",
+    plot.margin = unit(c(0,0,0,0), "mm")
+  ) +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  xlab(NULL) + ylab(NULL) +
   scale_color_gradient(low = "grey75", high = "red3", trans = c("log10", "reverse")) +
   scale_size_continuous(transform = "log2") +
   scale_alpha_continuous(transform = c("log10", "reverse")) +
@@ -289,8 +374,7 @@ all_tests |>
 
 # ggsave("dotplot_tfs_vs_celltypes.pdf",
 #        path = dir_out,
-#        width = 100, height = 200, units = "mm",
-#        scale = 1.5)
+#        width = 75, height = 175, units = "mm")
 
 
 
@@ -456,7 +540,9 @@ ggraph(graph_tbl, layout = "fr") +
 
 
 
-# Binned time ebnrichment ----
+
+
+# Binned time enrichment ----
 
 
 
@@ -559,7 +645,7 @@ for(ct in cell_types_osc){
       stopifnot(all.equal(
         nonpuls_genes_bin |> sort(),
         union(
-          all_genes |> filter(cell_type == ct, shape == "nonpulsatile") |> pull(gene_name),
+          all_genes |> filter(cell_type == ct, shape == "nonpulsatile" | shape == "low") |> pull(gene_name),
           puls_genes |> filter(time_peak_deg >= bins_end[[bin]] | time_peak_deg < bins_start[[bin]]) |> pull(gene_name)
         ) |> sort()
       ))
@@ -619,12 +705,13 @@ for(ct in cell_types_osc){
               .by = time_bin) |>
     deframe() |> unlist() |> unique()
   
-  if(length(signif_sources) == 0) next
+  if(length(signif_sources) < 2) next
   
   tf_by_time <- all_tests_bin |>
     filter(source_name %in% signif_sources) |>
     arrange(time_bin) |>
     mutate(signif = -log10(p_adj)) |>
+    # mutate(signif = odds_ratio) |>
     pivot_wider(id_cols = source_name,
                 names_from = time_bin,
                 values_from = signif) |>
@@ -636,25 +723,30 @@ for(ct in cell_types_osc){
   pt_colnames[2 * (1:(length(pt_colnames)/2))] <- ""
   colnames(tf_by_time) <- pt_colnames
   
-  pheatmap::pheatmap(tf_by_time,
-                     cluster_rows = TRUE,
-                     cluster_cols = FALSE,
-                     scale = "none")
   
+  # pheatmap::pheatmap(tf_by_time,
+  #                    cluster_rows = TRUE,
+  #                    clustering_distance_rows = "correlation",
+  #                    cluster_cols = FALSE,
+  #                    scale = "none")
   
   n_tfs <- nrow(tf_by_time)
   
   # height 2.5 for ILso/main figure, for supp,  2.7 mm (.1 in) per gene + 6 mm (.24 in) for legend
+  # divide by 2 in figure
   pheatmap::pheatmap(
     tf_by_time,
     color = colorRampPalette(c("white", "#C994C7", "#DD1C77"))(100),
     border_color = NA,
     cluster_rows = TRUE,
     cluster_cols = FALSE,
-    filename = paste0("presentations/figures/250616_celest/heatmaps_timebins/", ct,".pdf"),
+    clustering_distance_rows = "correlation",
+    filename = paste0(dir_out, "/heatmaps_timebins/", ct,".pdf"),
+    fontsize = 10,
     width = 9, height = .5+n_tfs*.15
   )
-  dev.off()
+  if(!is.null(dev.list()))  dev.off()
+  
 }
 
 
