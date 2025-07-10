@@ -1,0 +1,63 @@
+# downloaded from https://www.ebi.ac.uk/interpro/result/download/#/protein/UniProt/entry/InterPro/IPR001507/taxonomy/uniprot/6239/|tsv ; gene name conversion with Simplemine https://wormbase.org/tools/mine/simplemine.cgi								
+Accession	Source Database	Name	Tax ID	Tax Name	Length	WormBase Gene ID	Public Name	Species
+A0A0K3AUQ6	unreviewed	ZP domain-containing protein	6239	Caenorhabditis elegans	189	WBGene00044641	T01D1.8	Caenorhabditis elegans
+A0A131MB05	unreviewed	ZP domain-containing protein	6239	Caenorhabditis elegans	487	WBGene00011928	cutl-12	Caenorhabditis elegans
+A0A131MBI8	unreviewed	ZP domain-containing protein	6239	Caenorhabditis elegans	569	WBGene00011928	cutl-12	Caenorhabditis elegans
+A0A164D3B2	unreviewed	von Willebrand factor type A domain protein	6239	Caenorhabditis elegans	773	WBGene00021343	cutl-23	Caenorhabditis elegans
+A0A168H2V5	unreviewed	VWFA domain-containing protein	6239	Caenorhabditis elegans	681	WBGene00021343	cutl-23	Caenorhabditis elegans
+A3FPI7	unreviewed	ZP domain-containing protein	6239	Caenorhabditis elegans	160	WBGene00045269	F46G11.6	Caenorhabditis elegans
+G4SNP7	unreviewed	VWFA domain-containing protein	6239	Caenorhabditis elegans	1427	WBGene00001063	dpy-1	Caenorhabditis elegans
+G5EBR9	unreviewed	CUTiclin-Like	6239	Caenorhabditis elegans	801	WBGene00009830	cutl-18	Caenorhabditis elegans
+G5EC82	unreviewed	ZP domain-containing protein	6239	Caenorhabditis elegans	711	WBGene00004301	ram-5	Caenorhabditis elegans
+G5EDD6	unreviewed	ZP domain-containing protein	6239	Caenorhabditis elegans	625	WBGene00013960	cutl-8	Caenorhabditis elegans
+G5EFQ3	unreviewed	ZP domain-containing protein	6239	Caenorhabditis elegans	469	WBGene00012304	cutl-4	Caenorhabditis elegans
+H2KZ72	reviewed	Cuticlin-like protein 19	6239	Caenorhabditis elegans	237	WBGene00022533	cutl-19	Caenorhabditis elegans
+H2KZ73	unreviewed	NOmpA Homolog (Drosophila nompA: no mechanoreceptor potential A)	6239	Caenorhabditis elegans	1048	WBGene00016422	noah-1	Caenorhabditis elegans
+H2KZW9	unreviewed	ZP domain-containing protein	6239	Caenorhabditis elegans	599	WBGene00021396	cutl-24	Caenorhabditis elegans
+H2L015	unreviewed	ZP domain-containing protein	6239	Caenorhabditis elegans	502	WBGene00021950	cutl-26	Caenorhabditis elegans
+H8W3Y1	unreviewed	NOmpA Homolog (Drosophila nompA: no mechanoreceptor potential A)	6239	Caenorhabditis elegans	1052	WBGene00016422	noah-1	Caenorhabditis elegans
+I6Z0I7	unreviewed	EGF-like domain-containing protein	6239	Caenorhabditis elegans	2781	WBGene00022816	fbn-1	Caenorhabditis elegans
+I6ZKX2	unreviewed	FBN-1	6239	Caenorhabditis elegans	682	WBGene00022816	fbn-1	Caenorhabditis elegans
+I7J4C8	unreviewed	EGF-like domain-containing protein	6239	Caenorhabditis elegans	2779	WBGene00022816	fbn-1	Caenorhabditis elegans
+I7J4C9	unreviewed	EGF-like domain-containing protein	6239	Caenorhabditis elegans	2656	WBGene00022816	fbn-1	Caenorhabditis elegans
+I7K4J2	unreviewed	EGF-like domain-containing protein	6239	Caenorhabditis elegans	2734	WBGene00022816	fbn-1	Caenorhabditis elegans
+I7LFE6	unreviewed	EGF-like domain-containing protein	6239	Caenorhabditis elegans	2703	WBGene00022816	fbn-1	Caenorhabditis elegans
+I7LHV8	unreviewed	EGF-like domain-containing protein	6239	Caenorhabditis elegans	2756	WBGene00022816	fbn-1	Caenorhabditis elegans
+I7LHV9	unreviewed	EGF-like domain-containing protein	6239	Caenorhabditis elegans	2681	WBGene00022816	fbn-1	Caenorhabditis elegans
+O16304	unreviewed	ZP domain-containing protein	6239	Caenorhabditis elegans	445	WBGene00020663	cutl-22	Caenorhabditis elegans
+O17291	unreviewed	ZP domain-containing protein	6239	Caenorhabditis elegans	202	WBGene00020078	R52.6	Caenorhabditis elegans
+O18117	unreviewed	ZP domain-containing protein	6239	Caenorhabditis elegans	1262	WBGene00011948	rocf-1	Caenorhabditis elegans
+O18213	unreviewed	ZP domain-containing protein	6239	Caenorhabditis elegans	382	WBGene00013145	cutl-2	Caenorhabditis elegans
+O61816	unreviewed	ZP domain-containing protein	6239	Caenorhabditis elegans	270	WBGene00015231	cutl-14	Caenorhabditis elegans
+O61834	unreviewed	CUTiclin-Like	6239	Caenorhabditis elegans	696	WBGene00018256	cutl-28	Caenorhabditis elegans
+Q03755	reviewed	Cuticlin-1	6239	Caenorhabditis elegans	424	WBGene00000851	cut-1	Caenorhabditis elegans
+Q09276	reviewed	Protein dyf-7	6239	Caenorhabditis elegans	446	WBGene00001123	dyf-7	Caenorhabditis elegans
+Q09586	unreviewed	ZP domain-containing protein	6239	Caenorhabditis elegans	488	WBGene00019426	cutl-16	Caenorhabditis elegans
+Q18298	unreviewed	CUTiclin-Like	6239	Caenorhabditis elegans	969	WBGene00007802	cutl-27	Caenorhabditis elegans
+Q19053	reviewed	Cuticlin-4	6239	Caenorhabditis elegans	507	WBGene00008482	cut-4	Caenorhabditis elegans
+Q19304	unreviewed	ZP domain-containing protein	6239	Caenorhabditis elegans	437	WBGene00017351	cutl-5	Caenorhabditis elegans
+Q19379	unreviewed	ZP domain-containing protein	6239	Caenorhabditis elegans	390	WBGene00017421	cutl-29	Caenorhabditis elegans
+Q19707	reviewed	Cuticlin-3	6239	Caenorhabditis elegans	389	WBGene00009041	cut-3	Caenorhabditis elegans
+Q20167	unreviewed	PAN domain protein	6239	Caenorhabditis elegans	912	WBGene00009541	cutl-17	Caenorhabditis elegans
+Q21540	reviewed	Cuticlin-6	6239	Caenorhabditis elegans	572	WBGene00000853	cut-6	Caenorhabditis elegans
+Q21573	unreviewed	ZP domain-containing protein	6239	Caenorhabditis elegans	562	WBGene00010893	cutl-9	Caenorhabditis elegans
+Q21808	reviewed	Cuticlin-5	6239	Caenorhabditis elegans	395	WBGene00011104	cut-5	Caenorhabditis elegans
+Q22164	unreviewed	ZP domain-containing protein	6239	Caenorhabditis elegans	379	WBGene00011443	cutl-11	Caenorhabditis elegans
+Q22627	unreviewed	ZP domain-containing protein	6239	Caenorhabditis elegans	385	WBGene00011888	cutl-15	Caenorhabditis elegans
+Q23097	unreviewed	ZP domain-containing protein	6239	Caenorhabditis elegans	374	WBGene00012165	cutl-6	Caenorhabditis elegans
+Q23587	unreviewed	EGF-like domain-containing protein	6239	Caenorhabditis elegans	2687	WBGene00022816	fbn-1	Caenorhabditis elegans
+Q27394	reviewed	Protein let-653	6239	Caenorhabditis elegans	812	WBGene00002827	let-653	Caenorhabditis elegans
+Q3HKB6	unreviewed	ZP domain-containing protein	6239	Caenorhabditis elegans	94	WBGene00044641	T01D1.8	Caenorhabditis elegans
+Q688Z8	unreviewed	ZP domain-containing protein	6239	Caenorhabditis elegans	601	WBGene00021396	cutl-24	Caenorhabditis elegans
+Q7KWZ4	unreviewed	ZP domain-containing protein	6239	Caenorhabditis elegans	385	WBGene00021919	cutl-25	Caenorhabditis elegans
+Q8T3B7	unreviewed	NOmpA Homolog (Drosophila nompA: no mechanoreceptor potential A)	6239	Caenorhabditis elegans	1052	WBGene00016422	noah-1	Caenorhabditis elegans
+Q93532	unreviewed	ZP domain-containing protein	6239	Caenorhabditis elegans	405	WBGene00008978	cutl-3	Caenorhabditis elegans
+Q95XW3	unreviewed	ZP domain-containing protein	6239	Caenorhabditis elegans	500	WBGene00021950	cutl-26	Caenorhabditis elegans
+Q9TXR6	unreviewed	VWFA domain-containing protein	6239	Caenorhabditis elegans	1094	WBGene00001063	dpy-1	Caenorhabditis elegans
+Q9TYT4	unreviewed	ZP domain-containing protein	6239	Caenorhabditis elegans	360	WBGene00018787	cutl-20	Caenorhabditis elegans
+Q9TZE2	unreviewed	ZP domain-containing protein	6239	Caenorhabditis elegans	445	WBGene00021025	cutl-13	Caenorhabditis elegans
+Q9U250	unreviewed	ZP domain-containing protein	6239	Caenorhabditis elegans	403	WBGene00013180	cutl-10	Caenorhabditis elegans
+Q9XUE5	unreviewed	PAN domain protein	6239	Caenorhabditis elegans	741	WBGene00009926	noah-2	Caenorhabditis elegans
+Q9XVM7	unreviewed	ZP domain-containing protein	6239	Caenorhabditis elegans	399	WBGene00009979	cutl-1	Caenorhabditis elegans
+Q9XVN2	unreviewed	ZP domain-containing protein	6239	Caenorhabditis elegans	535	WBGene00009961	cutl-7	Caenorhabditis elegans
+V6CJG5	unreviewed	ZP domain-containing protein	6239	Caenorhabditis elegans	176	WBGene00018787	cutl-20	Caenorhabditis elegans
