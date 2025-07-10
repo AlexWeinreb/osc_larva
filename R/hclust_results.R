@@ -255,9 +255,10 @@ ggsave("cluster_average.pdf",
 
 #~ save results ----
 
-cluster_results <- all_clustered_fits |>
-  select(cell_type, gene_name, cluster) |>
-  distinct() |>
+cluster_results <- clusters |>
+  separate_wider_delim(cellgene,
+                       delim = "|",
+                       names = c("cell_type", "gene_name")) |>
   mutate(shape = case_match(
     as.numeric(cluster),
     7 ~ "pulsatile",
@@ -269,7 +270,25 @@ cluster_results <- all_clustered_fits |>
 #   write_csv(file.path(dir_clust, "250624_cluster_results.csv"))
 
 
+all.equal(cluster_results |> select(cell_type, gene_name),
+          all_descriptors |> select(cell_type, gene_name))
 
+preds <- mat_pred |>
+  as.data.frame() |>
+  rownames_to_column("cellgene") |>
+  separate_wider_delim(cellgene,
+                       delim = "|",
+                       names = c("cell_type", "gene_name"))
+  
+all.equal(cluster_results |> select(cell_type, gene_name),
+          preds |> select(cell_type, gene_name))
+
+# bind_cols(
+#   cluster_results,
+#   preds |> select(-cell_type, -gene_name) |> rename_with(~paste0("pred_",.x)),
+#   all_descriptors |> select(-cell_type, -gene_name) |> rename_with(~paste0("desc_",.x))
+# ) |>
+#   writexl::write_xlsx(file.path(dir_clust, "table_S3_cellgene_clusters.xlsx"))
 
 
 
