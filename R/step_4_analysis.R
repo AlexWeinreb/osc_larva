@@ -249,7 +249,14 @@ osc_genes_compare <- all_genes |>
   mutate(`single-cell` = if_else(is_puls, "pulsatile", "nonpulsatile"))
 
 osc_genes_compare |>
-  (\(df) table(bulk = df$bulk_class, `single-cell` = df$`single-cell`))()
+  (\(df) table(bulk = df$bulk_class, `single-cell` = df$`single-cell`,
+               useNA = "ifany"))()
+
+osc_genes_compare |>
+  (\(df) table(bulk = if_else(!is.na(df$bulk_class) & df$bulk_class == "Osc",
+                              "Osc",
+                              "nonOsc"),
+               `single-cell` = df$`single-cell`))()
 
 
 # pdf(file.path(out_dir, "osc_vs_pulsatile_euler.pdf"),
@@ -268,7 +275,7 @@ list(
 
 
 
-## Compare OscAmplitude
+## Compare OscAmplitude (cf also hclust_results)
 
 osc_genes_compare |>
   filter(bulk_class == "Osc") |>
@@ -291,7 +298,19 @@ osc_genes_compare |>
 #        path = out_dir,
 #        width = 75, height = 45, units = "mm")
 
-# > not used in figures
+
+
+## stat test
+
+osc_genes_compare |>
+  filter(bulk_class == "Osc") |>
+  wilcox.test(osc_amplitude ~ `single-cell`, data = _)
+
+osc_genes_compare |>
+  filter(bulk_class == "Osc") |>
+  summarize(median_amplitude = median(osc_amplitude),
+            mad = mad(osc_amplitude),
+            .by = `single-cell`)
 
 
 
@@ -507,9 +526,9 @@ hc <- as.dist(1-dist_mat_prop) |>
 pheatmap::pheatmap(mat_intersections,
                    cluster_rows = hc,
                    cluster_cols = hc,
-                   width = 6, height = 5,
-                   fontsize = 7,
-                   filename = file.path(out_dir, "intersections_pulsOne.pdf"),
+                   # width = 6, height = 5,
+                   # fontsize = 7,
+                   # filename = file.path(out_dir, "intersections_pulsOne.pdf"),
                    annotation_row = cell_types_info |> column_to_rownames("cell_type") |> select(tissue),
                    annotation_col = cell_types_info |> column_to_rownames("cell_type") |> select(tissue),
                    annotation_colors = list(tissue = c(
@@ -555,7 +574,22 @@ in_osc_ct |>
 
 
 
+in_osc_ct |>
+  filter(is_puls) |>
+  summarize(nb_cell_types = n(),
+            .by = gene_name) |>
+  summarize(nb_genes = n(),
+            .by = nb_cell_types) |>
+  # filter(nb_cell_types <= 1) |>
+  filter(nb_cell_types >= 5) |>
+  pull(nb_genes) |>
+  sum()
 
+in_osc_ct |>
+  summarize(nb_cell_types = sum(is_puls),
+            .by = gene_name) |>
+  arrange(desc(nb_cell_types)) |>
+  View()
 
 
 
