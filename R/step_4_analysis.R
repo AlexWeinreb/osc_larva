@@ -85,7 +85,7 @@ osc_raw <- readxl::read_excel("data/msb209498-sup-0003-datasetev1.xlsx",
 osc_table <- osc_raw |>
   filter(! is.na(gene_name)) |>
   mutate(osc_amplitude = if_else(is.na(OscAmplitude), 0, OscAmplitude)) |>
-  select(gene_name, bulk_class = Class, osc_amplitude) |>
+  select(gene_name, bulk_class = Class, osc_amplitude, bulk_peak = PeakPhase) |>
   group_by(gene_name) |>
   slice_max(osc_amplitude,
             with_ties = FALSE) |>
@@ -891,6 +891,10 @@ for(man_fam in c("collagens", "hedgehog","appg","zp")){
                       zp = genelist_zp
   )
   
+  # length(genelist)
+  # table( i2s(genelist, gids) %in% all_genes$gene_name)
+  # table( i2s(genelist, gids) %in% all_genes$gene_name[all_genes$shape == "pulsatile"])
+  
   dat <- all_genes |>
     filter(gene_name %in% i2s(genelist, gids),
            cell_type %in% cell_types_osc) |>
@@ -1245,6 +1249,301 @@ Seurat::FeaturePlot(amphso_subseu,
                     pt.size = 2, #min.cutoff = 0,max.cutoff = 1,
                     alpha = .5) +
   ggtitle(goi, "AM/PHso")
+
+
+
+
+
+
+
+
+
+
+# Families in time ----
+
+source("R/utils_heatmap_processing.R")
+
+# dir_step2 <- "E:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250624_step2/"
+# dir_step4 <- "E:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250801_step4_analysis/"
+
+all(paste0(cell_types_osc, "_mods_uncentered.qs") %in% list.files(dir_step2))
+
+
+
+
+puls_genes_timed <- map_dfr(cell_types_osc,
+        \(ct) {
+          
+          message(ct)
+          
+          mods_uncentered <- qs::qread(file.path(dir_step2, paste0(ct, "_mods_uncentered.qs")))
+          
+          # computed same for all genes
+          mean_sf <- lapply(mods_uncentered,
+                            \(.mod) exp(.mod$model$`offset(log(size_factors))`)) |>
+            unlist() |>
+            log() |>
+            mean() |>
+            exp()
+          
+          len <- 128
+          
+          preds_uncentered <- vapply(mods_uncentered,
+                                     \(.mod) predict(.mod,
+                                                     type = "response",
+                                                     newdata = data.frame(
+                                                       pseudotime = (0:(len-1))/len ,
+                                                       size_factors = rep(mean_sf, len))
+                                     ),
+                                     FUN.VALUE = double(len))
+          
+          
+          time_max <- apply(preds_uncentered, 2, which.max) / len
+          
+          # preds_uncentered1 <- preds_uncentered[,1:20]
+          # time_max1 <- time_max[1:20]
+          # ngenes <- ncol(preds_uncentered1)
+          # printMat::matimage(log1p(preds_uncentered1))
+          # points((1:ngenes - 1)/(ngenes - 1), (1 - time_max1), pch = "-", cex = 3.5, col = 'purple')
+          
+          
+          
+          # align to bulk phase
+          
+          peak_times <- left_join(
+            enframe(time_max,
+                    name = "gene_name",
+                    value = "peak_pseudotime"),
+            osc_table,
+            by = "gene_name"
+          ) |>
+            filter(bulk_class == "Osc")
+          
+          alignment <- align_circular(peak_times$bulk_peak,
+                                      peak_times$peak_pseudotime*360)
+          
+          time_max_deg <- if (alignment$invert) {
+            ((360 - time_max*360) - alignment$shift) %% 360
+          } else {
+            (time_max*360 - alignment$shift) %% 360
+          }
+          
+          png(file.path(dir_step4, paste0(ct, "_alignment.png")))
+          plot(peak_times$bulk_peak,
+               time_max_deg[peak_times$gene_name])
+          dev.off()
+          
+          
+          
+          
+          all_genes |>
+            filter(cell_type == ct,
+                   shape == "pulsatile") |>
+            mutate(time_peak_deg = time_max_deg[gene_name])
+          
+          
+        })
+
+
+# qs::qsave(puls_genes_timed,
+#           file.path(dir_step4, "puls_genes_timed.qs"))
+
+
+# ordered by bulk (ugly because many pulsatile genes have NA phase in bulk)
+puls_genes_timed |>
+  mutate(
+    gene_name = factor(gene_name,
+                       levels = rev(
+                         osc_table |>
+                           arrange(bulk_peak) |>
+                           pull(gene_name) |>
+                           intersect(puls_genes_timed$gene_name)
+                       ))
+  ) |>
+  ggplot() +
+  theme_classic() +
+  scale_x_discrete(breaks = rev(puls_genes_ordered)[(1:20)*5200/20]) +
+  coord_flip() +
+  geom_point(aes(x = gene_name, y = time_peak_deg),
+             alpha = .2, shape = 16)
+
+
+
+
+# pre-order genes
+puls_genes_averaged <- puls_genes_timed |>
+  mutate(phase_peak = circular::circular(time_peak_deg, units = "degree")) |>
+  summarize(mean_phase = circular::mean.circular(phase_peak),
+            .by = gene_name) |>
+  mutate(mean_phase_deg = (as.numeric(mean_phase) + 360) %% 360 ) |>
+  arrange(desc(mean_phase_deg))
+
+puls_genes_ordered <- puls_genes_averaged |>
+  pull(gene_name) |>
+  fct_inorder() |>
+  levels()
+
+
+
+puls_genes_timed |>
+  mutate(gene_name = factor(gene_name, levels = rev(puls_genes_ordered))) |>
+  ggplot() +
+  theme_classic() +
+  scale_x_discrete(breaks = rev(puls_genes_ordered)[(1:20)*5200/20]) +
+  coord_flip() +
+  geom_point(aes(x = gene_name, y = time_peak_deg),
+             alpha = .2, shape = 16)
+
+
+left_join(puls_genes_averaged,
+          osc_table,
+          by = "gene_name") |>
+  ggplot() +
+  theme_classic() +
+  xlab("Phase from bulk") + ylab("Average phase from sc") +
+  geom_point(aes(x = bulk_peak, y = mean_phase_deg),
+             alpha = .3)
+
+
+puls_genes_timed |>
+  pivot_wider(id_cols = gene_name,
+              values_from = time_peak_deg,
+              names_from = cell_type) |>
+  ggplot() + theme_classic() +
+  geom_point(aes(x = ILso, y = AM_PHso))
+
+
+
+
+#By family
+bind_rows(
+  tibble(family = "collagens",
+         gene_id = genelist_col),
+  tibble(family = "Hh",
+         gene_id = genelist_hedgehog),
+  tibble(family = "APPG",
+         gene_id = genelist_appg),
+  tibble(family = "ZP",
+         gene_id = genelist_zp)
+) |>
+  mutate(gene_name = i2s(gene_id, gids)) |>
+  left_join(puls_genes_averaged,
+            by = "gene_name") |>
+  ggplot() +
+  theme_classic() +
+  ylab(NULL) + xlab("Phase of peak (avg btw cell types)") +
+  scale_x_continuous(limits = c(0,360)) +
+  geom_point(aes(x = mean_phase_deg, y = family, color = family),
+             alpha = .6, show.legend = FALSE)
+  # geom_density(aes(x = mean_phase_deg, fill = family),
+  #              alpha = .3)
+
+
+# Timings from Sundaram and Pujol
+
+bind_rows(
+  tibble(family = "precuticule",
+         gene_name = c("lpr-3", "noah-1", "sym-1", "noah-2", "fbn-1")),
+  tibble(family = "furrow col",
+         gene_name = c("dpy-2", "dpy-3", "dpy-7", "dpy-8", "dpy-9", "dpy-10" )),
+  tibble(family = "annuli col",
+         gene_name = c("sqt-3", "dpy-4", "dpy-5", "dpy-13"))
+) |>
+  left_join(puls_genes_averaged,
+            by = "gene_name") |>
+  ggplot() +
+  theme_classic() +
+  ylab(NULL) + xlab("Phase of peak (avg btw cell types)") +
+  scale_x_continuous(limits = c(0,360)) +
+  geom_point(aes(x = mean_phase_deg, y = family, color = family),
+             alpha = .6, show.legend = FALSE)
+
+
+
+bind_rows(
+  tibble(family = "precuticule",
+         gene_name = c("lpr-3", "noah-1", "sym-1", "noah-2", "fbn-1")),
+  tibble(family = "furrow col",
+         gene_name = c("dpy-2", "dpy-3", "dpy-7", "dpy-8", "dpy-9", "dpy-10" )),
+  tibble(family = "annuli col",
+         gene_name = c("sqt-3", "dpy-4", "dpy-5", "dpy-13"))
+) |>
+  left_join(puls_genes_averaged,
+            by = "gene_name") |>
+  ggplot() +
+  theme_classic() +
+  ylab(NULL) + xlab("Phase of peak (avg btw cell types)") +
+  scale_x_continuous(limits = c(0,360)) +
+  coord_polar() +
+  geom_segment(aes(x = mean_phase_deg, y = 0, yend = 1, color = family),
+             alpha = .6, show.legend = FALSE)
+
+
+
+
+
+#~ heatmap ----
+
+ct
+all_tests_bin <- qs::qread(file.path(dir_step4, "bins", paste0(ct, ".qs")))
+
+signif_fams <- all_tests_bin |>
+  filter(FDR < 0.05, observed > 0) |>
+  summarize(family = list(family_id),
+            .by = time_bin) |>
+  deframe() |> unlist() |> unique()
+
+if(length(signif_fams) < 2) next
+
+fam_by_time <- all_tests_bin |>
+  filter(family_id %in% signif_fams) |>
+  arrange(time_bin) |>
+  mutate(signif = -log10(FDR)) |>
+  # mutate(signif = odds_ratio) |>
+  pivot_wider(id_cols = family_id,
+              names_from = time_bin,
+              values_from = signif) |>
+  column_to_rownames("family_id") |>
+  as.matrix()
+
+
+pt_colnames <- round(bins_start + (bin_width/2), 1)
+pt_colnames[2 * (1:(length(pt_colnames)/2))] <- ""
+colnames(fam_by_time) <- pt_colnames
+
+
+pheatmap::pheatmap(fam_by_time,
+                   cluster_rows = TRUE,
+                   clustering_distance_rows = "correlation",
+                   cluster_cols = FALSE,
+                   scale = "none")
+
+n_tfs <- nrow(tf_by_time)
+
+# height 2.5 for ILso/main figure, for supp,  2.7 mm (.1 in) per gene + 6 mm (.24 in) for legend
+# divide by 2 in figure
+pheatmap::pheatmap(
+  tf_by_time,
+  color = colorRampPalette(c("white", "#C994C7", "#DD1C77"))(100),
+  border_color = NA,
+  cluster_rows = TRUE,
+  cluster_cols = FALSE,
+  clustering_distance_rows = "correlation",
+  filename = paste0(dir_out, "/heatmaps_timebins/", ct,".pdf"),
+  fontsize = 10,
+  width = 9, height = .5+n_tfs*.15
+)
+
+
+
+
+
+
+
+
+
+
+
 
 
 
