@@ -803,7 +803,7 @@ samples_table <- read_tsv("data/samples_table.tsv")
 
 # FeaturePlot(seu, features = "nsIs198", pt.size = 2, alpha = .2, cols = c("bisque2", "green4"))
 
-dat <- FetchData(seu, vars = c("orig.ident", "nsIs198", "umap_1", "umap_2"))
+dat <- FetchData(seu, vars = c("orig.ident", "nsIs198", "umap_1", "umap_2", "cell_type"))
 
 
 
@@ -863,10 +863,25 @@ dat2 |>
 
 
 
+# Some numbers for manuscript
+dat2 |>
+  count(promoter,
+        nsIs198 > 0)
+
+dat2 |>
+  count(promoter,
+        nsIs198 > 0,
+        cell_type == "ILso")
 
 
-
-
+dat2 |>
+  filter(nsIs198 > 0,
+         promoter == "grl-18") |>
+  pull(cell_type) |>
+  fct_lump_n(n = 5) |>
+  enframe(value = "cell_type", name = NULL) |>
+  count(cell_type) |>
+  arrange(desc(n))
 
 
 
