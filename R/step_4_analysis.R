@@ -275,6 +275,39 @@ list(
 
 
 
+# Check genes Osc but non-pulsatile
+genelist_bulk_nonpuls <- osc_genes_compare |>
+  filter(bulk_class == "Osc",
+         `single-cell` == "nonpulsatile") |>
+  pull(gene_name)
+
+length(genelist_bulk_nonpuls)
+
+dict <- wormbaseEnrich::fetch_dictionary("tissue")
+dict <- wormbaseEnrich::fetch_dictionary("go")
+
+enrres <- wormbaseEnrich::enrichment_analysis(
+  genelist_bulk_nonpuls |> s2i(gids),
+  dict
+)
+
+wormbaseEnrich::plot_enrichment_results(enrres)
+
+enrres |>
+  mutate(is_devt = str_detect(term_name,
+                              "^(C|AB)[aplrvd]+$")) |>
+  ggplot() +
+  theme_classic() +
+  scale_alpha_manual(values = c(`TRUE` = .03, `FALSE` = 1)) +
+  geom_point(aes(x = observed, y = -log10(FDR),
+                 size = enrichment_fc,
+                 alpha = is_devt,
+                 color = is_devt))
+
+
+
+
+
 ## Compare OscAmplitude (cf also hclust_results)
 
 osc_genes_compare |>
