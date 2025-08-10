@@ -93,13 +93,13 @@ annot_clusts <- clusters |>
 
 
 #~ plot metrics ----
-# png("presentations/figures/250624_hclust/heatmap_genes_pred.png",
-#     width = 9, height = 4, units = "in", res = 500)
+# png("presentations/figures/250624_hclust/heatmap_genes_pred_wide.png",
+#     width = 11.25, height = 4, units = "in", res = 500)
 pheatmap::pheatmap(t(mat_pred),
                    cluster_rows = FALSE,
                    cluster_cols = hc,
-                   # filename = "presentations/figures/250624_hclust/heatmap_genes_pred.pdf",
-                   # width = 9, height = 4,
+                   # filename = "presentations/figures/250624_hclust/heatmap_genes_pred_wide.pdf",
+                   # width = 11.25, height = 4,
                    show_colnames = FALSE,
                    annotation_col = annot_clusts,
                    annotation_colors = list(cluster = set_names(pals::alphabet(ncl),
@@ -158,7 +158,8 @@ cluster_means |>
 
 
 #~ heatmap pseudotime ----
-
+# png("presentations/figures/250624_hclust/manh_heatmap_genes_time_wide.png",
+#     width = 11.25, height = 4, units = "in", res = 500)
 pheatmap::pheatmap(log1p(smooth_centered[,rownames(mat_pred)]),
                    cluster_rows = FALSE,
                    cluster_cols = hc,
