@@ -416,7 +416,8 @@ In `R/velocyto_load_loom.R`, called from `src/runR_velocyto_load_loom.sh`
 #### Plot velocyto
 
 `velocyto_cell_type.R`
-  
+
+TODO: redo with 250609_step1 instead of 250522_step1  
   
 Using joblist:
 
