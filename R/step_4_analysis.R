@@ -587,23 +587,29 @@ in_osc_ct |>
             .by = gene_name) |>
   summarize(nb_genes = n(),
             .by = nb_cell_types) |>
+  mutate(nb_cell_types = factor(as.character(nb_cell_types),
+                                levels = rev(1:13))) |>
   ggplot() +
   theme_classic() +
   theme(
     axis.title = element_text(size = 10),
     axis.text = element_text(size = 7),
+    axis.text.x = element_text(angle = 90,
+                               vjust = .5,
+                               hjust = 1),
     plot.margin = unit(c(0,0,0,0), "mm")
   ) +
-  xlab("Number of cell types in which pulsatile") +
-  ylab("Number of genes") +
-  scale_x_continuous(breaks = seq(1,14,by = 2)) +
-  scale_y_continuous(n.breaks = 7) +
-  geom_col(aes(x = nb_cell_types, y = nb_genes))
+  xlab("Number of genes") +
+  ylab("Number of cell types in which pulsatile") +
+  scale_x_continuous(n.breaks = 7,
+                     labels = scales::label_comma()) +
+  scale_y_discrete(breaks = seq(1,14,by = 2)) +
+  geom_col(aes(y = nb_cell_types, x = nb_genes))
 
 
 # ggsave("puls_per_ct_intersections.pdf",
 #        path = out_dir,
-#        width = 70, height = 30, units = "mm")
+#        width = 30, height = 70, units = "mm")
 
 
 
@@ -780,13 +786,12 @@ panther_filt |>
 
 mat <- panther_filt |>
   # filter(family_id %in% families_in_multiple) |>
-  mutate(family = paste0(family_id,": ", description),
-         logFDR = -log10(FDR + 1e-16)) |>
-  pivot_wider(id_cols = family,
+  mutate(logFDR = -log10(FDR + 1e-16)) |>
+  pivot_wider(id_cols = family_id,
               names_from = cell_type,
               values_from = logFDR,
               values_fill = 1) |>
-  column_to_rownames("family") |>
+  column_to_rownames("family_id") |>
   as.matrix()
 
 hc_fams <- dist(mat) |> hclust()
@@ -794,27 +799,28 @@ hc_cts <- dist(t(mat)) |> hclust()
 
 pheatmap::pheatmap(mat)
 
-panther_filt |>
+panther_filt_plot <- panther_filt |>
   # filter(family_id %in% families_in_multiple) |>
-  mutate(family = paste0(family_id,": ", description),
-         family = factor(family,
+  mutate(family_id = factor(family_id,
                          levels = rev(hc_fams$labels[hc_fams$order])),
          cell_type = factor(cell_type,
-                            levels = hc_cts$labels[hc_cts$order])) |>
+                            levels = hc_cts$labels[hc_cts$order]))
+
+panther_filt_plot |>
   ggplot() +
   theme_minimal() +
   labs(x = NULL, y = NULL) +
   theme(
-    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size = 7),
-    axis.text.y = element_text(size = 5),
+    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size = 6),
+    axis.text.y = element_text(size = 7),
     legend.position = "top",
     legend.title = element_text(size = 3),
     legend.text = element_text(size = 6),
     legend.key.size = unit(1, "mm"),
-    legend.margin = margin(),
-    legend.box.margin = margin(),
-    plot.margin = unit(c(0,0,0,0), "mm")
+    legend.margin = margin(b = 65),
+    legend.box.margin = margin()
   ) +
+  coord_cartesian(clip = "off") +
   scale_color_gradient(
     low = "grey75",
     high = "orange2",
@@ -824,15 +830,23 @@ panther_filt |>
                          limits = c(1, 1e-8),
                          range = c(.2,1)) +
   geom_point(aes(
-    x = cell_type, y = family,
+    y = cell_type, x = family_id,
     color = -log10(FDR + 1e-16),
     size = log2(enrichment_fc),
     alpha = FDR + 1e-16
   ),
-  shape = 16)
+  shape = 16) +
+  geom_text(
+    data = panther_filt_plot |> distinct(family_id, description),
+    aes(x = family_id, label = description),
+    y = Inf, 
+    hjust = 0,
+    angle = 90,
+    size = 6/2.83
+  )
 
 # ggsave("panther_terms_enrichement_dotplot.pdf", path = out_dir,
-#        width = 100, height = 145, units = "mm")
+#        width = 170, height = 100, units = "mm")
 
 
 # With description on the right
