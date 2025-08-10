@@ -252,40 +252,48 @@ tests_to_plot <- all_tests |>
                          label,
                          paste0("underline(", label,")")),
          label = if_else(shape == "pulsatile",
-                         paste0("bold(", label,")"),
-                         label)) |>
+                         paste0("bolditalic(", label,")"),
+                         paste0("italic(", label,")"))) |>
   mutate(cell_type = str_replace_all(cell_type, "_", " "))
 
 
-gg <- tests_to_plot |>
-  # filter(cell_type == "hypodermis") |>
+# gg <- 
+tests_to_plot |>
+  # filter(cell_type == "glia sheath 2") |>
   ggplot() +
   theme_classic() +
   theme(
     axis.title = element_text(size = 10),
     axis.text = element_text(size = 7),
     legend.position = "none",
-    plot.margin = unit(c(0,0,0,0), "mm")
+    plot.margin = unit(c(0,0,0,0), "mm"),
+    plot.background = element_blank(),
+    panel.background = element_blank(),
+    panel.spacing.y = unit(0, "mm"),
+    strip.background = element_blank(),
+    strip.text = element_text(hjust = 0, vjust = -5),
+    strip.clip = "off"
   ) +
   scale_x_continuous(transform = "log2") +
-  scale_alpha_manual(values = c(`TRUE` = 1, `FALSE` = .2)) +
-  scale_color_manual(values = c(`TRUE` = "red3", `FALSE` = "black")) +
+  scale_alpha_manual(values = c(`TRUE` = .8, `FALSE` = .2)) +
+  scale_fill_manual(values = c(`TRUE` = "orange", `FALSE` = "black")) +
+  scale_color_manual(values = c(pulsatile = "red3", nonpulsatile = "black", low = "black")) +
   xlab("Fold Change (log)") +
   ylab(expression(-log[10](FDR))) +
-  facet_wrap(~cell_type) +
+  facet_wrap(~cell_type, axes = "all") +
   geom_hline(aes(yintercept = -log10(.05)),
              linetype = "dashed", color = "grey") +
   geom_point(aes(x = enrichment_fc, y = -log10(p_adj),
-                 alpha = signif, color = signif),
-             shape = 16) +
+                 alpha = signif, fill = signif),
+             shape = 21, stroke = NA, size = 2) +
   ggrepel::geom_text_repel(aes(x = enrichment_fc, y = -log10(p_adj),
-                               label = label),
+                               label = label, color = shape),
                            data = tests_to_plot |>
-                             # filter(cell_type == "hypodermis") |>
+                             # filter(cell_type == "glia sheath 2") |>
                              filter(signif)
                            ,
                            parse = TRUE,
-                           size = 5/2.8, # convert mm to points
+                           size = 7/.pt, # convert mm to points
                            point.padding = unit(5, "mm"),
                            min.segment.length = unit(.5, "mm"),
                            force_pull = .005,force = 20,
@@ -293,7 +301,7 @@ gg <- tests_to_plot |>
                            max.overlaps = 10)
 
 
-# ggsave("volcano_TFs.pdf", plot = gg, path = dir_out,
+# ggsave("volcano_TFs.pdf", path = dir_out,
 #        width = 210, height = 150, units = "mm")
 
 
