@@ -945,24 +945,45 @@ ggsave(paste0("phase_",tissue_here,".pdf"), path = "presentations/figures/250611
 # ____________ ----
 # Illustrations ----
 
-#~ Individual cells ILso ----
+# seu <- qs::qread( file.path(dir_out, "250606_seu_all_herma.qs"))
+
+dir_step1 <- "intermediates/2502/250609_step1"
+# dir_step1 <- "E:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250609_step1"
+
+
+dir_figure <- "presentations/figures/250810_cell_phases"
+
+
+#~ ILso ----
+
 sub <- qs::qread(
-  file.path("intermediates/2502/250522_step1",
+  file.path(dir_step1,
             paste0("ILso", "_seu_unsmoothed.qs"))
 )
+
+
+# note we need the full matrix here to ensure same normalization
+mat <- LayerData(seu, assay = "SCT", layer = "data", features = osc_table$gene_name)
+genes_max <- sparseMatrixStats::rowMaxs(mat)
+genes_max[genes_max == 0] <- 1
+mat <- mat / genes_max
+
+mat <- mat[,colnames(sub)]
+
+
 
 
 dat <- FetchData(sub,
                  vars = c("PC_1", "PC_2", "cell_phase_masked")) |>
   mutate(selected = FALSE,
-         selected = {x <- selected; x[c(4,242)] <- TRUE; x})
+         selected = {x <- selected; x[c(1, 2)] <- TRUE; x})
 
 dat$PC_1 <- -dat$PC_1
 
 
 stopifnot(identical(
-  rownames(dat)[c(4,242)],
-  colnames(GetAssayData(sub, assay = "SCT", layer = "data"))[c(4,242)]
+  rownames(dat)[c(1, 2)],
+  colnames(GetAssayData(sub, assay = "SCT", layer = "data"))[c(1, 2)]
 ))
 
 
@@ -973,46 +994,64 @@ DimPlot(sub,
         label = FALSE,
         pt.size = .8,
         alpha = .3,
-        cells.highlight = rownames(dat)[c(4,242)],
+        cells.highlight = rownames(dat)[1:2],
         sizes.highlight = 3,
         cols.highlight = 'red') +
   NoLegend()
 
 
-dat |> 
-  ggplot() +
-  theme_classic() +
-  theme(legend.position = "none") +
-  geom_point(aes(x = PC_1, y = PC_2),
-             alpha = .4, color = "grey") +
-  geom_point(aes(x = PC_1, y = PC_2),
-             data = dat |> filter(selected),
-             size = 3, color = 'red3')
-
-ggsave("phases_ILso_cells_4-242_pca.pdf", path = "presentations/250523_umap/",
-       width = 6, height = 6, units = "in")
-ggsave("phases_ILso_cells_4-242_pca.png", path = "presentations/250523_umap/",
-       width = 6, height = 6, units = "in")
-
 
 dat |> 
   ggplot() +
   theme_classic() +
-  theme(legend.position = "none") +
+  theme(
+    title = element_text(size = 10),
+    axis.text = element_text(size = 7),
+    axis.title = element_text(size = 10),
+    legend.position = "none",
+    plot.margin = unit(c(0,0,0,0), "mm")
+  ) +
+  labs(x = "PC 1", y = "PC 2", title = "ILso glia") +
+  scale_color_manual(values = c(`TRUE` = "red3", `FALSE` = "grey")) +
+  scale_size_manual( values = c(`TRUE` = 3, `FALSE` = 1)) +
+  scale_alpha_manual(values = c(`TRUE` = 1, `FALSE` = .4)) +
+  ggrastr::geom_point_rast(aes(x = PC_1, y = PC_2,
+                               color = selected, alpha = selected, size = selected),
+                           shape = 16)
+
+
+
+# ggsave("pca_ILso_cells_1-2.pdf", path = dir_figure,
+#        width = 70, height = 70, units = "mm")
+
+
+
+dat |> 
+  ggplot() +
+  theme_classic() +
+  theme(
+    title = element_text(size = 10),
+    axis.text = element_text(size = 7),
+    axis.title = element_text(size = 10),
+    legend.position = "none",
+    plot.margin = unit(c(0,0,0,0), "mm")
+  ) +
+  labs(x = "PC 1", y = "PC 2", title = "ILso glia") +
   scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50)) +
-  geom_point(aes(x = PC_1, y = PC_2, color = cell_phase_masked),
-             size = 2,
-             alpha = .7)
+  geom_point_rast(aes(x = PC_1, y = PC_2, color = cell_phase_masked),
+                  size = 1,
+                  shape = 16,
+                  alpha = .7)
 
-# ggsave("pca_ILso_color.png", path = "presentations/",
-#        width = 6, height = 6, units = "in")
+# ggsave("pca_ILso_color.pdf", path = dir_figure,
+#        width = 70, height = 70, units = "mm")
 
 
-#~ cell, radial ----
+#~~ cells, radial ----
 
-# cells 4, 242
+# cells 1, 2
 
-cell_nb <- 242
+cell_nb <- 1
 dat_1_cell <- enframe(mat[,cell_nb],
                       name = "gene_name",
                       value = "expression") |>
@@ -1044,17 +1083,31 @@ dat_1_cell |>
 
 
 # ggsave(paste0("phases_ILso_cell_",cell_nb,".pdf"),
-#        path = "presentations/",
+#        path = dir_figure,
 #        width = 6, height = 6, units = "in")
 
 
 dat_1_cell |>
   ggplot() +
-  theme_bw() +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 7),
+    axis.text.y = element_text(color = "black"),
+    title = element_text(size = 7),
+    axis.ticks.y = element_line(color = "black"),
+    legend.position = "none",
+    plot.margin = unit(c(0,0,0,0), "mm"),
+    plot.background = element_blank(),
+    panel.background = element_blank()
+  ) +
   coord_polar() +
-  scale_x_continuous(limits = c(0,360), n.breaks = 15) +
+  scale_x_continuous(
+    limits = c(0,360),
+    breaks = c(0, 90, 180, 270),
+    labels = \(x) paste0(x, "°")
+    ) +
   scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50)) +
-  ylab("expression") +
+  labs(x = NULL, y = "expression", title = paste0("ILso cell #", cell_nb)) +
   geom_segment(aes(x = peak_phase_deg,
                    xend = peak_phase_deg,
                    y = 0,
@@ -1068,12 +1121,12 @@ dat_1_cell |>
                data = tibble(mean_angle = sub$cell_phase[[cell_nb]],
                              mean_rho = sub$cell_rho[[cell_nb]]),
                linewidth = 1,
-               color = 'black') #+theme(legend.position = 'none')
+               color = 'black')
 
 
 # ggsave(paste0("phases_ILso_cell_",cell_nb,"_col.pdf"),
-#        path = "presentations/",
-#        width = 6, height = 6, units = "in")
+#        path = dir_figure,
+#        width = 50, height = 40, units = "mm")
 
 tibble(mean_angle = sub$cell_phase[[cell_nb]],
        mean_rho = sub$cell_rho[[cell_nb]],
@@ -1088,11 +1141,11 @@ tibble(mean_angle = sub$cell_phase[[cell_nb]],
 
 
 #~ BWM ----
-sub <- subset(seu, cell_type == "BWM") |>
-  SCTransform() |>
-  RunPCA(npcs = 2, verbose = FALSE)
+sub <- qs::qread(
+  file.path(dir_step1,
+            paste0("BWM", "_seu_unsmoothed.qs"))
+)
 
-cell_nb <- 14
 
 
 # note we need the full matrix here to ensure same normalization
@@ -1106,46 +1159,70 @@ mat <- mat[,colnames(sub)]
 
 # PCA
 
+cell_nb <- 2
+
+
 dat <- FetchData(sub,
                  vars = c("PC_1", "PC_2", "cell_phase_masked")) |>
   mutate(selected = FALSE,
          selected = {x <- selected; x[c(cell_nb)] <- TRUE; x})
-dat |> 
-  ggplot() +
-  theme_classic() +
-  theme(legend.position = "none") +
-  geom_point(aes(x = PC_1, y = PC_2),
-             alpha = .4, color = "grey") +
-  geom_point(aes(x = PC_1, y = PC_2),
-             data = dat |> filter(selected),
-             size = 3, color = 'red3')
-
-# ggsave(paste0("phases_BWM_cells_",cell_nb,"_pca.pdf"),
-#        path = "presentations/",
-#        width = 6, height = 6, units = "in")
 
 
-# ggsave(paste0("phases_BWM_cells_",cell_nb,"_pca.png"),
-#        path = "presentations/",
-#        width = 6, height = 6, units = "in")
+stopifnot(identical(
+  rownames(dat)[cell_nb],
+  colnames(GetAssayData(sub, assay = "SCT", layer = "data"))[cell_nb]
+))
 
 
 dat |> 
   ggplot() +
   theme_classic() +
-  theme(legend.position = "none") +
+  theme(
+    title = element_text(size = 10),
+    axis.text = element_text(size = 7),
+    axis.title = element_text(size = 10),
+    legend.position = "none",
+    plot.margin = unit(c(0,0,0,0), "mm")
+  ) +
+  labs(x = "PC 1", y = "PC 2", title = "BWM") +
+  scale_color_manual(values = c(`TRUE` = "red3", `FALSE` = "grey")) +
+  scale_size_manual( values = c(`TRUE` = 3, `FALSE` = 1)) +
+  scale_alpha_manual(values = c(`TRUE` = 1, `FALSE` = .4)) +
+  ggrastr::geom_point_rast(aes(x = PC_1, y = PC_2,
+                               color = selected, alpha = selected, size = selected),
+                           shape = 16)
+
+# ggsave(paste0("pca_BWM_cells_",cell_nb,".pdf"),
+#        path = dir_figure,
+#        width = 70, height = 70, units = "mm")
+
+
+
+
+dat |> 
+  ggplot() +
+  theme_classic() +
+  theme(
+    title = element_text(size = 10),
+    axis.text = element_text(size = 7),
+    axis.title = element_text(size = 10),
+    legend.position = "none",
+    plot.margin = unit(c(0,0,0,0), "mm")
+  ) +
+  labs(x = "PC 1", y = "PC 2", title = "BWM") +
   scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50)) +
-  geom_point(aes(x = PC_1, y = PC_2, color = cell_phase_masked),
-             size = 2,
-             alpha = .7)
+  geom_point_rast(aes(x = PC_1, y = PC_2, color = cell_phase_masked),
+                  size = 1,
+                  shape = 16,
+                  alpha = .7)
 
-# ggsave("pca_BWM_color.png", path = "presentations/",
-#        width = 6, height = 6, units = "in")
+# ggsave("pca_BWM_color.pdf", path = dir_figure,
+#        width = 70, height = 70, units = "mm")
 
 
+#~~ cells, radial ----
 
 # 1 cell
-cell_nb <- 14
 dat_1_cell <- enframe(mat[,cell_nb],
                       name = "gene_name",
                       value = "expression") |>
