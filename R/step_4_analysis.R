@@ -835,13 +835,13 @@ panther_filt_plot |>
   theme_minimal() +
   labs(x = NULL, y = NULL) +
   theme(
-    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size = 6),
+    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size = 7),
     axis.text.y = element_text(size = 7),
     legend.position = "top",
     legend.title = element_text(size = 3),
     legend.text = element_text(size = 6),
     legend.key.size = unit(1, "mm"),
-    legend.margin = margin(b = 65),
+    legend.margin = margin(b = 0),
     legend.box.margin = margin()
   ) +
   coord_cartesian(clip = "off") +
@@ -854,23 +854,15 @@ panther_filt_plot |>
                          limits = c(1, 1e-8),
                          range = c(.2,1)) +
   geom_point(aes(
-    y = cell_type, x = family_id,
+    y = cell_type, x = description,
     color = -log10(FDR + 1e-16),
     size = log2(enrichment_fc),
     alpha = FDR + 1e-16
   ),
-  shape = 16) +
-  geom_text(
-    data = panther_filt_plot |> distinct(family_id, description),
-    aes(x = family_id, label = description),
-    y = Inf, 
-    hjust = 0,
-    angle = 90,
-    size = 6/2.83
-  )
+  shape = 16)
 
 # ggsave("panther_terms_enrichement_dotplot.pdf", path = out_dir,
-#        width = 170, height = 100, units = "mm")
+#        width = 220, height = 95, units = "mm")
 
 
 # With description on the right
