@@ -206,7 +206,7 @@ enframe(pos_peaks,
   ggplot() +
   theme_minimal() +
   theme(
-    axis.text = element_text(size = 7),
+    axis.text = element_text(size = 5),
     axis.title = element_text(size = 10),
     plot.margin = unit(c(0,0,0,0), "mm")
   ) +
@@ -217,21 +217,22 @@ enframe(pos_peaks,
   geom_ribbon(aes(x = seq(from = 0, to = 1, length.out = length(peak_deg)),
                   ymin = 0,
                   ymax = length(peak_deg) / nbins),
-              fill = "purple",
-              alpha = .2) +
+              fill = "purple3",
+              alpha = .35) +
   geom_hline(
     aes(yintercept = length(peak_deg) / nbins),
-    linewidth = 1.5,
-    color = "purple2"
+    linewidth = 1,
+    color = "purple4",
+    alpha = .6
   ) +
   geom_histogram(aes(x = peak_deg),
                  color = "black",
                  alpha = .9,
                  breaks = seq(0, 1, length.out = nbins + 1))
 
-# ggsave(paste0(ct,"_ histogram_circ.pdf"),
+# ggsave(paste0("histogram_circ_",ct,".pdf"),
 #        path = dir_figures3,
-#        width = 48, height = 48, units = "mm")
+#        width = 35, height = 35, units = "mm")
 
 
 
@@ -599,16 +600,16 @@ iwalk(heatmaps_list[c("BWM", "ILso")],
         
         colnames(hmp_sparsified) <- str_split_i(colnames(hmp_sparsified), fixed("|"), 2)
         
-        spar_index <- round(ncol(hmp_sparsified)/40)
+        spar_index <- round(ncol(hmp_sparsified)/35)
         colnames_to_sparsify <- setdiff(seq_len(ncol(hmp_sparsified)),
                                         spar_index * seq_len( ncol(hmp_sparsified) / spar_index ) )
         
         colnames(hmp_sparsified)[colnames_to_sparsify] <- ""
-        head(colnames(hmp_sparsified), 20)
+        
         
         
         png(paste0(dir_figures3, "/heatmap_", ct, ".png"),
-            width = 100, height = 45, units = "mm", res = 500)
+            width = 80, height = 50, units = "mm", res = 500)
         pheatmap::pheatmap(hmp_sparsified,
                            cluster_rows = FALSE,
                            cluster_cols = FALSE,
@@ -625,10 +626,10 @@ iwalk(heatmaps_list[c("BWM", "ILso")],
                            cluster_rows = FALSE,
                            cluster_cols = FALSE,
                            show_rownames = FALSE,
-                           fontsize = 6,
+                           fontsize = 5,
                            filename = paste0(dir_figures3, "/heatmap_", ct, ".pdf"),
-                           width = 100 * mm_to_in,
-                           height = 45 * mm_to_in,
+                           width = 80 * mm_to_in,
+                           height = 50 * mm_to_in,
                            main = ct)
         
         
