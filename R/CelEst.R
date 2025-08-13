@@ -247,6 +247,8 @@ tests_to_plot <- all_tests |>
   left_join(all_genes |>
               select(cell_type, source_name = gene_name, shape),
             by = c("cell_type", "source_name")) |>
+  left_join(cell_types_info |> select(cell_type, tissue),
+            by = "cell_type") |>
   mutate(label = paste0('"', source_name, '"'),
          label = if_else(is.na(known_role),
                          label,
@@ -254,8 +256,13 @@ tests_to_plot <- all_tests |>
          label = if_else(shape == "pulsatile",
                          paste0("bolditalic(", label,")"),
                          paste0("italic(", label,")"))) |>
-  mutate(cell_type = str_replace_all(cell_type, "_", " "))
+  mutate(cell_type = str_replace_all(cell_type, "_", " ")) |>
+  mutate(tissue = factor(tissue,
+                         levels = c("glia", "skin", "pharynx", "other"))) |>
+  arrange(tissue, cell_type) |>
+  mutate(cell_type = fct_inorder(cell_type) |> relevel(ref = "ILso"))
 
+stopifnot(!any(is.na(tests_to_plot$tissue)))
 
 # gg <- 
 tests_to_plot |>
@@ -303,6 +310,20 @@ tests_to_plot |>
 
 # ggsave("volcano_TFs.pdf", path = dir_out,
 #        width = 210, height = 150, units = "mm")
+
+
+# For table
+# tests_to_plot |>
+#   mutate(
+#     signif = if_else(signif, "*", ""),
+#     known_role = if_else(!is.na(known_role) & known_role, "yes", ""),
+#     TF_id = s2i(source_name, gids, warn_missing = TRUE)
+#     ) |>
+#   select(-label) |>
+#   rename(TF_name = source_name) |>
+#   relocate(tissue, TF_id, shape, .after = TF_name) |>
+#   writexl::write_xlsx(file.path(dir_out, "table_s5_TFs_signif.xlsx"))
+
 
 
 
