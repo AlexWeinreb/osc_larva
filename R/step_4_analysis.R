@@ -333,6 +333,30 @@ osc_genes_compare |>
 
 
 
+osc_genes_compare |>
+  filter(bulk_class == "Osc") |>
+  ggplot() +
+  theme_classic() +
+  theme(
+    legend.position = "none",
+    # legend.position.inside = c(.8,.7),
+    axis.title = element_text(size = 10),
+    axis.text = element_text(size = 7),
+    legend.text = element_text(size = 7),
+    legend.title = element_text(size = 10),
+    plot.margin = unit(c(0,0,0,0), "mm")
+  ) +
+  ylab("Bulk-annotated amplitude") +# xlab(NULL) +
+  scale_fill_manual(values = c(nonpulsatile = "#b4a2ce", pulsatile = "#bb7e76")) +
+  geom_boxplot(aes(x = `single-cell`, y = osc_amplitude,
+                   fill = `single-cell`))
+  # ggbeeswarm::geom_quasirandom(aes(x = `single-cell`, y = osc_amplitude,color = `single-cell`),
+  #              alpha = .5)
+
+# ggsave("osc_vs_pulsatile_boxplot.pdf",
+#        path = out_dir,
+#        width = 50, height = 45, units = "mm")
+
 ## stat test
 
 osc_genes_compare |>
