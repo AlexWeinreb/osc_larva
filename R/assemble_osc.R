@@ -951,7 +951,7 @@ dir_step1 <- "intermediates/2502/250609_step1"
 # dir_step1 <- "E:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250609_step1"
 
 
-dir_figure <- "presentations/figures/250810_cell_phases"
+dir_figure <- "presentations/figures/250825_cell_phases"
 
 
 #~ ILso ----
@@ -1087,6 +1087,8 @@ dat_1_cell |>
 #        width = 6, height = 6, units = "in")
 
 
+
+# Average black, individual colored
 dat_1_cell |>
   ggplot() +
   theme_minimal() +
@@ -1125,6 +1127,66 @@ dat_1_cell |>
 
 
 # ggsave(paste0("phases_ILso_cell_",cell_nb,"_col.pdf"),
+#        path = dir_figure,
+#        width = 50, height = 40, units = "mm")
+
+
+
+# color the average, individual black
+dat_1_cell |>
+  ggplot() +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 7),
+    axis.text.y = element_text(color = "black"),
+    title = element_text(size = 7),
+    axis.ticks.y = element_line(color = "black"),
+    legend.position = "none",
+    plot.margin = unit(c(0,0,0,0), "mm"),
+    plot.background = element_blank(),
+    panel.background = element_blank()
+  ) +
+  # coord_radial(expand = FALSE, end = 2*pi+.02) +
+  coord_polar() +
+  scale_x_continuous(
+    limits = c(0,360),
+    breaks = c(0, 90, 180, 270),
+    labels = \(x) paste0(x, "°"),
+    expand = expansion(mult = c(-0.005, 0))
+  ) +
+  scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
+                        limits = c(0,360),
+                        aesthetics = c("color", "fill")) +
+  labs(x = NULL, y = "expression", title = paste0("ILso cell #", cell_nb)) +
+  geom_tile(aes(x = angle,
+                y = radius,
+                fill = angle),
+            height = .2 * max( sub$cell_rho[[cell_nb]] ),
+            width = 2,
+            data = tibble(angle = 0:360,
+                          radius = 1.6 * max( sub$cell_rho[[cell_nb]] ) ),
+            alpha = .9) +
+  geom_segment(aes(x = peak_phase_deg,
+                   xend = peak_phase_deg,
+                   y = 0,
+                   yend = expression),
+               linewidth = .25,
+               color = 'grey10',
+               alpha = .8) +
+  geom_segment(aes(x = mean_angle %% (360),
+                   xend = mean_angle %% (360),
+                   y = 0,
+                   yend = mean_rho,
+                   color = mean_angle),
+               data = tibble(mean_angle = sub$cell_phase[[cell_nb]],
+                             mean_rho = sub$cell_rho[[cell_nb]]),
+               linewidth = 1.2)
+
+
+
+
+
+# ggsave(paste0("phases_ILso_cell_",cell_nb,"_colAvg.pdf"),
 #        path = dir_figure,
 #        width = 50, height = 40, units = "mm")
 
