@@ -10,9 +10,9 @@ library(tidyverse)
 
 
 dir_loom <- "intermediates/2502/250409_loom/"
-dir_velocyto <- "intermediates/2502/250522_velocyto"
+dir_velocyto <- "intermediates/2502/250825_velocyto"
 
-seu <- qs::qread("intermediates/2502/250509_assembled/250509_seu_all_herma.qs")
+seu <- qs::qread("intermediates/2502/250605_assembled/250606_seu_all_herma.qs")
 
 
 samples <- unique(seu$orig.ident)
@@ -55,12 +55,15 @@ nmat_tot <- do.call(cbind,
 
 dim(emat_tot); dim(nmat_tot)
 
-stopifnot(all( colnames(emat_tot) %in% bc_table$bc_velocyto ))
+# stopifnot(all( colnames(emat_tot) %in% bc_table$bc_velocyto ))
 stopifnot(all.equal( colnames(emat_tot), colnames(nmat_tot) ))
 
-colnames(emat_tot) <- column_to_rownames(bc_table, "bc_velocyto")[colnames(emat_tot), "bc_seu"] 
-colnames(nmat_tot) <- column_to_rownames(bc_table, "bc_velocyto")[colnames(nmat_tot), "bc_seu"] 
+# colnames(emat_tot) <- column_to_rownames(bc_table, "bc_velocyto")[colnames(emat_tot), "bc_seu"] 
+# colnames(nmat_tot) <- column_to_rownames(bc_table, "bc_velocyto")[colnames(nmat_tot), "bc_seu"] 
 
+bc_seu_recoded <- enframe(colnames(emat_tot)) |> left_join(bc_table, by = c(value = "bc_velocyto"), multiple = "any") |> pull(bc_seu)
+
+colnames(emat_tot) <- colnames(nmat_tot) <- bc_seu_recoded
 
 message("--- Save")
 

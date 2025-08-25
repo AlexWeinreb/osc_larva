@@ -34,9 +34,9 @@ if(! interactive()){
 } else{
   # Options for interactive
   params <- list(
-    dir_step1 = "intermediates/2502/250522_step1",
-    dir_velocyto = "intermediates/2502/250522_velocyto",
-    i = 8
+    dir_step1 = "intermediates/2502/250609_step1",
+    dir_velocyto = "intermediates/2502/250825_velocyto",
+    i = 42
   )
 }
 
@@ -64,7 +64,7 @@ ct <- cell_types[[params$i]]
 message("i: ", params$i,"; cell type: ", ct)
 
 sub <- qs::qread(file.path(params$dir_step1,
-                           paste0(ct, "_seu_unsmoothed.qs")) )
+                           paste0(ct, "_seu_unsmoothed.qs")) )[,colnames(emat_tot)]
 
 stopifnot(all(
   rownames(sub) %in% rownames(emat_tot)
