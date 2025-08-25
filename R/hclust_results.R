@@ -333,7 +333,7 @@ osc_genes_compare <- all_genes |>
   mutate(`single-cell` = if_else(is_puls, "pulsatile", "nonpulsatile"))
 
 osc_genes_compare |>
-  (\(df) table(bulk = df$bulk_class, `single-cell` = df$`single-cell`))()
+  (\(df) table(bulk = df$bulk_class, `single-cell` = df$`single-cell`, useNA = 'ifany'))()
 
 
 # pdf(file.path(dir_figures, "osc_vs_pulsatile_euler.pdf"),
