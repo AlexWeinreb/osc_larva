@@ -369,7 +369,7 @@ In `R/save_filtered_matrices_for_velocyto.R`, for each sample we rename the Cell
 * save this subset of "assembled" in `filtered_feature_bc_matrix`
 
 
-#### Velocyto quantification
+#### Velocyto quantification and plot
 
 In `src/velocyto_sample.sh`
 * input: `250331_align/{sample}/outs/` for each sample (uses bam and filtered matrix)
@@ -406,28 +406,32 @@ cp -v /vast/palmer/scratch/hammarlund/aw853/250331_align/*/velocyto/*.loom inter
 Consistently with other approach, we split by cell type and process each cell type separately.
 
 In `R/velocyto_load_loom.R`, called from `src/runR_velocyto_load_loom.sh`
-* inputs: `250409_loom/{sample}.loom`, `250509_assembled/250509_seu_all_herma.qs``
+* inputs: `250409_loom/{sample}.loom`, `250605_assembled/250606_seu_all_herma.qs`
 * Process:
   * read all loom files using velocyto.R
   * combine into big "spliced" and "unspliced" matrices
-* output: matrices in `250522_velocyto/emat_tot.qs` and `nmat_tot.qs`
+* output: matrices in `250825_velocyto/emat_tot.qs` and `nmat_tot.qs`
 
 
 #### Plot velocyto
 
-`velocyto_cell_type.R`
+For each cell type, run `velocyto_cell_type.R`. Inputs:
+* from step 1, the seu_unsmoothed object to reuse its PCA and average phase precomputed
+* from dir_velocyto, the total matrices emat and nmat, to compute velocity.
+Outputs:
+* plots in pdf and png of PCA with/without colors and arrows
+* preprocessed objects to replot (qs format).
 
-TODO: redo with 250609_step1 instead of 250522_step1  
-  
+
 Using joblist:
 
 
 ```r
 paste(
 "module load R; Rscript R/velocyto_cell_type.R",
-"--dir_step1 'intermediates/2502/250522_step1'",
-"--dir_velocyto 'intermediates/2502/250522_velocyto'",
-"--i", seq_along(list.files(params$dir_step1, pattern = "_seu_unsmoothed\\.qs$"))
+"--dir_step1 'intermediates/2502/250609_step1'",
+"--dir_velocyto 'intermediates/2502/250825_velocyto'",
+"--i", seq_along(list.files('intermediates/2502/250609_step1', pattern = "_seu_unsmoothed\\.qs$"))
 ) |>
   writeLines("joblists/velocyto_cell_type.dsq.txt")
 ```
@@ -436,6 +440,16 @@ Job run with
 ```
 ml dSQ; dsq --job-file joblists/velocyto_cell_type.dsq.txt  --cpus-per-task 1 --mem 35G --time 00:40:00 --partition day; ml unload dSQ
 ```
+
+
+
+#### replot nicely
+
+The previous velocyto plots may not look good. But since we save the preprocessed object, we can easily replot cells of interest with custom parameters.
+
+In `velocyto_celltypes_replot.R`, code copied from `velocyto_cell_type.R` but for more interactive use.
+
+Save in `presentatons/figures/250825/velocyto`.
 
 
 
