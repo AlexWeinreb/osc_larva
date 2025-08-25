@@ -1221,7 +1221,7 @@ mat <- mat[,colnames(sub)]
 
 # PCA
 
-cell_nb <- 2
+cell_nb <- 14
 
 
 dat <- FetchData(sub,
@@ -1273,7 +1273,7 @@ dat |>
   ) +
   labs(x = "PC 1", y = "PC 2", title = "BWM") +
   scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50)) +
-  geom_point_rast(aes(x = PC_1, y = PC_2, color = cell_phase_masked),
+  ggrastr::geom_point_rast(aes(x = PC_1, y = PC_2, color = cell_phase_masked),
                   size = 1,
                   shape = 16,
                   alpha = .7)
@@ -1293,13 +1293,30 @@ dat_1_cell <- enframe(mat[,cell_nb],
   filter(!is.na(osc_amplitude))
 
 
+
+
+# Average black, individual colored
 dat_1_cell |>
   ggplot() +
-  theme_bw() +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 7),
+    axis.text.y = element_text(color = "black"),
+    title = element_text(size = 7),
+    axis.ticks.y = element_line(color = "black"),
+    legend.position = "none",
+    plot.margin = unit(c(0,0,0,0), "mm"),
+    plot.background = element_blank(),
+    panel.background = element_blank()
+  ) +
   coord_polar() +
-  scale_x_continuous(limits = c(0,360), n.breaks = 15) +
+  scale_x_continuous(
+    limits = c(0,360),
+    breaks = c(0, 90, 180, 270),
+    labels = \(x) paste0(x, "°")
+  ) +
   scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50)) +
-  ylab("expression") +
+  labs(x = NULL, y = "expression", title = paste0("BWM cell #", cell_nb)) +
   geom_segment(aes(x = peak_phase_deg,
                    xend = peak_phase_deg,
                    y = 0,
@@ -1313,13 +1330,16 @@ dat_1_cell |>
                data = tibble(mean_angle = sub$cell_phase[[cell_nb]],
                              mean_rho = sub$cell_rho[[cell_nb]]),
                linewidth = 1,
-               color = 'black') #+theme(legend.position = 'none')
-
+               color = 'black')
 
 # ggsave(paste0("phases_BWM_cell_",cell_nb,"_col.pdf"),
-#        path = "presentations/",
-#        width = 6, height = 6, units = "in")
+#        path = dir_figure,
+#        width = 50, height = 40, units = "mm")
 
+
+tibble(mean_angle = sub$cell_phase[[cell_nb]],
+       mean_rho = sub$cell_rho[[cell_nb]],
+       FDR = sub$length_FDR[[cell_nb]])
 
 
 
@@ -1344,19 +1364,28 @@ perms <- replicate(n = 10000,
 as_tibble(perms) |>
   ggplot() +
   theme_classic() +
-  # scale_x_continuous(limits = c(0, 1)) +
+  theme(
+    plot.title = element_text(size = 10),
+    axis.text = element_text(size = 7),
+    axis.title = element_text(size = 10),
+    plot.margin = unit(c(0,0,0,0), "mm"),
+    plot.background = element_blank(),
+    panel.background = element_blank()
+  ) +
+  scale_x_continuous(limits = c(0, 1)) +
+  ggtitle(paste0("BWM cell #", cell_nb)) +
   xlab("Average phase length") +
   geom_histogram(aes(x = value),
                  bins = 50,
                  color = 'white',
-                 linewidth = .3) +
+                 linewidth = .2) +
   geom_vline(xintercept = empirical,
              color = 'red3',
-             linewidth = 1.5)
+             linewidth = 1.2)
 
 # ggsave(paste0("perm_BWM_cell_",cell_nb,".pdf"),
-#        path = "presentations/",
-#        width = 100, height = 95, units = "mm")
+#        path = dir_figure,
+#        width = 75, height = 50, units = "mm")
 
 sum(c(empirical,perms) >= empirical)
 length(perms)
@@ -1372,9 +1401,11 @@ tibble(mean_angle = sub$cell_phase[[cell_nb]],
 
 #~ ILso permutations ----
 
-sub <- subset(seu, cell_type == "ILso") |>
-  SCTransform() |>
-  RunPCA(npcs = 2, verbose = FALSE)
+
+sub <- qs::qread(
+  file.path(dir_step1,
+            paste0("ILso", "_seu_unsmoothed.qs"))
+)
 
 # note we need the full matrix here to ensure same normalization
 mat <- LayerData(seu, assay = "SCT", layer = "data", features = osc_table$gene_name)
@@ -1392,7 +1423,7 @@ stopifnot(all.equal(
 ))
 
 
-cell_nb <- 4
+cell_nb <- 2
 
 mat2 <- mat[, cell_nb, drop = FALSE]
 
@@ -1408,19 +1439,28 @@ perms <- replicate(n = 10000,
 as_tibble(perms) |>
   ggplot() +
   theme_classic() +
-  # scale_x_continuous(limits = c(0, 1)) +
+  theme(
+    plot.title = element_text(size = 10),
+    axis.text = element_text(size = 7),
+    axis.title = element_text(size = 10),
+    plot.margin = unit(c(0,0,0,0), "mm"),
+    plot.background = element_blank(),
+    panel.background = element_blank()
+  ) +
+  scale_x_continuous(limits = c(0, 1)) +
+  ggtitle(paste0("ILso cell #", cell_nb)) +
   xlab("Average phase length") +
   geom_histogram(aes(x = value),
                  bins = 50,
                  color = 'white',
-                 linewidth = .3) +
+                 linewidth = .2) +
   geom_vline(xintercept = empirical,
              color = 'red3',
-             linewidth = 1.5)
+             linewidth = 1.2)
 
 # ggsave(paste0("perm_ILso_cell_",cell_nb,".pdf"),
-#        path = "presentations/",
-#        width = 100, height = 95, units = "mm")
+#        path = dir_figure,
+#        width = 75, height = 50, units = "mm")
 
 tibble(mean_angle = sub$cell_phase[[cell_nb]],
        mean_rho = sub$cell_rho[[cell_nb]],
