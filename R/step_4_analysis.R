@@ -1622,6 +1622,10 @@ dir_step1 <- "intermediates/2502/250609_step1/"
 # dir_step2 <- "E:/backups/Projects_june2025/glia/osc_larva/intermediates/2502/250624_step2/"
 # dir_step1 <- "E:/backups/Projects_june2025/glia/osc_larva/intermediates/2502/250609_step1/"
 
+# dir_step2 <- "E:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250624_step2/"
+# dir_step1 <- "E:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250609_step1/"
+
+
 dir_fig_gam <- "presentations/figures/250625_gam_illustrations"
 # dir.create(dir_fig_gam)
 
@@ -1807,6 +1811,8 @@ mean_sf <- lapply(mods_uncentered,
 #~ gene ----
 
 goi <- "lgc-34"
+goi <- "vha-11"
+
 
 
 #~| cells ----
@@ -1842,9 +1848,9 @@ dat |>
 
 
 
-ggsave(paste0(goi, "_bwm_expr.pdf"),
-       path = dir_fig_gam,
-       width = 55, height = 55, units = "mm")
+# ggsave(paste0(goi, "_bwm_expr.pdf"),
+#        path = dir_fig_gam,
+#        width = 55, height = 55, units = "mm")
 
 
 
@@ -1891,9 +1897,9 @@ dat |>
             linewidth = 1)
 
 
-ggsave(paste0(goi, "_bwm_devexpl.pdf"),
-       path = dir_fig_gam,
-       width = 50, height = 45, units = "mm")
+# ggsave(paste0(goi, "_bwm_devexpl.pdf"),
+#        path = dir_fig_gam,
+#        width = 50, height = 45, units = "mm")
 
 
 
