@@ -511,6 +511,9 @@ cell_types_both |>
 #   qs::qsave(file.path(dir_step3, "cell_types.qs"))
 
 
+# For supp table
+# cell_types_both |>
+#   write_csv(file.path(dir_figures3, "cell_types_osc.csv"))
 
 
 

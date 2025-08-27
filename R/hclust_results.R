@@ -2,7 +2,18 @@
 
 library(tidyverse)
 library(ggrastr)
+library(wbData)
 
+
+gids <- wb_load_gene_ids(295) |>
+  add_row(X = "a",
+          gene_id = "nsIs198",
+          symbol = "GFP",
+          sequence = "GFP",
+          status = "Live",
+          biotype = "protein_coding_gene",
+          name = "GFP"
+  )
 
 source("R/utils_fit.R")
 
@@ -269,6 +280,26 @@ cluster_results <- clusters |>
 
 # cluster_results |>
 #   write_csv(file.path(dir_clust, "250624_cluster_results.csv"))
+
+
+# supp file, all genes and cell types as matrix
+
+cellgenes_mat <- cluster_results |>
+  mutate(shape = case_match(shape,
+                            "pulsatile" ~ "p",
+                            "low" ~ "l",
+                            "nonpulsatile" ~ "e")) |>
+  pivot_wider(id_cols = gene_name,
+              names_from = "cell_type",
+              values_from = "shape",
+              values_fill = "n") |>
+  mutate(gene_id = s2i(gene_name, gids, warn_missing = TRUE),
+         .before = 2) |>
+  arrange(gene_name)
+writexl::write_xlsx(cellgenes_mat,
+                    file.path(dir_figures, "cellgenes_mat.xlsx"))
+
+
 
 
 all.equal(cluster_results |> select(cell_type, gene_name),
