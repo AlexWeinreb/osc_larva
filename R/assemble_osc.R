@@ -1693,7 +1693,75 @@ merged |>
 
 
 
+# ___________ ----
+# Check glial subtypes ----
 
+library(wormOsc)
+
+SetDefaultAssay <- function(seu, assay = "RNA"){
+  DefaultAssay(seu) <- assay
+  seu
+}
+genes_cc <- readr::read_csv("https://github.com/hbc/tinyatlas/raw/refs/heads/master/cell_cycle/Caenorhabditis_elegans.csv")
+
+table(seu$cell_type[seu$tissue == "glia"])
+
+n_pcs <- 6L
+
+sub <- seu |>
+  subset(cell_type == "glia_socket_2") |>
+  SetDefaultAssay() |>
+  DietSeurat(assays = "RNA", layers = "counts") |>
+  SCTransform() |>
+  RunPCA(verbose = FALSE) |>
+  RunUMAP(dims = 1:n_pcs)
+  
+ElbowPlot(sub) + geom_vline(aes(xintercept = n_pcs))
+
+FeaturePlot(sub,
+            reduction = "pca",
+            features = "cell_phase",
+            pt.size = 1.5) +
+  scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
+                        limits = c(0, 360))
+
+FeaturePlot(sub,
+            reduction = "umap",
+            features = "cell_phase",
+            pt.size = 1.5) +
+  scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
+                        limits = c(0, 360))
+
+
+
+sub_corr <- sub |>
+  SetDefaultAssay() |>
+  DietSeurat(assays = "RNA", layers = "counts") |>
+  AddMetaData(list(
+    cos_phase = cos(sub$cell_phase * pi/180),
+    sin_phase = sin(sub$cell_phase * pi/180),
+    cos2_phase = cos(2 * sub$cell_phase * pi/180),
+    sin2_phase = sin(2 * sub$cell_phase * pi/180)
+  )) |>
+  SCTransform(vars.to.regress = c("cos_phase", "sin_phase", "cos2_phase", "sin2_phase")) |>
+  RunPCA(verbose = FALSE) |>
+  RunUMAP(dims = 1:n_pcs)
+
+ElbowPlot(sub_corr) + geom_vline(aes(xintercept = n_pcs))
+
+FeaturePlot(sub_corr,
+            reduction = "pca",
+            features = "cell_phase",
+            pt.size = 1.5) +
+  scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
+                        limits = c(0, 360))
+
+FeaturePlot(sub_corr,
+            reduction = "umap",
+            features = "cell_phase",
+            pt.size = 1.5) +
+  scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
+                        limits = c(0, 360))
 
 # ___________ ----
 
