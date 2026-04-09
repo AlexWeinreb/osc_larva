@@ -882,15 +882,23 @@ genelist_hedgehog <- readxl::read_excel("data/gene_families/hedgehog_hao2006_tab
   wb_clean_gene_names()
 
 
-genelist_zp <- read_tsv("data/gene_families/IPR001507_ZP_proteins.tsv",
-                        skip = 1L) |>
-  pull(`WormBase Gene ID`) |>
+# genelist_zp_old <- read_tsv("data/gene_families/IPR001507_ZP_proteins.tsv",
+#                         skip = 1L) |>
+#   pull(`WormBase Gene ID`) |>
+#   unique()
+
+genelist_zp <- readxl::read_excel("data/gene_families/zp_cohen2019.xlsx") |>
+  pull(gene_id) |>
   unique()
 
-genelist_col <- read_tsv("data/gene_families/IPR008160_col.tsv",
-                         skip = 1L) |>
-  pull(`WormBase Gene ID`) |>
-  unique()
+# genelist_zp_old |> setdiff(genelist_zp) |> i2s(gids)
+
+# list(IPR = genelist_zp_old, Cohen = genelist_zp) |> eulerr::euler() |> plot(quantities = TRUE)
+
+# genelist_col_old <- read_tsv("data/gene_families/IPR008160_col.tsv",
+#                          skip = 1L) |>
+#   pull(`WormBase Gene ID`) |>
+#   unique()
 
 genelist_appg <- readxl::read_excel("data/gene_families/David-Raizen_2014_bio20147500-sup-table_s5.xlsx",
                                  sheet = 1,
@@ -898,6 +906,24 @@ genelist_appg <- readxl::read_excel("data/gene_families/David-Raizen_2014_bio201
                                  col_names = "gene_name") |>
   pull(gene_name) |>
   wb_clean_gene_names()
+
+
+
+genelist_teuscher2019 <- readxl::read_excel("data/gene_families/teuscher_2019_table_S1.xlsx",
+                                            sheet = "Ce Matrisome",
+                                            skip = 1L)
+
+table(genelist_teuscher2019$`Matrisome Category`)
+
+
+
+genelist_col <- genelist_teuscher2019$`WormBase ID`[genelist_teuscher2019$`Matrisome Category` == "Cuticular Collagens"]
+
+# list(IPR = genelist_col_old,
+#      teuscher = genelist_col) |> eulerr::euler() |> plot(quantities = TRUE)
+
+
+
 
 
 
