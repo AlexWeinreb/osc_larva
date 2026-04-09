@@ -33,7 +33,7 @@ dir_step2 <- "intermediates/2502/250624_step2/"
 osc_table <- readxl::read_excel("data/msb209498-sup-0003-datasetev1.xlsx",
                               sheet = "Dataset EV1 WBidToGeneNames_Osc",
                               na = "NA") |>
-  mutate(gene_id = wb_clean_gene_names(WB_ID),
+  mutate(gene_id = wb_clean_gene_names(WB_ID, refresh = Inf),
          gene_name = i2s(gene_id, gids) ) |>
   filter(! is.na(gene_name)) |>
   mutate(osc_amplitude = if_else(is.na(OscAmplitude), 0, OscAmplitude)) |>
