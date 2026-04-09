@@ -642,6 +642,7 @@ mean_dotprod_by_celltype_res_perm <- future_map_dfr(
 
 #~~~ res ----
 p_vals <- mean_dotprod_by_celltype_res_perm |>
+  mutate(cell_type = replace_values(cell_type, "coelomyocyte" ~ "coelomocyte")) |>
   group_by(tissue, cell_type) |>
   nest() |>
   summarize(p_val = map_dbl(data,
@@ -672,6 +673,9 @@ cell_types_to_plot <- dotprod_by_cell |>
             .by = cell_type) |>
   filter(nb_cells >= 30) |>
   pull(cell_type)
+
+dotprod_by_cell <- dotprod_by_cell |>
+  mutate(cell_type = replace_values(cell_type, "coelomyocyte" ~ "coelomocyte"))
 
 
 dotprod_agg_by_ct <- dotprod_by_cell |>
