@@ -24,7 +24,7 @@ dir_step2 <- "intermediates/2502/250624_step2"
 # if working from external HDD
 # dir_step2 <- "E:/backups/Projects_june2025/glia/osc_larva/intermediates/2502/250624_step2"
 
-dir_figures <- "presentations/figures/250627_clust_metrics/"
+dir_figures <- "presentations/figures/260422_clust_metrics/"
 # dir.create(dir_figures)
 
 
@@ -538,7 +538,7 @@ osc_genes_compare |>
 
 # illustrate metrics ----
 
-dir_step1 <- "E:/backups/Projects_june2025/glia/osc_larva/intermediates/2502/250609_step1/"
+dir_step1 <- "D:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250609_step1/250609_step1/"
 
 ilso_subseu <- qs::qread( file.path(dir_step1,
                                     paste0("ILso", "_seu_unsmoothed.qs")) )
@@ -607,7 +607,7 @@ dat |>
   ggrastr::geom_point_rast(aes(x = PC_1, y = PC_2,
                                color = .data[[goi]]),
                            shape = 16,
-                           size = 1.5,
+                           size = 1,
                            raster.dpi = 500)
 
 

@@ -212,14 +212,14 @@ FetchData(seu, vars = c("cell_type", "umap_1", "umap_2")) |>
   ggplot() +
   theme_classic() +
   hues::scale_color_iwanthue() +
-  geom_point(aes(x = umap_1, y = umap_2, color = cell_type),
-             alpha = .1, size = 2,
-             show.legend = FALSE)
+  ggrastr::geom_point_rast(aes(x = umap_1, y = umap_2, color = cell_type),
+                           alpha = .2, size = 1,
+                           show.legend = FALSE)
 
-# ggsave("UMAP_cell_type.png", path = "presentations/figures/250610_umap/",
+# ggsave("UMAP_cell_type.png", path = "presentations/figures/260409_umap/",
 #        width = 60, height = 60, units = "mm",
 #        scale = 2)
-# ggsave("UMAP_cell_type.pdf", path = "presentations/figures/250610_umap/",
+# ggsave("UMAP_cell_type.pdf", path = "presentations/figures/260409_umap/",
 #        width = 60, height = 60, units = "mm",
 #        scale = 2)
 
@@ -245,11 +245,14 @@ FetchData(seu, vars = c("stage", "umap_1", "umap_2")) |>
   ggplot() +
   theme_classic() +
   scale_color_brewer(type = "qual") +
-  geom_point(aes(x = umap_1, y = umap_2, color = stage),
-             alpha = .1, size = 2,
-             show.legend = FALSE)
+  ggrastr::geom_point_rast(aes(x = umap_1, y = umap_2, color = stage),
+                           alpha = .2, size = 1,
+                           show.legend = FALSE)
 
-# ggsave("UMAP_stage.png", path = "presentations/figures/250610_umap/",
+# ggsave("UMAP_stage.png", path = "presentations/figures/260409_umap/",
+#        width = 60, height = 60, units = "mm",
+#        scale = 2)
+# ggsave("UMAP_stage.pdf", path = "presentations/figures/260409_umap/",
 #        width = 60, height = 60, units = "mm",
 #        scale = 2)
 
@@ -414,16 +417,16 @@ FetchData(seu,
   scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
                         limits = c(0, 360)) +
   aes(x = umap_1, y = umap_2) +
-  geom_point(aes(color = cell_phase_masked),
+  ggrastr::geom_point_rast(aes(color = cell_phase_masked),
              shape = 16,
-             size = 2,
-             alpha = .2,
+             size = 1,
+             alpha = .6,
              show.legend = FALSE)
 
-# ggsave("umap_phase.png", path = "presentations/figures/250610_umap/",
+# ggsave("umap_phase.png", path = "presentations/figures/260409_umap/",
 #        width = 80, height = 80, units = "mm",
 #        scale = 1.5)
-# ggsave("umap_phase.pdf", path = "presentations/figures/250610_umap/",
+# ggsave("umap_phase.pdf", path = "presentations/figures/260409_umap/",
 #        width = 80, height = 80, units = "mm",
 #        scale = 1.5)
 
@@ -828,22 +831,22 @@ ggplot() +
     legend.position = "none",
     plot.margin = unit(c(0,0,0,0), "mm")
   ) +
-  geom_point_rast(
+  geom_point(
     aes(x = umap_1, y = umap_2, color = nsIs198),
     alpha = .1, size = .8,
-    raster.dpi = 500,
+    # raster.dpi = 500,
     data = filter(dat2, promoter == "grl-18")
   ) +
-  geom_point_rast(
+  geom_point(
     aes(x = umap_1, y = umap_2, fill = nsIs198),
     alpha = .1, size = 1.5, shape = 21, stroke = NA,
-    raster.dpi = 500,
+    # raster.dpi = 500,
     data = filter(dat2, promoter != "grl-18")
   )
 
-# ggsave("umap_both_sorts_rastr.pdf",
-#        path = "presentations/figures/250610_umap",
-#        width = 56, height = 56, units = "mm")
+ggsave("umap_both_sorts.png",
+       path = "presentations/figures/260409_umap/",
+       width = 56, height = 56, units = "mm")
 
 
 

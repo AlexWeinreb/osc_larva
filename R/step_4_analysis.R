@@ -1651,8 +1651,11 @@ dir_step1 <- "intermediates/2502/250609_step1/"
 # dir_step2 <- "E:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250624_step2/"
 # dir_step1 <- "E:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250609_step1/"
 
+# dir_step2 <- "D:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250624_step2/"
+# dir_step1 <- "D:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250609_step1/250609_step1/"
 
-dir_fig_gam <- "presentations/figures/250625_gam_illustrations"
+
+dir_fig_gam <- "presentations/figures/260422_gam_illustrations"
 # dir.create(dir_fig_gam)
 
 
@@ -1747,7 +1750,7 @@ dat |>
   ggrastr::geom_point_rast(aes(x = PC_1, y = PC_2,
                                color = .data[[goi]]),
                            shape = 16,
-                           size = 1.5,
+                           size = 1,
                            raster.dpi = 500)
 
 
@@ -1869,7 +1872,7 @@ dat |>
   ggrastr::geom_point_rast(aes(x = PC_1, y = PC_2,
                                color = .data[[goi]]),
                            shape = 16,
-                           size = 1.5,
+                           size = 1,
                            raster.dpi = 500)
 
 
