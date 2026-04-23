@@ -645,7 +645,11 @@ mean_dotprod_by_celltype_res_perm <- future_map_dfr(
 
 #~~~ res ----
 p_vals <- mean_dotprod_by_celltype_res_perm |>
-  mutate(cell_type = replace_values(cell_type, "coelomyocyte" ~ "coelomocyte")) |>
+  mutate(cell_type = replace_values(
+    cell_type,
+    "coelomyocyte" ~ "coelomocyte",
+    "excretory" ~ "excr. cell"
+  )) |>
   group_by(tissue, cell_type) |>
   nest() |>
   summarize(p_val = map_dbl(data,
@@ -678,7 +682,11 @@ cell_types_to_plot <- dotprod_by_cell |>
   pull(cell_type)
 
 dotprod_by_cell <- dotprod_by_cell |>
-  mutate(cell_type = replace_values(cell_type, "coelomyocyte" ~ "coelomocyte"))
+  mutate(cell_type = replace_values(
+    cell_type,
+    "coelomyocyte" ~ "coelomocyte",
+    "excretory" ~ "excr. cell"
+  ))
 
 
 dotprod_agg_by_ct <- dotprod_by_cell |>
@@ -722,13 +730,80 @@ gg_dotprod_by_cell
 # 1300 x 450
 
 # ggsave("local_phase_coherence.png", plot = gg_dotprod_by_cell,
-#        path = "presentations/figures/local_phase_coherence",
+#        path = "presentations/figures/260422_local_phase_coherence",
 #        width = 200, height = 70, units = "mm",
 #        scale = 2)
 # ggsave("local_phase_coherence.pdf", plot = gg_dotprod_by_cell,
-#        path = "presentations/figures/local_phase_coherence",
+#        path = "presentations/figures/260422_local_phase_coherence",
 #        width = 200, height = 70, units = "mm",
 #        scale = 2)
+
+
+
+
+
+#~ Plot ----
+
+# load previous results
+dotprod_by_cell <- qs::qread(file.path(dir_out, "250610_dotprod_by_cell.qs")) |>
+  mutate(
+    cell_type = cell_type |>
+      str_replace_all("_", " ") |>
+      replace_values(
+        "coelomyocyte" ~ "coelomocyte",
+        "excretory" ~ "excr. cell"
+      )
+  )
+
+mean_dotprod_by_celltype_res_perm <- qs::qread(file.path(dir_out, "250606_coherence_unnorm_perm10000.qs")) |>
+  mutate(
+    cell_type = cell_type |>
+      str_replace_all("_", " ") |>
+      replace_values(
+        "coelomyocyte" ~ "coelomocyte",
+        "excretory" ~ "excr. cell"
+      )
+  )
+
+
+
+
+# computed variables
+
+cell_types_to_plot <- dotprod_by_cell |>
+  summarize(nb_cells = n(),
+            .by = cell_type) |>
+  filter(nb_cells >= 30) |>
+  pull(cell_type)
+
+
+p_vals <- mean_dotprod_by_celltype_res_perm |>
+  group_by(tissue, cell_type) |>
+  nest() |>
+  summarize(p_val = map_dbl(data,
+                            \(dat){
+                              mean(dat$mean_coherence >= dat$mean_coherence[[1]])
+                            }),
+            .groups = 'drop') |>
+  mutate(p_adj = p.adjust(p_val, method = "holm"))
+
+
+
+dotprod_agg_by_ct <- dotprod_by_cell |>
+  filter(cell_type %in% cell_types_to_plot) |>
+  summarize(mean_coherence = mean(coherence),
+            .by = "cell_type") |>
+  left_join(p_vals,
+            by = c("cell_type")) |>
+  mutate(
+    p_adj = if_else(is.na(p_adj), 1, p_adj),
+    tissue = factor(tissue,
+                    levels = c("skin", "glia", "pharynx", "muscle",
+                               "neuron", "reproductive", "other"))
+  ) |>
+  arrange(tissue, desc(mean_coherence)) |>
+  mutate(cell_type = fct_inorder(cell_type))
+
 
 
 
@@ -775,7 +850,7 @@ dotprod_by_cell |>
 
 
 # ggsave("local_phase_coherence.pdf",
-#        path = "presentations/figures/local_phase_coherence",
+#        path = "presentations/figures/260422_local_phase_coherence/",
 #        width = 215, height = 75, units = "mm")
 
 
@@ -956,6 +1031,7 @@ ggsave(paste0("phase_",tissue_here,".pdf"), path = "presentations/figures/250611
 
 dir_step1 <- "intermediates/2502/250609_step1"
 # dir_step1 <- "E:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250609_step1"
+# dir_step1 <- "D:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250609_step1/250609_step1/"
 
 
 dir_figure <- "presentations/figures/250825_cell_phases"
