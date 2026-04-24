@@ -1031,7 +1031,7 @@ ggsave(paste0("phase_",tissue_here,".pdf"), path = "presentations/figures/250611
 
 dir_step1 <- "intermediates/2502/250609_step1"
 # dir_step1 <- "E:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250609_step1"
-# dir_step1 <- "D:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250609_step1/250609_step1/"
+# dir_step1 <- "D:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250609_step1/"
 
 
 dir_figure <- "presentations/figures/260423_cell_phases"
@@ -1808,6 +1808,37 @@ xx <- colnames(sub)[sub$seurat_clusters == 2]
 merged |>
   filter(cell_bc %in% colnames(sub)[sub$seurat_clusters == 2]) |>
   count(stage.x, stage.y, cell_type_old, cell_type_new)
+
+
+
+# ___________ ----
+# Sample timings ----
+
+selected_ct <- table(seu$cell_type, seu$orig.ident) |>  as.data.frame() |> as_tibble() |>
+  filter(Freq > 100) |>
+  count(Var1) |>
+  filter(n > 3) |>
+  pull(Var1)
+
+selected_ct <- c("hypodermis", "ILso", "pharynx_epithelial", "seam")
+selected_samples <- c("210413_batch3_CHB3840b","210427_batch5_CHB3840b","200730_batch1_CHB3840b","201013_batch2_CHB3840b_CEG_fqs")
+
+FetchData(seu, vars = c("orig.ident", "cell_phase_masked", "cell_type")) |>
+  filter(cell_type %in% selected_ct,
+         orig.ident %in% selected_samples) |>
+  ggplot() +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
+                        limits = c(0, 360)) +
+  xlab(NULL) + ylab("cell phase (°)") + theme(legend.position = "none") +
+  facet_wrap(~ cell_type) +
+  ggbeeswarm::geom_quasirandom(aes(x = orig.ident, y = cell_phase_masked, color = cell_phase_masked),
+                               alpha = .6)
+
+
+
+
 
 
 
