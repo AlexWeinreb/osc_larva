@@ -1034,7 +1034,7 @@ dir_step1 <- "intermediates/2502/250609_step1"
 # dir_step1 <- "D:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250609_step1/250609_step1/"
 
 
-dir_figure <- "presentations/figures/250825_cell_phases"
+dir_figure <- "presentations/figures/260423_cell_phases"
 
 
 #~ ILso ----
@@ -1279,8 +1279,43 @@ tibble(mean_angle = sub$cell_phase[[cell_nb]],
 
 
 
+#~ ILso by stage ----
+
+DimPlot(sub,
+        reduction = "pca",
+        label = FALSE,
+        pt.size = .8,
+        alpha = .3,
+        group.by = "stage"
+        ) +
+  NoLegend()
 
 
+FetchData(sub, vars = c("stage", "PC_1", "PC_2")) |>
+  ggplot() +
+  theme_classic() +
+  scale_color_brewer(type = "qual") +
+  ggrastr::geom_point_rast(aes(x = PC_1, y = PC_2, color = stage),
+                           alpha = .5, size = 1,
+                           show.legend = FALSE)
+
+# ggsave(paste0("ILso_pca_stages.pdf"),
+#        path = dir_figure,
+#        width = 60, height = 60, units = "mm",
+#        scale = 2)
+
+FetchData(sub, vars = c("stage", "PC_1", "PC_2")) |>
+  slice_sample(n = 10) |>
+  ggplot() +
+  theme_classic() +
+  scale_color_brewer(type = "qual") +
+  ggrastr::geom_point_rast(aes(x = PC_1, y = PC_2, color = stage),
+                           alpha = 1, size = 2)
+
+
+# ggsave("ILso_pca_stages_legend.pdf", path = dir_figure,
+#        width = 60, height = 60, units = "mm",
+#        scale = 2)
 
 
 
