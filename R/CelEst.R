@@ -21,7 +21,7 @@ dir_out <- "presentations/figures/250709_celest/"
 dir_step3 <- "intermediates/2502/250624_step3_genes_by_celltype/"
 dir_clust <- "intermediates/2502/250624_cluster"
 dir_step2 <- "intermediates/2502/250624_step2/"
-# dir_step2 <- "E:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250624_step2/"
+# dir_step2 <- "D:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250624_step2/"
 
 
 # download.file("https://raw.githubusercontent.com/IBMB-MFP/CelEsT-MS/refs/heads/main/CelEsT_annotated_v1pt1.txt",
@@ -328,6 +328,7 @@ tests_to_plot |>
 
 
 tests_to_plot |>
+  mutate(cell_type = as.character(cell_type)) |>
   filter(startsWith(cell_type, "pharyn")) |>
   filter(signif) |>
   summarize(FDR = min(p_adj),
@@ -337,6 +338,7 @@ tests_to_plot |>
   filter(n > 1)
 
 tests_to_plot |>
+  mutate(cell_type = as.character(cell_type)) |>
   filter(startsWith(cell_type, "pharyn")) |>
   filter(signif) |>
   pull(source_name) |>
