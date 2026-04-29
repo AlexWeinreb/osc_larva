@@ -16,12 +16,12 @@ gids <- wb_load_gene_ids(295) |>
   )
 
 
-dir_tf <- "intermediates/2502/250709_celest_tfs/"
-dir_out <- "presentations/figures/250709_celest/"
+dir_tf <- "intermediates/2502/260428_celest_tfs/"
+dir_out <- "presentations/figures/260428_celest/"
 dir_step3 <- "intermediates/2502/250624_step3_genes_by_celltype/"
 dir_clust <- "intermediates/2502/250624_cluster"
-dir_step2 <- "intermediates/2502/250624_step2/"
-# dir_step2 <- "D:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250624_step2/"
+# dir_step2 <- "intermediates/2502/250624_step2/"
+dir_step2 <- "D:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250624_step2/"
 
 
 # download.file("https://raw.githubusercontent.com/IBMB-MFP/CelEsT-MS/refs/heads/main/CelEsT_annotated_v1pt1.txt",
@@ -581,11 +581,14 @@ ggraph(graph_tbl, layout = "fr") +
 all(paste0(cell_types_osc, "_mods_uncentered.qs") %in% list.files(dir_step2))
 
 
-bin_width <- 36
-nb_bins <- 90
+bin_width <- 10
+nb_bins <- 100
 
-bins_start <- seq(0, 360 - bin_width, 360/nb_bins)
+bins_start <- seq(0, 100 - 100/nb_bins, 100/nb_bins)
 bins_end <- bins_start + bin_width
+
+
+origin_deg <- osc_table$bulk_peak[[ which( osc_table$gene_name == "dpy-6" ) ]]
 
 for(ct in cell_types_osc){
   
@@ -648,13 +651,13 @@ for(ct in cell_types_osc){
        time_max_deg[peak_times$gene_name])
   dev.off()
   
-  
+  time_max_pct <- (100/360) * ( time_max_deg - origin_deg ) %% 360
   
   
   puls_genes <- all_genes |>
     filter(cell_type == ct,
            shape == "pulsatile") |>
-    mutate(time_peak_deg = time_max_deg[gene_name])
+    mutate(time_peak_pct = time_max_pct[gene_name])
   
   
   
@@ -667,8 +670,8 @@ for(ct in cell_types_osc){
       all_genes_ct <- all_genes |> filter(cell_type == ct) |> pull(gene_name)
       
       puls_genes_bin <- puls_genes |>
-        filter(time_peak_deg >= bins_start[[bin]],
-               time_peak_deg < bins_end[[bin]] ) |>
+        filter(time_peak_pct >= bins_start[[bin]],
+               time_peak_pct < bins_end[[bin]] ) |>
         pull(gene_name)
       
       nonpuls_genes_bin <- all_genes_ct |> setdiff(puls_genes_bin)
@@ -677,7 +680,7 @@ for(ct in cell_types_osc){
         nonpuls_genes_bin |> sort(),
         union(
           all_genes |> filter(cell_type == ct, shape == "nonpulsatile" | shape == "low") |> pull(gene_name),
-          puls_genes |> filter(time_peak_deg >= bins_end[[bin]] | time_peak_deg < bins_start[[bin]]) |> pull(gene_name)
+          puls_genes |> filter(time_peak_pct >= bins_end[[bin]] | time_peak_pct < bins_start[[bin]]) |> pull(gene_name)
         ) |> sort()
       ))
       
@@ -750,8 +753,8 @@ for(ct in cell_types_osc){
     as.matrix()
   
   
-  pt_colnames <- round(bins_start + (bin_width/2), 1)
-  pt_colnames[2 * (1:(length(pt_colnames)/2))] <- ""
+  pt_colnames <- bins_start
+  pt_colnames[seq_along(pt_colnames) %% 5 != 1] <- ""
   colnames(tf_by_time) <- pt_colnames
   
   
@@ -855,8 +858,8 @@ tf_by_time <- all_tests_bin |>
   as.matrix()
 
 
-pt_colnames <- round(bins_start + (bin_width/2), 1)
-pt_colnames[2 * (1:(length(pt_colnames)/2))] <- ""
+pt_colnames <- bins_start + (bin_width/2)
+pt_colnames[seq_along(pt_colnames) %% 5 != 1] <- ""
 colnames(tf_by_time) <- pt_colnames
 
 pheatmap::pheatmap(tf_by_time,
@@ -873,8 +876,8 @@ pheatmap::pheatmap(
   border_color = NA,
   cluster_rows = TRUE,
   cluster_cols = FALSE,
-  filename = paste0("presentations/figures/250616_celest/heatmap_timebins_", ct,".pdf"),
-  width = 9, height = 3.5
+  filename = paste0(file.path(dir_out, paste0("/heatmap_timebins_", ct,".pdf"))),
+  width = 9, height = 2.5
 )
 dev.off()
 
