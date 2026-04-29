@@ -40,7 +40,7 @@ dir_clust <- "intermediates/2502/250624_cluster"
 osc_raw <- readxl::read_excel("data/msb209498-sup-0003-datasetev1.xlsx",
                               sheet = "Dataset EV1 WBidToGeneNames_Osc",
                               na = "NA") |>
-  mutate(gene_id = wb_clean_gene_names(WB_ID),
+  mutate(gene_id = wb_clean_gene_names(WB_ID, refresh = Inf),
          gene_name = i2s(gene_id, gids) )
 
 
@@ -1933,6 +1933,92 @@ dat |>
 
 
 
+
+
+
+
+
+## Other sc plots ----
+
+# dir_step1 <- "D:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250609_step1/"
+
+subseu <- qs::qread( file.path(dir_step1,
+                               paste0("hypodermis", "_seu_unsmoothed.qs")) )
+
+
+genes_sel <- c('C26B9.7', 'mam-2', 'F45E4.5','ham-2', 'Y11D7A.3')
+genes_sel <- c('C26B9.7','Y11D7A.3')
+
+
+c(FeaturePlot(subseu,
+              reduction = "pca",
+              features = "cell_phase_masked",
+              pt.size = 1.5) +
+    scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
+                          limits = c(0, 360))
+  ,
+FeaturePlot(subseu,
+            reduction = "pca",
+            features = genes_sel,
+            pt.size = 1.5,
+            order = TRUE,
+            combine = FALSE)
+) |>
+  map(~ .x + theme(legend.position = "below")) |>
+  patchwork::wrap_plots()
+
+#~ gene ----
+
+goi <- "C26B9.7"
+goi <- "Y11D7A.3"
+goi <- "mam-2"
+goi <- "F45E4.5"
+goi <- "ham-2"
+
+
+
+#~| cells ----
+
+
+FeaturePlot(subseu,
+            reduction = "pca",
+            features = "cell_phase",
+            pt.size = 1.5) +
+  scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
+                        limits = c(0, 360))
+
+FeaturePlot(subseu,
+            reduction = "pca",
+            features = goi,
+            pt.size = 1.5,
+            order = TRUE)
+
+dat <- FetchData(subseu, vars = c("PC_1","PC_2",goi))
+
+dat |>
+  ggplot() +
+  theme_classic() +
+  theme(
+    axis.title = element_text(size = 10),
+    axis.text = element_text(size = 7),
+    plot.title = element_text(face = "italic",
+                              size = 10),
+    legend.position = "top",
+    legend.margin = margin(),
+    legend.box.margin = margin(),
+    legend.title = element_blank(),
+    legend.text = element_text(size = 7),
+    legend.key.size = unit(3, "mm"),
+    plot.margin = unit(c(0,0,0,0), "mm")
+  ) +
+  labs(x = "PC 1", y = "PC 2") +
+  scale_color_gradient(low = alpha("grey", .3), high = alpha("blue2", .8)) +
+  # ggtitle(goi) +
+  ggrastr::geom_point_rast(aes(x = PC_1, y = PC_2,
+                               color = .data[[goi]]),
+                           shape = 16,
+                           size = 1,
+                           raster.dpi = 500)
 
 
 
