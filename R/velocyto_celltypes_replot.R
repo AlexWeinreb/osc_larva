@@ -8,7 +8,7 @@ library(ggplot2)
 
 opar <- par(no.readonly = TRUE)
 
-dir_fig_velocyto <- "presentations/figures/250825_velocyto"
+dir_fig_velocyto <- "presentations/figures/260521_velocyto"
 in2mm <- 0.03937008
 
 params <- list(dir_step1 = "intermediates/2502/250609_step1",
@@ -86,7 +86,8 @@ for(ct in cell_types){
     na.exclude() |>
     ref_cols() |>
     (\(x) x / 255 )() |>
-    rgb()
+    rgb() |>
+    alpha(0.8)
   
   phase_per_bc[is.na(phase_per_bc)] <- 'grey'
   
@@ -100,7 +101,7 @@ for(ct in cell_types){
   
   #~~ All grey
   pdf(file.path(dir_fig_velocyto, paste0(ct, "_velocity_grey.pdf")),
-      width = 50 * in2mm, height = 50 * in2mm, pointsize = 10)
+      width = 50 * in2mm, height = 47.7 * in2mm, pointsize = 10)
   
   par(
     mar = c(1.8, 1.8, 0.3, 0.3),
@@ -119,14 +120,15 @@ for(ct in cell_types){
                                  cell.colors = phases_all_grey,
                                  arrow.lwd = 1,
                                  do.par = F,
-                                 cell.border.alpha = 0)
+                                 cell.border.alpha = 0,
+                                 cex = .5)
   dev.off()
   
   
   
   #~~ Color ----
   pdf(file.path(dir_fig_velocyto, paste0(ct, "_velocity_phase.pdf")),
-      width = 50 * in2mm, height = 50 * in2mm, pointsize = 10)
+      width = 50 * in2mm, height = 47.7 * in2mm, pointsize = 10)
   
   par(
     mar = c(1.8, 1.8, 0.3, 0.3),
@@ -145,7 +147,8 @@ for(ct in cell_types){
                                  cell.colors = phase_per_bc,
                                  arrow.lwd = 1,
                                  do.par = F,
-                                 cell.border.alpha = 0)
+                                 cell.border.alpha = 0,
+                                 cex = .5)
   dev.off()
   
   
