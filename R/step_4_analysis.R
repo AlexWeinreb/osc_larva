@@ -1946,16 +1946,120 @@ subseu <- qs::qread( file.path(dir_step1,
                                paste0("hypodermis", "_seu_unsmoothed.qs")) )
 
 
+
+
+
+
+
+
+
+# 
+# patchwork::wrap_plots(
+#   FeaturePlot(qs::qread( file.path(dir_step1,paste0("hypodermis", "_seu_unsmoothed.qs")) ),
+#               reduction = "pca",
+#               features = "cell_phase_masked",
+#               pt.size = 1.5) +
+#     scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
+#                           limits = c(0, 360)) +
+#     ggtitle("hypodermis") +
+#     NoLegend()
+#   ,
+#   FeaturePlot(qs::qread( file.path(dir_step1,paste0("hypodermis", "_seu_unsmoothed.qs")) ),
+#               reduction = "pca",
+#               features = "mam-2",
+#               pt.size = 1.5,
+#               order = TRUE) +
+#     ggtitle(NULL) +
+#     NoLegend()
+#   ,
+#   FeaturePlot(qs::qread( file.path(dir_step1,paste0("hypodermis", "_seu_unsmoothed.qs")) ),
+#               reduction = "pca",
+#               features = "ham-2",
+#               pt.size = 1.5,
+#               order = TRUE) +
+#     ggtitle(NULL) +
+#     NoLegend()
+#   ,
+#   FeaturePlot(qs::qread( file.path(dir_step1,paste0("ILso", "_seu_unsmoothed.qs")) ),
+#               reduction = "pca",
+#               features = "cell_phase_masked",
+#               pt.size = 1.5) +
+#     scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
+#                           limits = c(0, 360)) +
+#     ggtitle("ILso") +
+#     NoLegend()
+#   ,
+#   FeaturePlot(qs::qread( file.path(dir_step1,paste0("ILso", "_seu_unsmoothed.qs")) ),
+#               reduction = "pca",
+#               features = "mam-2",
+#               pt.size = 1.5,
+#               order = TRUE) +
+#     ggtitle(NULL) +
+#     NoLegend()
+#   ,
+#   FeaturePlot(qs::qread( file.path(dir_step1,paste0("ILso", "_seu_unsmoothed.qs")) ),
+#               reduction = "pca",
+#               features = "ham-2",
+#               pt.size = 1.5,
+#               order = TRUE) +
+#     ggtitle(NULL) +
+#     NoLegend()
+#   ,
+#   FeaturePlot(qs::qread( file.path(dir_step1,paste0("seam", "_seu_unsmoothed.qs")) ),
+#               reduction = "pca",
+#               features = "cell_phase_masked",
+#               pt.size = 1.5) +
+#     scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
+#                           limits = c(0, 360)) +
+#     ggtitle("seam") +
+#     NoLegend()
+#   ,
+#   FeaturePlot(qs::qread( file.path(dir_step1,paste0("seam", "_seu_unsmoothed.qs")) ),
+#               reduction = "pca",
+#               features = "mam-2",
+#               pt.size = 1.5,
+#               order = TRUE) +
+#     ggtitle(NULL) +
+#     NoLegend()
+#   ,
+#   FeaturePlot(qs::qread( file.path(dir_step1,paste0("seam", "_seu_unsmoothed.qs")) ),
+#               reduction = "pca",
+#               features = "ham-2",
+#               pt.size = 1.5,
+#               order = TRUE) +
+#     ggtitle(NULL) +
+#     NoLegend()
+#   ,
+#   nrow = 3,
+#   byrow = FALSE,
+#   axis_titles = "collect"
+# )
+# 
+
+FeaturePlot(qs::qread( file.path(dir_step1,
+                                 paste0("hypodermis", "_seu_unsmoothed.qs")) ),
+            reduction = "pca",
+            features = "mam-2",
+            pt.size = 1.5,
+            order = TRUE,
+            combine = FALSE)
+
+
+
+
 genes_sel <- c('C26B9.7', 'mam-2', 'F45E4.5','ham-2', 'Y11D7A.3')
+
+
+
+subseu <- qs::qread( file.path(dir_step1,paste0("hypodermis", "_seu_unsmoothed.qs")))
 genes_sel <- c('C26B9.7','Y11D7A.3')
-
-
 c(FeaturePlot(subseu,
               reduction = "pca",
               features = "cell_phase_masked",
               pt.size = 1.5) +
     scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
-                          limits = c(0, 360))
+                          limits = c(0, 360)) +
+    ggtitle("hypodermis")
   ,
 FeaturePlot(subseu,
             reduction = "pca",
@@ -1964,8 +2068,31 @@ FeaturePlot(subseu,
             order = TRUE,
             combine = FALSE)
 ) |>
-  map(~ .x + theme(legend.position = "below")) |>
+  map(~ .x + theme(legend.position = "bottom")) |>
   patchwork::wrap_plots()
+
+
+subseu <- qs::qread( file.path(dir_step1,paste0("ILso", "_seu_unsmoothed.qs")) )
+genes_sel <- c("mam-2", "ham-2")
+c(FeaturePlot(subseu,
+              reduction = "pca",
+              features = "cell_phase_masked",
+              pt.size = 1.5) +
+    scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
+                          limits = c(0, 360)) +
+    ggtitle("ILso")
+  ,
+  FeaturePlot(subseu,
+              reduction = "pca",
+              features = genes_sel,
+              pt.size = 1.5,
+              order = TRUE,
+              combine = FALSE)
+) |>
+  map(~ .x + theme(legend.position = "bottom")) |>
+  patchwork::wrap_plots()
+
+
 
 #~ gene ----
 
