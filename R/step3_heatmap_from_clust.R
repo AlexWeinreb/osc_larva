@@ -18,8 +18,9 @@ source("R/utils_heatmap_processing.R")
 
 dir_clust <- "intermediates/2502/250624_cluster"
 
-dir_step2 <- "intermediates/2502/250624_step2/"
+# dir_step2 <- "intermediates/2502/250624_step2/"
 # dir_step2 <- "E:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250624_step2/"
+dir_step2 <- "D:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250624_step2/"
 
 
 dir_step3 <- "intermediates/2502/250624_step3_genes_by_celltype/"
@@ -496,7 +497,51 @@ cell_types_both |>
 
 
 
+# Color by number of genes (power)
 
+cell_types_both |>
+  ggplot() +
+  theme_classic() +
+  # xlab("Mean local phase coherence (bulk)") +
+  ylab("Perplexity (sc)") +
+  scale_shape_manual(values = c(`TRUE` = 8, `FALSE` = 19)) +
+  geom_point(aes(x = n_tot, y = perplexity, color = n_tot,
+                 shape = p_coherence_adj < .05),
+             size = 3) +
+  geom_label(aes(x = n_tot, y = perplexity, label = cell_type),
+             data = cell_types_both |> filter(cell_type %in% c(
+               "ILso", "seam",
+               "glia_4", "glia_1", "glia_sheath_2", "early_gonad",
+               "coelomocyte", "PHsh"
+             )))
+
+
+# by number of cells
+seu_all <- qs::qread(file.path(dir_assembled, "250606_seu_all_herma.qs"))
+
+by_cell_type |>
+  left_join(tibble(cell_type = seu_all$cell_type) |> count(cell_type, name = "n_cells"),
+            by = "cell_type") |>
+  ggplot() +
+  theme_classic() +
+  # xlab("Mean local phase coherence (bulk)") +
+  ylab("Perplexity (sc)") +
+  scale_shape_manual(values = c(`TRUE` = 8, `FALSE` = 19)) +
+  geom_point(aes(x = n_cells, y = perplexity, color = n_tot),
+             size = 3) +
+  geom_text(aes(x = n_cells, y = perplexity, label = cell_type,
+                 size = cell_type %in% c(
+               "ILso", "seam",
+               "glia_4", "glia_1", "glia_sheath_2", "early_gonad",
+               "coelomocyte", "PHsh"
+             )),
+             show.legend = FALSE) +
+  scale_size_manual(values = c(`TRUE` = 3, `FALSE` = 0))
+
+by_cell_type |>
+  left_join(tibble(cell_type = seu_all$cell_type) |> count(cell_type, name = "n_cells"),
+            by = "cell_type") |>
+  filter(n_cells > 1000, perplexity > 30)
 
 
 
