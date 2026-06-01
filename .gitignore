@@ -18,3 +18,4 @@ dsq-*
 job_*_status.tsv
 data/gene_families/*ILso*xlsx
 slurm-*.out
+.positai

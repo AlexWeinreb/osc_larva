@@ -31,11 +31,11 @@ subsample_sizes <- c(25, 50, 75, 100, 150, 200, 300, 500, 750, 1000)
 
 # cell_types_of_interest <- c("glia_4", "glia_1", "glia_sheath_2", "early_gonad")
 
-# cell_types_of_interest <- c(
-#   "ILso", "seam",
-#   "glia_4", "glia_1", "glia_sheath_2", "early_gonad", "PHsh",
-# "BWM",  "AM_PHso"
-# )
+  # cell_types_of_interest <- c(
+  #   "ILso", "seam",
+  #   "glia_4", "glia_1", "glia_sheath_2", "early_gonad", "PHsh",
+  # "BWM",  "AM_PHso"
+  # )
 
 cell_types_of_interest <- c(
   "coelomocyte"
@@ -84,19 +84,6 @@ compute_perplexity_from_cells <- function(seu_ct, puls_genes_ct, n_cells_sub, le
     CreateSeuratObject(meta.data = sub[[]]) |>
     SCTransform(verbose = FALSE, seed.use = NULL) |>
     RunPCA(npcs = 2, verbose = FALSE, seed.use = NULL)
-  
-  
-  # sub_smooth1 <- cnts_smoothed
-  # message("21 ", .Random.seed[[2]])
-  # sub_smooth2 <-  sub_smooth1 |>  as("dgCMatrix")
-  # message("22 ", .Random.seed[[2]])
-  # sub_smooth3 <- sub_smooth2 |>   CreateSeuratObject(meta.data = sub[[]])
-  # message("23 ", .Random.seed[[2]])
-  # sub_smooth4 <-  sub_smooth3 |>  SCTransform(verbose = FALSE, seed.use = NULL)
-  # message("24 ", .Random.seed[[2]])
-  # sub_smooth <- sub_smooth4 |>   RunPCA(npcs = 2, verbose = FALSE, seed.use = NULL)
-  # 
-  # message("3 ", .Random.seed[[2]])
   
   
   embding <- FetchData(sub_smooth, vars = c("PC_1", "PC_2")) |> as.matrix()
