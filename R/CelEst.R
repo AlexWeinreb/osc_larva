@@ -1121,13 +1121,369 @@ celest |>
 
 
 
+# ______________________ ----
+# Relative timing TF vs targets ----
+
+
+# For TFs that are themselves pulsatile, does their peak precede their targets?
+
+
+
+#~ Collect peak times ----
+
+all_peak_times <- map_dfr(cell_types_osc, \(ct) {
+  
+  message(ct)
+  
+  mods_uncentered <- qs::qread(file.path(dir_step2, paste0(ct, "_mods_uncentered.qs")))
+  
+  mean_sf <- lapply(mods_uncentered,
+                    \(.mod) exp(.mod$model$`offset(log(size_factors))`)) |>
+    unlist() |> log() |> mean() |> exp()
+  
+  len <- 128
+  
+  preds_uncentered <- vapply(mods_uncentered,
+                             \(.mod) predict(.mod,
+                                             type = "response",
+                                             newdata = data.frame(
+                                               pseudotime = (0:(len - 1)) / len,
+                                               size_factors = rep(mean_sf, len))
+                             ),
+                             FUN.VALUE = double(len))
+  
+  time_max <- apply(preds_uncentered, 2, which.max) / len
+  
+  # Align pseudotime to bulk phase
+  peak_times <- left_join(
+    enframe(time_max, name = "gene_name", value = "peak_pseudotime"),
+    osc_table,
+    by = "gene_name"
+  ) |>
+    filter(bulk_class == "Osc")
+  
+  alignment <- align_circular(peak_times$bulk_peak,
+                              peak_times$peak_pseudotime * 360)
+  
+  time_max_deg <- if (alignment$invert) {
+    ((360 - time_max * 360) - alignment$shift) %% 360
+  } else {
+    (time_max * 360 - alignment$shift) %% 360
+  }
+  
+  
+  # Convert to percent of stage, origin at dpy-6
+  time_max_pct <- (100 / 360) * ((time_max_deg - origin_deg) %% 360)
+  
+  
+  tibble(
+    cell_type = ct,
+    gene_name = names(time_max_pct),
+    peak_pct = time_max_pct
+  )
+  
+})
+
+# qs::qsave(all_peak_times,
+#           file.path(dir_tf, "260601_peak_times.qs"))
+
+# all_peak_times <- qs::qread(file.path(dir_tf, "260601_peak_times.qs"))
+
+
+signif_pulsatile_tfs <- all_tests |>
+  filter(p_adj < 0.05) |>
+  select(cell_type, source_name) |>
+  inner_join(
+    all_genes |> filter(shape == "pulsatile") |> select(cell_type, gene_name),
+    by = c("cell_type", source_name = "gene_name")
+  )
+
+
+tf_target_timing <- signif_pulsatile_tfs |>
+  pmap_dfr(\(cell_type, source_name) {
+    
+    # TF peak time
+    tf_peak <- all_peak_times |>
+      filter(cell_type == !!cell_type, gene_name == source_name) |>
+      pull(peak_pct)
+    
+    if (length(tf_peak) == 0) return(tibble())
+    
+    # Pulsatile targets of this TF in this cell type
+    targets <- celest |>
+      filter(source_name == !!source_name) |>
+      pull(target_name)
+    
+    pulsatile_targets <- all_genes |>
+      filter(cell_type == !!cell_type, shape == "pulsatile",
+             gene_name %in% targets) |>
+      pull(gene_name)
+    
+    if (length(pulsatile_targets) == 0) return(tibble())
+    
+    # Target peak times
+    target_peaks <- all_peak_times |>
+      filter(cell_type == !!cell_type, gene_name %in% pulsatile_targets)
+    
+    target_peaks |>
+      transmute(
+        cell_type = !!cell_type,
+        tf_name = source_name,
+        target_name = gene_name,
+        tf_peak_pct = tf_peak,
+        target_peak_pct = peak_pct
+      )
+  })
+
+
+
+
+tf_target_timing |>
+  filter(cell_type == "ILso") |>
+  ggplot() +
+  theme_classic() +
+  geom_histogram(aes(x = target_peak_pct),
+                 binwidth = 5, fill = "grey70", color = "white") +
+  geom_vline(aes(xintercept = tf_peak_pct),
+             color = "red", linewidth = 1) +
+  facet_wrap(~tf_name) +
+  labs(x = "Peak time (% of larval stage)",
+       y = "Number of pulsatile targets",
+       subtitle = "Red line = TF peak") +
+  xlim(0, 100)
 
 
 
 
 
+tfs_to_show <- tf_target_timing |>
+  summarize(n = n(), .by = c(tf_name, cell_type)) |>
+  filter(n >= 100) |>
+  count(tf_name) |>
+  filter(n > 1) |>
+  pull(tf_name) |>
+  unique()
+
+cts_to_show <- tf_target_timing |>
+  summarize(n = n(), .by = c(tf_name, cell_type)) |>
+  filter(n >= 100) |>
+  count(cell_type) |>
+  filter(n > 1) |>
+  pull(cell_type) |>
+  unique()
+
+# plots_by_tf <- 
 
 
+tf_target_timing |>
+  rename(gene_name = tf_name) |>
+  filter(gene_name %in% tfs_to_show,
+         cell_type %in% cts_to_show) |>
+  mutate(cell_type = str_replace_all(cell_type, "_", " ")) |>
+  ggplot() +
+  theme_minimal() +
+  theme(panel.spacing.y = unit(0, "mm")) +
+  theme(strip.text.y = element_text(size = 10, angle = 0, hjust = 0),
+        strip.text.x = element_text(size = 11, face = "italic")) +
+  theme(panel.grid = element_blank()) +
+  geom_density(aes(x = target_peak_pct),
+               fill = "grey70") +
+  geom_vline(data = tf_target_timing |>
+               rename(gene_name = tf_name) |>
+               filter(gene_name %in% tfs_to_show,
+                      cell_type %in% cts_to_show) |>
+               left_join(osc_table |>
+                           filter(bulk_class == "Osc") |>
+                           mutate(bulk_peak_pct = ((bulk_peak - origin_deg) %% 360) * 100 / 360) |>
+                           select(gene_name, bulk_peak_pct),
+                         by = "gene_name") |>
+               select(gene_name, bulk_peak_pct) |>
+               distinct(),
+             aes(xintercept = bulk_peak_pct),
+             color = "#457B9D", inewidth = 0.9, linetype = "25") +
+  geom_vline(aes(xintercept = tf_peak_pct),
+             color = "#E63946", linewidth = 1) +
+  facet_grid(cell_type ~ gene_name, scale = "free_y")
+
+
+
+
+
+#~ Test ----
+
+# From Johnson 2023: https://journals.biologists.com/dev/article/150/10/dev201085/310520/NHR-23-activity-is-necessary-for-C-elegans
+# "Most nhr-23-regulated genes involved in aECM structure/function, cholesterol metabolism,
+# molting regulation, transcriptional regulation and signal transduction had peak amplitudes
+# within 3 h of the nhr-23 expression peak (Fig. 3B)."
+
+
+run_window_test <- function(before, after) {
+  
+  in_window <- function(target_pct, tf_pct) {
+    diff <- (target_pct - tf_pct) %% 100
+    diff <- if_else(diff > 50, diff - 100, diff)
+    diff >= -before & diff <= after
+  }
+  
+  signif_pulsatile_tfs |>
+    pmap_dfr(\(cell_type, source_name) {
+      
+      tf_pct <- all_peak_times |>
+        filter(cell_type == !!cell_type, gene_name == source_name) |>
+        pull(peak_pct)
+      
+      if (length(tf_pct) == 0) return(tibble())
+      
+      # All pulsatile genes and their peaks in this cell type
+      puls_ct <- all_genes |>
+        filter(cell_type == !!cell_type, shape == "pulsatile") |>
+        pull(gene_name)
+      
+      puls_peaks <- all_peak_times |>
+        filter(cell_type == !!cell_type, gene_name %in% puls_ct)
+      
+      # TF targets among pulsatile genes
+      targets <- celest |>
+        filter(source_name == !!source_name) |>
+        pull(target_name) |>
+        intersect(puls_peaks$gene_name)
+      
+      non_targets <- setdiff(puls_peaks$gene_name, targets)
+      
+      if (length(targets) < 3) return(tibble())
+      
+      target_peaks <- puls_peaks |> filter(gene_name %in% targets)
+      non_target_peaks <- puls_peaks |> filter(gene_name %in% non_targets)
+      
+      targets_in <- sum(in_window(target_peaks$peak_pct, tf_pct))
+      targets_out <- nrow(target_peaks) - targets_in
+      non_targets_in <- sum(in_window(non_target_peaks$peak_pct, tf_pct))
+      non_targets_out <- nrow(non_target_peaks) - non_targets_in
+      
+      contingency <- matrix(c(targets_in, targets_out,
+                              non_targets_in, non_targets_out), nrow = 2)
+      
+      ft <- fisher.test(contingency, alternative = "greater")
+      
+      tibble(
+        cell_type = !!cell_type,
+        tf_name = source_name,
+        tf_peak_pct = tf_pct,
+        n_targets = nrow(target_peaks),
+        n_targets_in = targets_in,
+        prop_targets_in = targets_in / nrow(target_peaks),
+        prop_background_in = non_targets_in / nrow(non_target_peaks),
+        odds_ratio = ft$estimate,
+        p_val = ft$p.value
+      )
+    }) |>
+    mutate(p_adj = p.adjust(p_val, method = "BH"))
+}
+
+windows <- list(
+  narrow = c(before = 0,  after = 20),
+  medium = c(before = 5, after = 30),
+  wide   = c(before = 10, after = 40)
+)
+
+sensitivity <- map_dfr(names(windows), \(w) {
+  message("Window: ", w)
+  run_window_test(windows[[w]]["before"], windows[[w]]["after"]) |>
+    mutate(window = w)
+})
+
+sensitivity |>
+  summarize(
+    n_tests = n(),
+    n_signif = sum(p_adj < 0.05),
+    median_odds = median(odds_ratio),
+    median_prop_targets = median(prop_targets_in),
+    median_prop_background = median(prop_background_in),
+    .by = window
+  )
+
+
+
+tf_timings <- tf_target_timing |>
+  rename(gene_name = tf_name) |>
+  filter(gene_name %in% tfs_to_show,
+         cell_type %in% cts_to_show) |>
+  left_join(osc_table |>
+              filter(bulk_class == "Osc") |>
+              mutate(bulk_peak_pct = ((bulk_peak - origin_deg) %% 360) * 100 / 360) |>
+              select(gene_name, bulk_peak_pct),
+            by = "gene_name") |>
+  mutate(cell_type = str_replace_all(cell_type, "_", " "))
+
+
+tf_timings_segments <- tf_timings |>
+  distinct(gene_name, cell_type, tf_peak_pct) |>
+  crossing(
+    do.call(rbind, windows) |>
+      as.data.frame() |>
+      rownames_to_column("window") |>
+      mutate(
+        # y_pos = c(0.0205, 0.019, 0.0175),
+        y_pos = c(61, 0, 75)
+        )
+  ) |>
+  left_join(sensitivity |>
+              mutate(cell_type = str_replace_all(cell_type, "_", " ")) |>
+              select(cell_type, gene_name = tf_name, window, p_adj),
+            by = c("gene_name", "cell_type", "window")) |>
+  mutate(x_start = (tf_peak_pct - before) %% 100,
+         x_end   = (tf_peak_pct + after) %% 100,
+         wraps = x_start > x_end)
+
+tf_timings_segments_nowrap <- bind_rows(
+  # Non-wrapping: keep as is
+  tf_timings_segments |> filter(!wraps),
+  # Wrapping: first part, from x_start to 100
+  tf_timings_segments |> filter(wraps) |> mutate(x_end = 100),
+  # Wrapping: second part, from 0 to x_end
+  tf_timings_segments |> filter(wraps) |> mutate(x_start = 0)
+) |>
+  select(-wraps) |>
+  filter(window == "medium")
+
+
+
+
+
+tf_timings |>
+  ggplot() +
+  theme_minimal() +
+  theme(panel.spacing.y = unit(0, "mm")) +
+  theme(strip.text.y = element_text(size = 10, angle = 0, hjust = 0),
+        strip.text.x = element_text(size = 11, face = "italic")) +
+  theme(panel.grid = element_blank()) +
+  scale_y_continuous(limits = c(0, 70)) +
+  scale_color_manual(values = c(`TRUE` = "#2a9d8f", `FALSE` = "#f4a261"),
+                     # guide = "none"
+                     ) +
+  labs(x = "Developmental progression (%)",
+       y = "Number of target peaks") +
+  geom_histogram(aes(x = target_peak_pct),
+               fill = "grey70", color = "white", bins = 10) +
+  geom_vline(data = tf_timings |>
+               select(gene_name, bulk_peak_pct) |>
+               distinct(),
+             aes(xintercept = bulk_peak_pct),
+             color = "#457B9D", linewidth = 0.3, linetype = "25") +
+  geom_vline(aes(xintercept = tf_peak_pct),
+             color = "#E63946", linewidth = 1) +
+  facet_grid(cell_type ~ gene_name) +
+  geom_segment(data = tf_timings_segments_nowrap |> rename(FDR = p_adj),
+               aes(x = x_start, xend = x_end, y = y_pos, yend = y_pos, color = FDR < 0.05),
+               linewidth = 2)
+
+# ggsave("260602_timing_tf_targets.pdf",
+#        path = dir_out,
+#        width = 8.5, height = 7, units = "in")
+# 
+# ggsave("260602_timing_tf_targets.png",
+#        path = dir_out,
+#        width = 8, height = 7, units = "in")
 
 
 
