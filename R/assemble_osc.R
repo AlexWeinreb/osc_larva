@@ -199,6 +199,27 @@ DimPlot(seu,
 
 
 
+FetchData(seu, vars = c("tissue", "umap_1", "umap_2", "cell_type")) |>
+  mutate(tissue = if_else(cell_type == "ILso", "ILso", tissue)) |>
+  ggplot() +
+  theme_void() +
+  theme(
+    legend.position = "none",
+    plot.margin = unit(c(0,0,0,0), "mm")
+  ) +
+  ggrastr::geom_point_rast(aes(x = umap_1, y = umap_2, color = tissue),
+                           alpha = .2, size = 1,
+                           show.legend = FALSE)
+
+# ggsave("UMAP_tissue.png", path = "presentations/figures/260611_umap/",
+#        width = 60, height = 60, units = "mm",
+#        scale = 2)
+# ggsave("UMAP_tissue.pdf", path = "presentations/figures/260611_umap/",
+#        width = 60, height = 60, units = "mm",
+#        scale = 2)
+
+
+
 DimPlot(seu,
         group.by = "cell_type",
         reduction = "umap",
@@ -906,22 +927,23 @@ ggplot() +
     legend.position = "none",
     plot.margin = unit(c(0,0,0,0), "mm")
   ) +
-  geom_point(
+  ggrastr::geom_point_rast(
     aes(x = umap_1, y = umap_2, color = nsIs198),
-    alpha = .1, size = .8,
+    alpha = .5, size = .8,
     # raster.dpi = 500,
     data = filter(dat2, promoter == "grl-18")
   ) +
-  geom_point(
+  ggrastr::geom_point_rast(
     aes(x = umap_1, y = umap_2, fill = nsIs198),
-    alpha = .1, size = 1.5, shape = 21, stroke = NA,
+    alpha = .5, size = 1.2, shape = 21, stroke = NA,
     # raster.dpi = 500,
     data = filter(dat2, promoter != "grl-18")
   )
 
-ggsave("umap_both_sorts.png",
-       path = "presentations/figures/260409_umap/",
-       width = 56, height = 56, units = "mm")
+# ggsave("umap_both_sorts.pdf",
+#        path = "presentations/figures/260611_umap/",
+#        width = 60, height = 60, units = "mm",
+#        scale = 2)
 
 
 
