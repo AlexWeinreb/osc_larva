@@ -31,7 +31,7 @@ transform_log10p <- scales::new_transform(
 
 
 
-
+# for plot annotations
 stage_df <- tribble(
   ~stage, ~start, ~end,
   "L1",      0,   13,
@@ -41,9 +41,18 @@ stage_df <- tribble(
   "adult",  34,   50
 )
 
+scale_fill_stages <- scale_fill_manual(
+  values = c("L1" = "#e8dcc8",
+             "L2" = "#c8d8e0",
+             "L3" = "#d8e0c8",
+             "L4" = "#e0d0c8",
+             "adult" = "#d4c5a9")
+)
+
+
 #~ load ----
 
-dat <- read_tsv("data/GSE130811_expr_mRNA_CE10_coding.tab.gz",
+meeuse_raw <- read_tsv("data/GSE130811_expr_mRNA_CE10_coding.tab.gz",
                 col_names = c("gene_id",
                               read_lines("data/GSE130811_expr_mRNA_CE10_coding.tab.gz", n_max = 1L) |> str_split_1("\\t")),
                 skip = 1) |>
@@ -54,110 +63,101 @@ dat <- read_tsv("data/GSE130811_expr_mRNA_CE10_coding.tab.gz",
   mutate(time = time |> str_remove("hr$") |> as.numeric(),
          gene_name = i2s(gene_id, gids))
 
+# note, not exact match, here we focus on the common set
+list(in_raw = unique(meeuse_raw$gene_name),
+     in_table = unique(wormOsc::table_osc_genes$gene_name)) |>
+  eulerr::euler() |>
+  plot(quantities = TRUE)
 
-tab_osc <- wormOsc::table_osc_genes
+genes_in_meeuse <- intersect(
+  unique(meeuse_raw$gene_name),
+  unique(wormOsc::table_osc_genes$gene_name)
+) |>
+  setdiff(NA_character_)
+
+meeuse_raw_filt <- meeuse_raw |>
+  filter(gene_name %in% genes_in_meeuse)
+
+tab_osc <- wormOsc::table_osc_genes |>
+  filter(gene_name %in% genes_in_meeuse)
 
 
-
-
-# examples
-genes_sel <- sample(dat$gene_name, 3)
-
-genes_sel <- tab_osc |>
-  filter(osc_amplitude > .5* max(tab_osc$osc_amplitude, na.rm = TRUE)) |>
-  slice_sample(n = 3) |>
-  pull(gene_name)
-
-
-
-dat |>
-  filter(gene_name %in% genes_sel) |>
-  ggplot(aes(x = time, y = log10(1+value), linetype = gene_name, shape = gene_name, color = gene_name)) +
-  theme_classic() +
-  geom_point(size = 3, alpha = .5) +
-  geom_line()
+genes_osc <- tab_osc |> filter(osc_amplitude > 1.5) |> pull(gene_name)
 
 
 
 
 
 
-# Normalization ----
+
+# Normalization TPM/TMM ----
 
 # TPM
-dat |>
-  mutate(nf = sum(value / width),
-         .by = time) |> 
-  mutate(TPM = 1e6 * value / (width * nf)) |>
-  filter(gene_name %in% genes_sel) |>
-  ggplot(aes(x = time, y = log10(1+TPM), linetype = gene_name, shape = gene_name, color = gene_name)) +
-  theme_classic() +
-  geom_point(size = 3, alpha = .5) +
-  geom_line()
 
-
-df2mat <- function(df, xcol, ycol, valcol){
-  df |>
-    select({{xcol}}, {{ycol}}, {{valcol}}) |>
-    pivot_wider(names_from = {{ycol}}, values_from = {{valcol}}) |>
-    column_to_rownames(xcol) |>
-    as.matrix()
+normalize_to_tpm <- function(dat){
+  
+  norm_factors <- tibble(
+    time = unique(dat$time),
+    tmm_factor = dat |>
+      select(gene_id, time, value) |>
+      pivot_wider(names_from = time, values_from = value) |>
+      column_to_rownames("gene_id") |>
+      as.matrix() |>
+      edgeR::DGEList() |>
+      edgeR::calcNormFactors(method = "TMM") |>
+      chuck("samples", "norm.factors")
+  )
+  
+  dat |>
+    left_join(norm_factors,
+              by = "time") |>
+    mutate(nf = sum(value / width), .by = time) |>
+    mutate(
+      TPM = 1e6 * value / (width * nf),
+      TPM_TMM = TPM / tmm_factor
+    ) |>
+    select(gene_name, gene_id, time, TPM_TMM)
 }
 
+meeuse_norm <- normalize_to_tpm(meeuse_raw)
 
-norm_factors <- tibble(
-  time = unique(dat$time),
-  tmm_factor = dat |>
-    df2mat("gene_id", "time", "value") |>
-    edgeR::DGEList() |>
-    edgeR::calcNormFactors(method = "TMM") |>
-    chuck("samples", "norm.factors")
-)
 
-dat_norm <- dat |>
-  left_join(norm_factors,
-            by = "time") |>
-  mutate(nf = sum(value / width), .by = time) |>
-  mutate(
-    TPM = 1e6 * value / (width * nf),
-    TPM_TMM = TPM / tmm_factor
-  ) |>
-  select(gene_name, gene_id, time, TPM_TMM)
 
-# check coordinates of molt
-dat_norm |>
+
+#~ Plot normalized expression ----
+
+# dpy-6 should match coordinates of molt
+meeuse_norm |>
   filter(gene_name == "dpy-6") |>
   ggplot(aes(x = time, y = log10(1+TPM_TMM), linetype = gene_name, shape = gene_name, color = gene_name)) +
   theme_bw() +
-  theme(
-    panel.grid.major = element_line(linewidth = 0.6),
-    panel.grid.minor = element_line(linewidth = 0.2)
-  ) +
-  scale_x_continuous(n.breaks = 10, minor_breaks = unique(dat_norm$time)) +
+  scale_x_continuous(n.breaks = 10, minor_breaks = unique(meeuse_norm$time)) +
+  scale_fill_stages +
   geom_rect(data = stage_df,
             aes(xmin = start, xmax = end, ymin = -Inf, ymax = Inf, fill = stage),
-            inherit.aes = FALSE, alpha = 0.15) +
+            inherit.aes = FALSE, alpha = 0.6) +
   geom_point(size = 3, alpha = .5) +
   geom_line(linewidth = 1)
 
-genes_osc <- genes_sel <- wormOsc::table_osc_genes |> filter(osc_amplitude > 1.5) |> pull(gene_name)
 
+# random osc genes
 genes_sel <- genes_osc |> sample(2)
 
 
-#!! Plot ----
-dat_norm |>
+meeuse_norm |>
   filter(gene_name %in% genes_sel) |>
   ggplot(aes(x = time, y = log10(1+TPM_TMM), linetype = gene_name, shape = gene_name, color = gene_name)) +
-  theme_classic() +
+  theme_bw() +
+  scale_x_continuous(n.breaks = 10, minor_breaks = unique(meeuse_norm$time)) +
   geom_rect(data = stage_df,
             aes(xmin = start, xmax = end, ymin = -Inf, ymax = Inf, fill = stage),
             inherit.aes = FALSE, alpha = 0.15) +
   geom_point(size = 3, alpha = .5) +
-  geom_line()
+  geom_line(linewidth = .8)
 
 
 
+# other sets of genes to plot
 
 genes_sel <- c("lin-14", "lin-29", "lin-28", "lin-41", "dpy-6")
 genes_sel <- c("lin-14", "lin-29", "lin-28", "lin-46", "hbl-1")
@@ -166,22 +166,335 @@ genes_sel <- c("him-3", "glp-1", "fog-1", "fog-3")
 genes_sel <- "vit-" |> paste0(1:6)
 
 
-genes_sel <- sample(dat$gene_name, 3)
-genes_sel <- gene
+genes_sel <- sample(meeuse_norm$gene_name, 3)
 
 
 
 
 
-# Check peak width ----
-osc_genes <- wormOsc::table_osc_genes |>
-  filter(osc_amplitude > 1.5) |>
-  pull(gene_name) |>
-  intersect(unique(dat_norm$gene_name))
+# Peak width ----
 
-mat_expr <- dat_norm |>
+## conversion phase <-> time
+# see bottom of the script for conversion numbers
+tab_peak_times <- tab_osc |>
+  filter(gene_name %in% genes_osc) |>
+  mutate(peak_time_L3_h = ((23.5 + (peak_phase_deg / 360) * 8 - 19.5) %% 8) + 19.5,
+         peak_time_L2_h = ((16.5 + (peak_phase_deg / 360) * 8 - 12.5) %% 8) + 12.5)
+
+
+
+fit_gaussian <- function(gene, mat_expr, peak_times, half_window = 4) {
+  
+  peak_time <- peak_times[[gene]] |>
+    round()
+  
+  window <- seq(peak_time - half_window, peak_time + half_window)
+  
+  stopifnot(all(window %in% as.numeric(rownames(mat_expr))))
+  
+  
+  window_data <- mat_expr[as.character(window), gene]
+  
+  # plot(window, window_data, type = "b"); abline(v = peak_time)
+  
+  fit <- tryCatch(
+    nls(
+      y ~ baseline + A * exp(-(t - mu)^2 / (2 * sigma^2)),
+      data    = data.frame(y = window_data, t = window),
+      start   = list(baseline = min(window_data),
+                     A = max(window_data) - min(window_data),
+                     mu = peak_time,
+                     sigma = 1.5),
+      lower = list(baseline = 0,
+                   A = 0,
+                   mu = peak_time - half_window,
+                   sigma = 0.5),
+      upper = list(baseline = Inf,
+                   A = Inf,
+                   mu = peak_time + half_window,
+                   sigma = half_window),
+      algorithm = "port",  # required for bounds
+      control = nls.control(maxiter = 100, warnOnly = TRUE)
+    ),
+    error = \(e) NULL
+  )
+  
+  
+  # Return NA row on failed/non-converged fit
+  if (is.null(fit) || !fit$convInfo$isConv) {
+    return(tibble(gene_name = gene, baseline = NA_real_, amplitude = NA_real_,
+                  mu = NA_real_, sigma = NA_real_, width_gaussian_h = NA_real_))
+  }
+  
+  params <- coef(fit)
+  
+  tibble(
+    gene_name      = gene,
+    baseline       = params[["baseline"]],
+    amplitude      = params[["A"]],
+    mu             = params[["mu"]],
+    sigma          = abs(params[["sigma"]]),
+    width_gaussian_h = 2 * sigma * sqrt(2 * log(2))  # FWHM
+  )
+}
+
+
+
+mat_expr <- meeuse_norm |>
+  filter(gene_name %in% genes_osc) |>
+  pivot_wider(id_cols = gene_name, names_from = time, values_from = TPM_TMM) |>
+  column_to_rownames("gene_name") |>
+  as.matrix() |>
+  t() |>
+  log1p()
+
+width_fits_l2 <- map_dfr(genes_osc,
+                         fit_gaussian,
+                         mat_expr = mat_expr,
+                         peak_times = tab_peak_times$peak_time_L2_h |> set_names(tab_peak_times$gene_name),
+                         .progress = TRUE)
+
+
+
+
+genes_sel <- sample(genes_osc, 2)
+
+
+meeuse_norm |>
+  inner_join(width_fits_l2 |> select(gene_name, width_gaussian_h),
+            by = "gene_name") |>
+  filter(gene_name %in% genes_sel) |>
+  ggplot(aes(x = time, y = log10(1+TPM_TMM), linetype = gene_name, shape = gene_name, color = gene_name)) +
+  theme_classic() +
+  theme(legend.position = "none") +
+  scale_fill_stages +
+  geom_rect(data = stage_df,
+            aes(xmin = start, xmax = end, ymin = -0.1, ymax = 0, fill = stage),
+            inherit.aes = FALSE, alpha = 1, show.legend = FALSE) +
+  annotate("text",
+           x = stage_df$start + (stage_df$end - stage_df$start) / 2,
+           y = -.05,
+           label = stage_df$stage) +
+  geom_point(size = 3, alpha = .5) +
+  geom_line(linewidth = .8) +
+  ggrepel::geom_label_repel(data = meeuse_norm |>
+               inner_join(width_fits_l2 |> select(gene_name, width_gaussian_h), by = "gene_name") |>
+               filter(gene_name %in% genes_sel) |>
+               slice_max(time,
+                         by = c(gene_name, width_gaussian_h)) |>  # place label at the end of the line
+               mutate(label = sprintf("%s: %.1fh", gene_name, width_gaussian_h)),
+             aes(x = time, y = log10(1 + TPM_TMM), label = label, color = gene_name),
+             hjust = 1, nudge_x = 10, show.legend = FALSE) +
+  coord_cartesian(clip = "off") +
+  ggtitle("Expression during larval development (Meeuse 2020 data)") +
+  xlab("Developmental time (h)") +
+  ylab(expression(Expression:~log[10](1 + TPM[TMM])))
+
+
+
+
+
+# Comparison sc clustering ----
+
+dir_clust <- "intermediates/2502/250624_cluster"
+
+clust <- read_csv(file.path(dir_clust, "250624_cluster_results.csv"),
+                  show_col_types = FALSE) |>
+  mutate(cell_type = if_else(cell_type == "coelomyocyte", "coelomocyte", cell_type))
+
+
+list(in_sc = unique(clust$gene_name),
+     osc_in_meeuse = genes_osc) |>
+  eulerr::euler() |>
+  plot(quantities = TRUE)
+
+#~ Any cell type mixed ----
+
+# check we are not overcounting too much by taking "any" cell type pulsatile
+clust |>
+  summarize(is_pulsatile = any(shape == "pulsatile"),
+            .by = gene_name) |>
+  inner_join(tab_osc,
+             by = "gene_name") |>
+  mutate(class = case_when(
+    is.na(osc_amplitude) ~ "non-puls",
+    osc_amplitude <= 1.5 ~ "low",
+    osc_amplitude > 1.5 ~ "puls",
+    .default = "BUG"
+  )) |>
+  summarize(n_puls = sum(is_pulsatile),
+            prop_puls = mean(is_pulsatile),
+            n_tot = n(),
+            .by = class)
+
+
+
+
+
+
+
+
+sc_vs_width <- clust |>
+  summarize(is_pulsatile = any(shape == "pulsatile"),
+            .by = gene_name) |>
+  inner_join(width_fits_l2 |> select(gene_name, width_gaussian_h),
+             by = "gene_name")
+
+# sc_vs_width <- clust |>
+#   summarize(is_pulsatile = sum(shape == "pulsatile") >= 3L,
+#             .by = gene_name) |>
+#   inner_join(width_fits_l2 |> select(gene_name, width_gaussian_h),
+#              by = "gene_name")
+
+
+
+
+sc_vs_width |>
+  ggplot() +
+  theme_classic() +
+  geom_histogram(
+    aes(x = width_gaussian_h, fill = is_pulsatile),
+    color = "white"
+  ) +
+  scale_fill_manual(
+    values = c("TRUE" = "#BC7858", "FALSE" = "#C0ADD7"),
+    labels = c("TRUE" = "Pulsatile", "FALSE" = "Non-pulsatile"),
+    name = "Gene pulsatile in any cell type"
+  ) +
+  xlab(expression("Peak width bulk RNA-Seq (Meeuse " * italic("et al.") * ")")) +
+  ylab("Number of genes") +
+  theme(legend.position = "inside",
+        legend.position.inside = c(.8, .6))
+
+
+
+# sc_vs_width |>
+#   ggplot() +
+#   theme_classic() +
+#   geom_density(
+#     aes(x = width_gaussian_h, fill = is_pulsatile, y = after_stat(count)),
+#     alpha = .5
+#   ) +
+#   scale_fill_manual(
+#     values = c("TRUE" = "#BC7858", "FALSE" = "#C0ADD7"),
+#     labels = c("TRUE" = "Pulsatile", "FALSE" = "Non-pulsatile"),
+#     name = "Gene pulsatile in any cell type"
+#   ) +
+#   xlab(expression("Peak width bulk RNA-Seq (Meeuse " * italic("et al.") * ")")) +
+#   ylab("Number of genes") +
+#   theme(legend.position = "inside",
+#         legend.position.inside = c(.8, .6))
+
+
+
+#~ ILso only ----
+list(
+  in_sc_ILso = clust |>
+    filter(cell_type == "ILso") |>
+    pull(gene_name)
+  ,
+  in_bulk = width_fits_l2 |>
+    pull(gene_name)
+) |>
+  eulerr::euler() |>
+  plot(quantities = TRUE)
+
+sc_vs_width_ILso <- clust |>
+  filter(cell_type == "ILso") |>
+  left_join(width_fits_l2 |> select(gene_name, width_gaussian_h),
+             by = "gene_name") |>
+  mutate(is_pulsatile = shape == "pulsatile")
+
+table(is.na(sc_vs_width_ILso$width_gaussian_h),
+      sc_vs_width_ILso$shape)
+
+
+sc_vs_width_ILso |>
+  filter(!is.na(width_gaussian_h)) |>
+  ggplot() +
+  theme_classic() +
+  geom_histogram(
+    aes(x = width_gaussian_h, fill = is_pulsatile),
+    color = "white"
+  ) +
+  scale_fill_manual(
+    values = c("TRUE" = "#BC7858", "FALSE" = "#C0ADD7"),
+    labels = c("TRUE" = "Pulsatile", "FALSE" = "Non-pulsatile"),
+    name = "Gene pulsatile in ILso"
+  ) +
+  xlab(expression("Peak width bulk RNA-Seq (Meeuse " * italic("et al.") * ", hours)")) +
+  ylab("Number of genes") +
+  theme(legend.position = "inside",
+        legend.position.inside = c(.8, .6))
+
+# ggsave("peak_width_ILso.png", path = dir_out,
+#        width = 10, height = 7, units = "cm")
+
+
+
+
+#~ Seam only ----
+
+
+sc_vs_width_ILso <- clust |>
+  filter(cell_type == "seam") |>
+  left_join(width_fits_l2 |> select(gene_name, width_gaussian_h),
+            by = "gene_name") |>
+  mutate(is_pulsatile = shape == "pulsatile")
+
+table(is.na(sc_vs_width_ILso$width_gaussian_h),
+      sc_vs_width_ILso$shape)
+
+
+sc_vs_width_ILso |>
+  ggplot() +
+  theme_classic() +
+  geom_histogram(
+    aes(x = width_gaussian_h, fill = is_pulsatile),
+    color = "white"
+  ) +
+  scale_fill_manual(
+    values = c("TRUE" = "#BC7858", "FALSE" = "#C0ADD7"),
+    labels = c("TRUE" = "Pulsatile", "FALSE" = "Non-pulsatile"),
+    name = "Gene pulsatile in seam"
+  ) +
+  xlab(expression("Peak width bulk RNA-Seq (Meeuse " * italic("et al.") * ", hours)")) +
+  ylab("Number of genes") +
+  theme(legend.position = "inside",
+        legend.position.inside = c(.8, .6))
+
+# ggsave("peak_width_seam.png", path = dir_out,
+#        width = 10, height = 7, units = "cm")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+##  _______________________   ----
+
+# __Peak width optimization__ ----
+
+# Code used to test and optimize the peak width computation
+
+
+mat_expr <- meeuse_norm |>
   filter(! is.na(gene_name),
-         gene_name %in% osc_genes) |>
+         gene_name %in% genes_osc) |>
   pivot_wider(id_cols = gene_name,
               names_from = time,
               values_from = TPM_TMM) |>
@@ -196,56 +509,73 @@ mat_expr <- dat_norm |>
 
 ## conversion phase <-> time
 
-# apply(mat_expr[as.character(13:20),osc_genes], 2, \(x) which.max(x)) |>
-#   (\(x) (13:20)[x])() |>
-#   set_names(osc_genes) |>
-#   enframe("gene_name", "peak_time_h") |>
-#   left_join(wormOsc::table_osc_genes |> select(gene_name, peak_phase_deg),
-#             by = "gene_name") |>
-#   ggplot() +
-#   geom_point(aes(peak_time_h, peak_phase_deg))
+# #> L2 (13:20), visually, peak_time_h = ((16.5 + (peak_phase_deg / 360) * 8 - 12.5) %% 8) + 12.5)
+
+apply(mat_expr[as.character(13:20), genes_osc], 2, \(x) which.max(x)) |>
+  (\(x) (13:20)[x])() |>
+  set_names(genes_osc) |>
+  enframe("gene_name", "peak_time_h") |>
+  left_join(wormOsc::table_osc_genes |> select(gene_name, peak_phase_deg),
+            by = "gene_name") |>
+  ggplot() +
+  geom_point(aes(peak_time_h, peak_phase_deg)) +
+  geom_line(aes(time_h, phase_deg),
+             data = tibble(
+               phase_deg = 0:360,
+               time_h = ((16.5 + (phase_deg / 360) * 8 - 12.5) %% 8) + 12.5
+             ),
+             color = "green4",
+            linewidth = 1)
+
 
 # #> L3 (20:27), visually, peak_time_h = ((23.5 + (peak_phase_deg / 360) * 8 - 20) %% 8) + 20
-# #> L2 (13:20), visually, peak_time_h = ((23.5 + (peak_phase_deg / 360) * 8 - 20) %% 8) + 20
 
-tab_peak_times <- wormOsc::table_osc_genes |>
-  filter(! is.na(gene_name)) |>
-  column_to_rownames("gene_name") |>
-  (\(df) df[colnames(mat_expr),] )() |>
-  mutate(peak_time_L3_h = ((23.5 + (peak_phase_deg / 360) * 8 - 19.5) %% 8) + 19.5,
-         peak_time_L2_h = ((16.5 + (peak_phase_deg / 360) * 8 - 12.5) %% 8) + 12.5)
+apply(mat_expr[as.character(20:27), genes_osc], 2, \(x) which.max(x)) |>
+  (\(x) (20:27)[x])() |>
+  set_names(genes_osc) |>
+  enframe("gene_name", "peak_time_h") |>
+  left_join(wormOsc::table_osc_genes |> select(gene_name, peak_phase_deg),
+            by = "gene_name") |>
+  ggplot() +
+  geom_point(aes(peak_time_h, peak_phase_deg)) +
+  geom_line(aes(time_h, phase_deg),
+            data = tibble(
+              phase_deg = 0:360,
+              time_h = ((23.5 + (phase_deg / 360) * 8 - 20) %% 8) + 20
+            ),
+            color = "green4",
+            linewidth = 1)
 
 
-## check
 
-# tab_peak_times |>
-#   ggplot() +
-#   geom_point(aes(peak_time_L3_h, peak_phase_deg))
-# tab_peak_times |>
-#   ggplot() +
-#   geom_point(aes(peak_time_L2_h, peak_phase_deg))
 
-# genes_sel <- osc_genes |> sample(1)
-# 
-# dat_norm |>
-#   filter(gene_name %in% genes_sel) |>
-#   ggplot(aes(x = time, y = log10(1+TPM_TMM), linetype = gene_name, shape = gene_name, color = gene_name)) +
-#   theme_classic() +
-#   geom_rect(data = stage_df,
-#             aes(xmin = start, xmax = end, ymin = -Inf, ymax = Inf, fill = stage),
-#             inherit.aes = FALSE, alpha = 0.15) +
-#   geom_point(size = 3, alpha = .5) +
-#   geom_line() +
-#   geom_vline(
-#     data = tab_peak_times[genes_sel, ],
-#     mapping = aes(xintercept = peak_time_L3_h),
-#     color = "green3"
-#     ) +
-#   geom_vline(
-#     data = tab_peak_times[genes_sel, ],
-#     mapping = aes(xintercept = peak_time_L2_h),
-#     color = "magenta3"
-#   )
+
+
+
+## check that from phase we predict correct peak time
+
+genes_sel <- genes_osc |> sample(1)
+
+meeuse_norm |>
+  filter(gene_name %in% genes_sel) |>
+  ggplot(aes(x = time, y = log10(1+TPM_TMM), linetype = gene_name, shape = gene_name, color = gene_name)) +
+  theme_classic() +
+  scale_fill_stages +
+  geom_rect(data = stage_df,
+            aes(xmin = start, xmax = end, ymin = -Inf, ymax = Inf, fill = stage),
+            inherit.aes = FALSE, alpha = 0.6) +
+  geom_point(size = 3, alpha = .5) +
+  geom_line() +
+  geom_vline(
+    data = tab_peak_times[genes_sel, ],
+    mapping = aes(xintercept = peak_time_L3_h),
+    color = "green3"
+    ) +
+  geom_vline(
+    data = tab_peak_times[genes_sel, ],
+    mapping = aes(xintercept = peak_time_L2_h),
+    color = "blue"
+  )
 
 
 
@@ -404,6 +734,7 @@ hist(width_fits_l2$width_gaussian_h, breaks = 30)
 
 
 
+# Examples and extreme cases
 
 genes_sel <- width_fits_l2 |> filter(width_gaussian_h > 4) |> pull(gene_name) |> sample(3)
 genes_sel <- width_fits_l2 |> filter(width_gaussian_h < 1.5) |> pull(gene_name) |> sample(3)
@@ -461,171 +792,4 @@ dat_norm |>
   ggtitle("Expression during larval development (Meeuse 2020 data)") +
   xlab("Developmental time (h)") +
   ylab(expression(Expression:~log[10](1 + TPM[TMM])))
-
-
-
-
-# Comparison sc clustering ----
-
-dir_clust <- "intermediates/2502/250624_cluster"
-
-clust <- read_csv(file.path(dir_clust, "250624_cluster_results.csv"),
-                  show_col_types = FALSE) |>
-  mutate(cell_type = if_else(cell_type == "coelomyocyte", "coelomocyte", cell_type))
-
-
-list(in_sc = unique(clust$gene_name),
-     osc_in_meeuse = osc_genes) |>
-  eulerr::euler() |>
-  plot(quantities = TRUE)
-
-#~ Any cell type mixed ----
-
-# check we are not overcounting too much by taking "any" cell type pulsatile
-clust |>
-  summarize(is_pulsatile = any(shape == "pulsatile"),
-            .by = gene_name) |>
-  inner_join(tab_osc,
-             by = "gene_name") |>
-  mutate(class = case_when(
-    is.na(osc_amplitude) ~ "non-puls",
-    osc_amplitude <= 1.5 ~ "low",
-    osc_amplitude > 1.5 ~ "puls",
-    .default = "BUG"
-  )) |>
-  summarize(n_puls = sum(is_pulsatile),
-            prop_puls = mean(is_pulsatile),
-            n_tot = n(),
-            .by = class)
-
-
-
-
-
-
-
-
-sc_vs_width <- clust |>
-  summarize(is_pulsatile = any(shape == "pulsatile"),
-            .by = gene_name) |>
-  inner_join(width_fits_l2 |> select(gene_name, width_gaussian_h),
-             by = "gene_name")
-
-# sc_vs_width <- clust |>
-#   summarize(is_pulsatile = sum(shape == "pulsatile") >= 3L,
-#             .by = gene_name) |>
-#   inner_join(width_fits_l2 |> select(gene_name, width_gaussian_h),
-#              by = "gene_name")
-
-
-
-
-sc_vs_width |>
-  ggplot() +
-  theme_classic() +
-  geom_histogram(
-    aes(x = width_gaussian_h, fill = is_pulsatile),
-    color = "white"
-  ) +
-  scale_fill_manual(
-    values = c("TRUE" = "#BC7858", "FALSE" = "#C0ADD7"),
-    labels = c("TRUE" = "Pulsatile", "FALSE" = "Non-pulsatile"),
-    name = "Gene pulsatile in any cell type"
-  ) +
-  xlab(expression("Peak width bulk RNA-Seq (Meeuse " * italic("et al.") * ")")) +
-  ylab("Number of genes") +
-  theme(legend.position = "inside",
-        legend.position.inside = c(.8, .6))
-
-
-
-# sc_vs_width |>
-#   ggplot() +
-#   theme_classic() +
-#   geom_density(
-#     aes(x = width_gaussian_h, fill = is_pulsatile, y = after_stat(count)),
-#     alpha = .5
-#   ) +
-#   scale_fill_manual(
-#     values = c("TRUE" = "#BC7858", "FALSE" = "#C0ADD7"),
-#     labels = c("TRUE" = "Pulsatile", "FALSE" = "Non-pulsatile"),
-#     name = "Gene pulsatile in any cell type"
-#   ) +
-#   xlab(expression("Peak width bulk RNA-Seq (Meeuse " * italic("et al.") * ")")) +
-#   ylab("Number of genes") +
-#   theme(legend.position = "inside",
-#         legend.position.inside = c(.8, .6))
-
-
-
-#~ ILso only ----
-
-
-sc_vs_width_ILso <- clust |>
-  filter(cell_type == "ILso") |>
-  left_join(width_fits_l2 |> select(gene_name, width_gaussian_h),
-             by = "gene_name") |>
-  mutate(is_pulsatile = shape == "pulsatile")
-
-table(is.na(sc_vs_width_ILso$width_gaussian_h),
-      sc_vs_width_ILso$shape)
-
-
-sc_vs_width_ILso |>
-  ggplot() +
-  theme_classic() +
-  geom_histogram(
-    aes(x = width_gaussian_h, fill = is_pulsatile),
-    color = "white"
-  ) +
-  scale_fill_manual(
-    values = c("TRUE" = "#BC7858", "FALSE" = "#C0ADD7"),
-    labels = c("TRUE" = "Pulsatile", "FALSE" = "Non-pulsatile"),
-    name = "Gene pulsatile in ILso"
-  ) +
-  xlab(expression("Peak width bulk RNA-Seq (Meeuse " * italic("et al.") * ", hours)")) +
-  ylab("Number of genes") +
-  theme(legend.position = "inside",
-        legend.position.inside = c(.8, .6))
-
-ggsave("peak_width_ILso.png", path = dir_out,
-       width = 10, height = 7, units = "cm")
-
-
-
-
-#~ Seam only ----
-
-
-sc_vs_width_ILso <- clust |>
-  filter(cell_type == "seam") |>
-  left_join(width_fits_l2 |> select(gene_name, width_gaussian_h),
-            by = "gene_name") |>
-  mutate(is_pulsatile = shape == "pulsatile")
-
-table(is.na(sc_vs_width_ILso$width_gaussian_h),
-      sc_vs_width_ILso$shape)
-
-
-sc_vs_width_ILso |>
-  ggplot() +
-  theme_classic() +
-  geom_histogram(
-    aes(x = width_gaussian_h, fill = is_pulsatile),
-    color = "white"
-  ) +
-  scale_fill_manual(
-    values = c("TRUE" = "#BC7858", "FALSE" = "#C0ADD7"),
-    labels = c("TRUE" = "Pulsatile", "FALSE" = "Non-pulsatile"),
-    name = "Gene pulsatile in seam"
-  ) +
-  xlab(expression("Peak width bulk RNA-Seq (Meeuse " * italic("et al.") * ", hours)")) +
-  ylab("Number of genes") +
-  theme(legend.position = "inside",
-        legend.position.inside = c(.8, .6))
-
-ggsave("peak_width_seam.png", path = dir_out,
-       width = 10, height = 7, units = "cm")
-
-
 
