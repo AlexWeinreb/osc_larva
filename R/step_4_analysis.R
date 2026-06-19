@@ -1639,6 +1639,8 @@ pheatmap::pheatmap(
 
 # Illustrate GAM ----
 
+library(Seurat)
+library(tidyverse)
 
 
 dir_step2 <- "intermediates/2502/250624_step2/"
@@ -1657,6 +1659,29 @@ dir_step1 <- "intermediates/2502/250609_step1/"
 
 dir_fig_gam <- "presentations/figures/260422_gam_illustrations"
 # dir.create(dir_fig_gam)
+
+
+
+
+# clustering results
+
+dir_clust <- "intermediates/2502/250624_cluster"
+dir_step3 <- "intermediates/2502/250624_step3_genes_by_celltype/"
+
+
+cell_types_info <- qs::qread(file.path(dir_step3, "cell_types.qs"))
+
+all_genes <- read_csv(file.path(dir_clust, "250624_cluster_results.csv")) |>
+  mutate(cellgene = paste0(cell_type, "|", gene_name)) |>
+  filter(cell_type %in% cell_types_info$cell_type)
+
+
+
+stopifnot(all.equal(
+  cell_types_info$cell_type |> unique() |> sort(),
+  all_genes$cell_type |> unique() |> sort()
+))
+
 
 
 
@@ -1715,10 +1740,86 @@ mean_sf <- lapply(mods_uncentered,
 # goi <- "rps-27A"
 # goi <- "dnj-1"
 
+
+goi <- rownames(ilso_subseu) |> sample(1)
+
+tab <- inner_join(
+  wormOsc::table_osc_genes |>
+    select(gene_name, osc_amplitude, peak_phase_deg) |>
+    mutate(oscillating = !is.na(osc_amplitude),
+           high_osc_amplitude = osc_amplitude > 2),
+  all_genes |>
+    filter(cell_type == "ILso") |>
+    select(gene_name, sc_shape = shape, sc_cluster = cluster),
+  by = "gene_name"
+)
+
+
+
+set.seed(456)
+genes_to_plot <- bind_rows(
+  tab |>
+    filter(
+      high_osc_amplitude,
+      sc_shape == "pulsatile"
+      )
+  ,
+  tab |>
+    filter(
+      high_osc_amplitude,
+      sc_shape == "nonpulsatile"
+    )
+  ,
+  tab |>
+    filter(
+      !oscillating,
+      sc_shape == "pulsatile"
+    )
+  ,
+  tab |>
+    filter(
+      !oscillating,
+      sc_shape == "nonpulsatile"
+    )
+) |>
+  slice_sample(n = 4,
+               by = c(high_osc_amplitude, oscillating, sc_shape)) |>
+  pull(gene_name)
+
+
+
+
+dir_fig_gam <- "presentations/figures/260618_random_gam_plots"
+
+
+
 # for(goi in c("grl-18", "nhr-23", "col-109", "pugs-11", "rps-27A", "dnj-1")){
+for(goi in genes_to_plot){
 
-
-
+  
+  row_nb <- which(wormOsc::table_osc_genes$gene_name == goi)
+  stopifnot( length(row_nb) == 1L )
+  goi_ampl <- wormOsc::table_osc_genes[["osc_amplitude"]][[row_nb]]
+  goi_phase <- wormOsc::table_osc_genes[["peak_phase_deg"]][[row_nb]]
+  
+  
+  row_nb_clust <- which(all_genes$cell_type == "ILso" & all_genes$gene_name == goi)
+  stopifnot( length(row_nb_clust) == 1L )
+  goi_shape <- all_genes[["shape"]][[row_nb_clust]]
+  goi_cluster <- all_genes[["cluster"]][[row_nb_clust]]
+  
+  if(is.na(goi_ampl)){
+    title_bulk <- ("not oscillating")
+  } else{
+    title_bulk <- bquote(
+        "amplitude " * .(round(goi_ampl, 1)) * ", " *
+        "phase " * .(round(goi_phase)) * "°; "
+    )
+  }
+  
+  title_clust <- bquote( .(goi_shape) * " (cluster " * .(goi_cluster) * ")" )
+  
+  
 #~| cells ----
 
 dat <- FetchData(ilso_subseu, vars = c("PC_1","PC_2",goi))
@@ -1734,8 +1835,7 @@ dat |>
   theme(
     axis.title = element_text(size = 10),
     axis.text = element_text(size = 7),
-    plot.title = element_text(face = "italic",
-                              size = 10),
+    plot.title = element_text(size = 10),
     legend.position = "top",
     legend.margin = margin(),
     legend.box.margin = margin(),
@@ -1746,7 +1846,9 @@ dat |>
   ) +
   labs(x = "PC 1", y = "PC 2") +
   scale_color_gradient(low = alpha("grey", .3), high = alpha("blue2", .8)) +
-  # ggtitle(goi) +
+  ggtitle(bquote(
+    italic(.(goi)) * ": " * .(title_bulk) * "; " * .(title_clust)
+    )) +
   ggrastr::geom_point_rast(aes(x = PC_1, y = PC_2,
                                color = .data[[goi]]),
                            shape = 16,
@@ -1760,7 +1862,10 @@ ggsave(paste0(goi, "_expr.pdf"),
        width = 55, height = 55, units = "mm",
        scale = 1)
 
-
+ggsave(paste0(goi, "_expr.png"),
+       path = dir_fig_gam,
+       width = 55, height = 55, units = "mm",
+       scale = 2)
 
 
 
@@ -1810,7 +1915,12 @@ ggsave(paste0(goi, "_devexpl.pdf"),
        width = 50, height = 45, units = "mm",
        scale = 1)
 
-# }
+ggsave(paste0(goi, "_devexpl.png"),
+       path = dir_fig_gam,
+       width = 50, height = 45, units = "mm",
+       scale = 2)
+}
+
 
 
 
