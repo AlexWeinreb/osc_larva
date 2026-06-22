@@ -13,7 +13,7 @@ library(wbData)
 
 gids <- wb_load_gene_ids(295)
 
-dir_out <- "presentations/figures/260615_peak_widths"
+dir_out <- "presentations/figures/260622_peak_widths"
 
 
 transform_log10p <- scales::new_transform(
@@ -157,16 +157,16 @@ meeuse_norm |>
 
 
 
-# other sets of genes to plot
-
-genes_sel <- c("lin-14", "lin-29", "lin-28", "lin-41", "dpy-6")
-genes_sel <- c("lin-14", "lin-29", "lin-28", "lin-46", "hbl-1")
-genes_sel <- c("him-3", "glp-1", "fog-1", "fog-3")
-
-genes_sel <- "vit-" |> paste0(1:6)
-
-
-genes_sel <- sample(meeuse_norm$gene_name, 3)
+# # other sets of genes to plot
+# 
+# genes_sel <- c("lin-14", "lin-29", "lin-28", "lin-41", "dpy-6")
+# genes_sel <- c("lin-14", "lin-29", "lin-28", "lin-46", "hbl-1")
+# genes_sel <- c("him-3", "glp-1", "fog-1", "fog-3")
+# 
+# genes_sel <- "vit-" |> paste0(1:6)
+# 
+# 
+# genes_sel <- sample(meeuse_norm$gene_name, 3)
 
 
 
@@ -256,8 +256,8 @@ width_fits_l2 <- map_dfr(genes_osc,
 
 
 
-
-genes_sel <- sample(genes_osc, 2)
+#~ Plot with width ----
+genes_sel <- sample(genes_osc, 3)
 
 
 meeuse_norm |>
@@ -265,9 +265,17 @@ meeuse_norm |>
             by = "gene_name") |>
   filter(gene_name %in% genes_sel) |>
   ggplot(aes(x = time, y = log10(1+TPM_TMM), linetype = gene_name, shape = gene_name, color = gene_name)) +
-  theme_classic() +
-  theme(legend.position = "none") +
+  theme_minimal() +
+  theme(legend.position = "none",
+        plot.margin = margin(t = 5, r = 60, b = 5, l = 5)) +
+  coord_cartesian(clip = "off",
+                  xlim = c(0, 50)) +
+  scale_x_continuous(n.breaks = 6,
+                     minor_breaks = unique(meeuse_norm$time)) +
   scale_fill_stages +
+  geom_rect(data = stage_df,
+            aes(xmin = start, xmax = end, ymin = -Inf, ymax = Inf, fill = stage),
+            inherit.aes = FALSE, alpha = 0.25) +
   geom_rect(data = stage_df,
             aes(xmin = start, xmax = end, ymin = -0.1, ymax = 0, fill = stage),
             inherit.aes = FALSE, alpha = 1, show.legend = FALSE) +
@@ -284,8 +292,10 @@ meeuse_norm |>
                          by = c(gene_name, width_gaussian_h)) |>  # place label at the end of the line
                mutate(label = sprintf("%s: %.1fh", gene_name, width_gaussian_h)),
              aes(x = time, y = log10(1 + TPM_TMM), label = label, color = gene_name),
-             hjust = 1, nudge_x = 10, show.legend = FALSE) +
-  coord_cartesian(clip = "off") +
+             hjust = 0,
+             nudge_x = 10,
+             xlim = c(0, 60),
+             direction = "y") +
   ggtitle("Expression during larval development (Meeuse 2020 data)") +
   xlab("Developmental time (h)") +
   ylab(expression(Expression:~log[10](1 + TPM[TMM])))
@@ -296,22 +306,33 @@ meeuse_norm |>
 
 # Comparison sc clustering ----
 
-dir_clust <- "intermediates/2502/250624_cluster"
+dir_sc_clust <- "intermediates/2502/250624_cluster"
 
-clust <- read_csv(file.path(dir_clust, "250624_cluster_results.csv"),
+sc_clust <- read_csv(file.path(dir_sc_clust, "250624_cluster_results.csv"),
                   show_col_types = FALSE) |>
   mutate(cell_type = if_else(cell_type == "coelomyocyte", "coelomocyte", cell_type))
 
 
-list(in_sc = unique(clust$gene_name),
-     osc_in_meeuse = genes_osc) |>
+# we have computed widths for all osc genes, and only for osc genes
+stopifnot(identical(
+  genes_osc,
+  width_fits_l2 |>
+    pull(gene_name)
+))
+
+
+list(detected_in_sc = unique(sc_clust$gene_name),
+     width_from_meeuse = genes_osc) |>
   eulerr::euler() |>
   plot(quantities = TRUE)
+
+
+
 
 #~ Any cell type mixed ----
 
 # check we are not overcounting too much by taking "any" cell type pulsatile
-clust |>
+sc_clust |>
   summarize(is_pulsatile = any(shape == "pulsatile"),
             .by = gene_name) |>
   inner_join(tab_osc,
@@ -329,17 +350,6 @@ clust |>
 
 
 
-
-
-
-
-
-sc_vs_width <- clust |>
-  summarize(is_pulsatile = any(shape == "pulsatile"),
-            .by = gene_name) |>
-  inner_join(width_fits_l2 |> select(gene_name, width_gaussian_h),
-             by = "gene_name")
-
 # sc_vs_width <- clust |>
 #   summarize(is_pulsatile = sum(shape == "pulsatile") >= 3L,
 #             .by = gene_name) |>
@@ -347,9 +357,11 @@ sc_vs_width <- clust |>
 #              by = "gene_name")
 
 
-
-
-sc_vs_width |>
+sc_clust |>
+  summarize(is_pulsatile = any(shape == "pulsatile"),
+            .by = gene_name) |>
+  inner_join(width_fits_l2 |> select(gene_name, width_gaussian_h),
+             by = "gene_name") |>
   ggplot() +
   theme_classic() +
   geom_histogram(
@@ -387,23 +399,41 @@ sc_vs_width |>
 
 
 
+
+
 #~ ILso only ----
+
 list(
-  in_sc_ILso = clust |>
+  in_sc_ILso = sc_clust |>
     filter(cell_type == "ILso") |>
     pull(gene_name)
   ,
-  in_bulk = width_fits_l2 |>
-    pull(gene_name)
+  width_from_meeuse = genes_osc
 ) |>
   eulerr::euler() |>
   plot(quantities = TRUE)
 
-sc_vs_width_ILso <- clust |>
+# still largely overlaps
+list(
+  puls_ILso = sc_clust |>
+    filter(cell_type == "ILso",
+           shape == "pulsatile") |>
+    pull(gene_name)
+  ,
+  width_from_meeuse = genes_osc
+) |>
+  eulerr::euler() |>
+  plot(quantities = TRUE)
+
+
+
+
+sc_vs_width_ILso <- sc_clust |>
   filter(cell_type == "ILso") |>
+  mutate(shape = factor(shape, levels = c("nonpulsatile", "low", "pulsatile"))) |>
   left_join(width_fits_l2 |> select(gene_name, width_gaussian_h),
-             by = "gene_name") |>
-  mutate(is_pulsatile = shape == "pulsatile")
+             by = "gene_name")
+
 
 table(is.na(sc_vs_width_ILso$width_gaussian_h),
       sc_vs_width_ILso$shape)
@@ -414,59 +444,78 @@ sc_vs_width_ILso |>
   ggplot() +
   theme_classic() +
   geom_histogram(
-    aes(x = width_gaussian_h, fill = is_pulsatile),
-    color = "white"
+    aes(x = width_gaussian_h, fill = shape),
+    color = "white",
+    bins = 50
   ) +
   scale_fill_manual(
-    values = c("TRUE" = "#BC7858", "FALSE" = "#C0ADD7"),
-    labels = c("TRUE" = "Pulsatile", "FALSE" = "Non-pulsatile"),
-    name = "Gene pulsatile in ILso"
+    values = c("nonpulsatile" = "#C0ADD7", "low" = "#D4B483", "pulsatile" = "#BC7858"),
+    labels = c("nonpulsatile" = "Non-pulsatile", "low" = "Low-amplitude", "pulsatile" = "Pulsatile"),
+    name = "Oscillating gene expressed in ILso"
   ) +
-  xlab(expression("Peak width bulk RNA-Seq (Meeuse " * italic("et al.") * ", hours)")) +
+  xlab(expression("Peak width from bulk RNA-Seq (Meeuse " * italic("et al.") * ", hours)")) +
   ylab("Number of genes") +
   theme(legend.position = "inside",
         legend.position.inside = c(.8, .6))
 
 # ggsave("peak_width_ILso.png", path = dir_out,
-#        width = 10, height = 7, units = "cm")
-
+#        width = 10, height = 7, units = "cm",
+#        scale = 1.5)
+# 
+# ggsave("peak_width_ILso.pdf", path = dir_out,
+#        width = 10, height = 7, units = "cm",
+#        scale = 1.5)
 
 
 
 #~ Seam only ----
 
 
-sc_vs_width_ILso <- clust |>
+list(
+  in_sc_seam = sc_clust |>
+    filter(cell_type == "seam") |>
+    pull(gene_name)
+  ,
+  width_from_meeuse = genes_osc
+) |>
+  eulerr::euler() |>
+  plot(quantities = TRUE)
+
+sc_vs_width_seam <- sc_clust |>
   filter(cell_type == "seam") |>
+  mutate(shape = factor(shape, levels = c("nonpulsatile", "low", "pulsatile"))) |>
   left_join(width_fits_l2 |> select(gene_name, width_gaussian_h),
-            by = "gene_name") |>
-  mutate(is_pulsatile = shape == "pulsatile")
+            by = "gene_name")
 
-table(is.na(sc_vs_width_ILso$width_gaussian_h),
-      sc_vs_width_ILso$shape)
+table(is.na(sc_vs_width_seam$width_gaussian_h),
+      sc_vs_width_seam$shape)
 
 
-sc_vs_width_ILso |>
+sc_vs_width_seam |>
   ggplot() +
   theme_classic() +
   geom_histogram(
-    aes(x = width_gaussian_h, fill = is_pulsatile),
-    color = "white"
+    aes(x = width_gaussian_h, fill = shape),
+    color = "white",
+    bins = 50
   ) +
   scale_fill_manual(
-    values = c("TRUE" = "#BC7858", "FALSE" = "#C0ADD7"),
-    labels = c("TRUE" = "Pulsatile", "FALSE" = "Non-pulsatile"),
-    name = "Gene pulsatile in seam"
+    values = c("nonpulsatile" = "#C0ADD7", "low" = "#D4B483", "pulsatile" = "#BC7858"),
+    labels = c("nonpulsatile" = "Non-pulsatile", "low" = "Low-amplitude", "pulsatile" = "Pulsatile"),
+    name = "Oscillating gene expressed in seam"
   ) +
-  xlab(expression("Peak width bulk RNA-Seq (Meeuse " * italic("et al.") * ", hours)")) +
+  xlab(expression("Peak width from bulk RNA-Seq (Meeuse " * italic("et al.") * ", hours)")) +
   ylab("Number of genes") +
   theme(legend.position = "inside",
         legend.position.inside = c(.8, .6))
 
 # ggsave("peak_width_seam.png", path = dir_out,
-#        width = 10, height = 7, units = "cm")
-
-
+#        width = 10, height = 7, units = "cm",
+#        scale = 1.5)
+# 
+# ggsave("peak_width_seam.pdf", path = dir_out,
+#        width = 10, height = 7, units = "cm",
+#        scale = 1.5)
 
 
 
