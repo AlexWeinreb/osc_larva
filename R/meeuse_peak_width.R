@@ -443,27 +443,38 @@ sc_vs_width_ILso |>
   filter(!is.na(width_gaussian_h)) |>
   ggplot() +
   theme_classic() +
-  geom_histogram(
-    aes(x = width_gaussian_h, fill = shape),
-    color = "white",
-    bins = 50
+  theme(
+    axis.title = element_text(size = 10),
+    axis.text = element_text(size = 7),
+    legend.position = "none",
+    plot.margin = unit(c(0,0,0,0), "mm"),
+    plot.background = element_blank(),
+    panel.background = element_blank(),
+    panel.spacing.y = unit(0, "mm"),
+    strip.background = element_blank(),
+    strip.text = element_text(hjust = 0, vjust = -5),
+    strip.clip = "off"
   ) +
   scale_fill_manual(
     values = c("nonpulsatile" = "#C0ADD7", "low" = "#D4B483", "pulsatile" = "#BC7858"),
     labels = c("nonpulsatile" = "Non-pulsatile", "low" = "Low-amplitude", "pulsatile" = "Pulsatile"),
-    name = "Oscillating gene expressed in ILso"
+    name = "Oscillating gene expressed in seam"
   ) +
   xlab(expression("Peak width from bulk RNA-Seq (Meeuse " * italic("et al.") * ", hours)")) +
   ylab("Number of genes") +
-  theme(legend.position = "inside",
-        legend.position.inside = c(.8, .6))
+  ggtitle("ILso") +
+  geom_histogram(
+    aes(x = width_gaussian_h, fill = shape),
+    color = "white",
+    bins = 30
+  )
 
 # ggsave("peak_width_ILso.png", path = dir_out,
 #        width = 10, height = 7, units = "cm",
 #        scale = 1.5)
 # 
 # ggsave("peak_width_ILso.pdf", path = dir_out,
-#        width = 10, height = 7, units = "cm",
+#        width = 6, height = 8, units = "cm",
 #        scale = 1.5)
 
 
@@ -494,10 +505,17 @@ table(is.na(sc_vs_width_seam$width_gaussian_h),
 sc_vs_width_seam |>
   ggplot() +
   theme_classic() +
-  geom_histogram(
-    aes(x = width_gaussian_h, fill = shape),
-    color = "white",
-    bins = 50
+  theme(
+    axis.title = element_text(size = 10),
+    axis.text = element_text(size = 7),
+    legend.position = "none",
+    plot.margin = unit(c(0,0,0,0), "mm"),
+    plot.background = element_blank(),
+    panel.background = element_blank(),
+    panel.spacing.y = unit(0, "mm"),
+    strip.background = element_blank(),
+    strip.text = element_text(hjust = 0, vjust = -5),
+    strip.clip = "off"
   ) +
   scale_fill_manual(
     values = c("nonpulsatile" = "#C0ADD7", "low" = "#D4B483", "pulsatile" = "#BC7858"),
@@ -506,15 +524,19 @@ sc_vs_width_seam |>
   ) +
   xlab(expression("Peak width from bulk RNA-Seq (Meeuse " * italic("et al.") * ", hours)")) +
   ylab("Number of genes") +
-  theme(legend.position = "inside",
-        legend.position.inside = c(.8, .6))
+  ggtitle("Seam cells") +
+  geom_histogram(
+    aes(x = width_gaussian_h, fill = shape),
+    color = "white",
+    bins = 30
+  )
 
 # ggsave("peak_width_seam.png", path = dir_out,
 #        width = 10, height = 7, units = "cm",
 #        scale = 1.5)
 # 
 # ggsave("peak_width_seam.pdf", path = dir_out,
-#        width = 10, height = 7, units = "cm",
+#        width = 6, height = 8, units = "cm",
 #        scale = 1.5)
 
 

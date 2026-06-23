@@ -1641,7 +1641,7 @@ pheatmap::pheatmap(
 
 library(Seurat)
 library(tidyverse)
-
+# library(patchwork)
 
 dir_step2 <- "intermediates/2502/250624_step2/"
 dir_step1 <- "intermediates/2502/250609_step1/"
@@ -1741,7 +1741,7 @@ mean_sf <- lapply(mods_uncentered,
 # goi <- "dnj-1"
 
 
-goi <- rownames(ilso_subseu) |> sample(1)
+# goi <- rownames(ilso_subseu) |> sample(1)
 
 tab <- inner_join(
   wormOsc::table_osc_genes |>
@@ -1754,7 +1754,8 @@ tab <- inner_join(
   by = "gene_name"
 )
 
-
+tab |>
+  count(high_osc_amplitude, sc_shape)
 
 set.seed(456)
 genes_to_plot <- bind_rows(
@@ -1787,10 +1788,10 @@ genes_to_plot <- bind_rows(
   pull(gene_name)
 
 
+goi <- genes_to_plot[[1]]
 
-
-dir_fig_gam <- "presentations/figures/260618_random_gam_plots"
-
+dir_fig_gam <- "presentations/figures/260623_random_gam_plots"
+# dir.create(dir_fig_gam)
 
 
 # for(goi in c("grl-18", "nhr-23", "col-109", "pugs-11", "rps-27A", "dnj-1")){
@@ -1829,7 +1830,7 @@ dat$PC_1 <- -dat$PC_1
 
 
 
-dat |>
+gg_pca <- dat |>
   ggplot() +
   theme_classic() +
   theme(
@@ -1857,15 +1858,15 @@ dat |>
 
 
 
-ggsave(paste0(goi, "_expr.pdf"),
-       path = dir_fig_gam,
-       width = 55, height = 55, units = "mm",
-       scale = 1)
-
-ggsave(paste0(goi, "_expr.png"),
-       path = dir_fig_gam,
-       width = 55, height = 55, units = "mm",
-       scale = 2)
+# ggsave(paste0(goi, "_expr.pdf"),
+#        path = dir_fig_gam,
+#        width = 55, height = 55, units = "mm",
+#        scale = 1)
+# 
+# ggsave(paste0(goi, "_expr.png"),
+#        path = dir_fig_gam,
+#        width = 55, height = 55, units = "mm",
+#        scale = 2)
 
 
 
@@ -1886,7 +1887,7 @@ clip <- max(
   1.1 * max(dat$fit)
 )
 
-dat |>
+gg_gam <- dat |>
   ggplot() +
   theme_classic() +
   theme(
@@ -1910,16 +1911,45 @@ dat |>
             color = 'orange2',
             linewidth = 1)
 
-ggsave(paste0(goi, "_devexpl.pdf"),
-       path = dir_fig_gam,
-       width = 50, height = 45, units = "mm",
-       scale = 1)
+# ggsave(paste0(goi, "_devexpl.pdf"),
+#        path = dir_fig_gam,
+#        width = 50, height = 45, units = "mm",
+#        scale = 1)
+# 
+# ggsave(paste0(goi, "_devexpl.png"),
+#        path = dir_fig_gam,
+#        width = 50, height = 45, units = "mm",
+#        scale = 2)
 
-ggsave(paste0(goi, "_devexpl.png"),
+
+title_grob <- grid::textGrob(
+  bquote(italic(.(goi)) * ": " * .(title_bulk) * "; " * .(title_clust)),
+  gp = grid::gpar(fontsize = 10),
+  x = 0, hjust = 0  # left-align; drop these for centered
+)
+
+plots_aligned <- cowplot::plot_grid(
+  gg_pca + ggtitle(NULL), gg_gam,
+  nrow = 1,
+  align = "v",   # aligns vertical extents
+  axis = "tb"    # matches top and bottom axes
+)
+
+gg_assembled <- patchwork::wrap_elements(plots_aligned) +
+  patchwork::plot_annotation(
+    title = bquote(italic(.(goi)) * ": " * .(title_bulk) * "; " * .(title_clust)),
+    theme = theme(plot.title = element_text(size = 10))
+  )
+
+
+ggsave(paste0(goi, "_assembled.pdf"),
+       plot = gg_assembled,
        path = dir_fig_gam,
-       width = 50, height = 45, units = "mm",
-       scale = 2)
+       width = 70, height = 40, units = "mm",
+       scale = 1.5)
+
 }
+
 
 
 
