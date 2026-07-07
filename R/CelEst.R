@@ -1487,3 +1487,82 @@ tf_timings |>
 
 
 
+
+#~ No selection of ct/tf ----
+
+
+tf_timings <- tf_target_timing |>
+  rename(gene_name = tf_name) |>
+  # filter(gene_name %in% tfs_to_show,
+  #        cell_type %in% cts_to_show) |>
+  left_join(osc_table |>
+              filter(bulk_class == "Osc") |>
+              mutate(bulk_peak_pct = ((bulk_peak - origin_deg) %% 360) * 100 / 360) |>
+              select(gene_name, bulk_peak_pct),
+            by = "gene_name") |>
+  mutate(cell_type = str_replace_all(cell_type, "_", " "))
+
+
+tf_timings_segments <- tf_timings |>
+  distinct(gene_name, cell_type, tf_peak_pct) |>
+  crossing(
+    do.call(rbind, windows) |>
+      as.data.frame() |>
+      rownames_to_column("window") |>
+      mutate(
+        # y_pos = c(0.0205, 0.019, 0.0175),
+        y_pos = c(61, 0, 75)
+      )
+  ) |>
+  left_join(sensitivity |>
+              mutate(cell_type = str_replace_all(cell_type, "_", " ")) |>
+              select(cell_type, gene_name = tf_name, window, p_adj),
+            by = c("gene_name", "cell_type", "window")) |>
+  mutate(x_start = (tf_peak_pct - before) %% 100,
+         x_end   = (tf_peak_pct + after) %% 100,
+         wraps = x_start > x_end)
+
+tf_timings_segments_nowrap <- bind_rows(
+  # Non-wrapping: keep as is
+  tf_timings_segments |> filter(!wraps),
+  # Wrapping: first part, from x_start to 100
+  tf_timings_segments |> filter(wraps) |> mutate(x_end = 100),
+  # Wrapping: second part, from 0 to x_end
+  tf_timings_segments |> filter(wraps) |> mutate(x_start = 0)
+) |>
+  select(-wraps) |>
+  filter(window == "medium")
+
+
+ct <- "pharynx epithelial"
+tf_timings |>
+  filter(cell_type == ct) |>
+  ggplot() +
+  theme_minimal() +
+  theme(panel.spacing.y = unit(0, "mm")) +
+  theme(strip.text.y = element_text(size = 10, angle = 0, hjust = 0),
+        strip.text.x = element_text(size = 11, face = "italic")) +
+  theme(panel.grid = element_blank()) +
+  scale_y_continuous(limits = c(0, 70)) +
+  scale_color_manual(values = c(`TRUE` = "#2a9d8f", `FALSE` = "#f4a261"),
+                     # guide = "none"
+  ) +
+  labs(x = "Developmental progression (%)",
+       y = "Number of target peaks") +
+  geom_histogram(aes(x = target_peak_pct),
+                 fill = "grey70", color = "white", bins = 10) +
+  geom_vline(data = tf_timings |>
+               filter(cell_type == ct) |>
+               select(gene_name, bulk_peak_pct) |>
+               distinct(),
+             aes(xintercept = bulk_peak_pct),
+             color = "#457B9D", linewidth = 0.3, linetype = "25") +
+  geom_vline(aes(xintercept = tf_peak_pct),
+             color = "#E63946", linewidth = 1) +
+  facet_wrap( ~ gene_name) +
+  geom_segment(data = tf_timings_segments_nowrap |>
+                 filter(cell_type == ct) |> rename(FDR = p_adj),
+               aes(x = x_start, xend = x_end, y = y_pos, yend = y_pos, color = FDR < 0.05),
+               linewidth = 2)
+
+
