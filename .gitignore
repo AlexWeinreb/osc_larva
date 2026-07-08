@@ -6,6 +6,7 @@
 intermediates/
 logs/
 data/250225_aligned/
+data/GSE*.tab.gz
 presentations/
 data/CelEst_v1pt1.txt
 ipynb/*.csv
