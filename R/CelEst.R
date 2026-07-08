@@ -20,8 +20,8 @@ dir_tf <- "intermediates/2502/260428_celest_tfs/"
 dir_out <- "presentations/figures/260428_celest/"
 dir_step3 <- "intermediates/2502/250624_step3_genes_by_celltype/"
 dir_clust <- "intermediates/2502/250624_cluster"
-# dir_step2 <- "intermediates/2502/250624_step2/"
-dir_step2 <- "D:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250624_step2/"
+dir_step2 <- "intermediates/2502/250624_step2/"
+# dir_step2 <- "D:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250624_step2/"
 
 
 # download.file("https://raw.githubusercontent.com/IBMB-MFP/CelEsT-MS/refs/heads/main/CelEsT_annotated_v1pt1.txt",
@@ -1013,80 +1013,443 @@ dev.off()
 
 
 
-# check the genes in regulated set ----
+#### ____________________  ----
+
+# Check genes in regulated blocks ----
+
+# This is included as a comment in Discussion, result not shown
+
+#~ Method 1 ----
+
+# only check genes pulsatile and target of block (do not look at the timing of peak)
+
+#~| block A ----
+
+tf_block_A <- c("blmp-1","nhr-85","nhr-23", "let-607", "klf-1", "nhr-41")
+tf_block_A <- c("blmp-1","nhr-85","nhr-23")
+
+list(
+  puls = all_genes |>
+    filter(shape == "pulsatile") |>
+    pull(gene_name) |>
+    unique(),
+  target_of_A = celest |>
+    filter(source_name %in% tf_block_A) |>
+    pull(target_name) |>
+    unique()
+) |>
+  eulerr::euler() |>
+  plot(quantities = TRUE)
+
+genes_puls_and_target_block_A <- intersect(
+  all_genes |>
+    filter(shape == "pulsatile") |>
+    pull(gene_name) |>
+    unique(),
+  celest |>
+    filter(source_name %in% tf_block_A) |>
+    pull(target_name) |>
+    unique()
+)
+
+# genes_puls_and_target_block_A |> write_lines("intermediates/2502/250617_celest_tfs/genes_puls_and_target_block_A.txt")
 
 
-#~|~ Block A ----
-tf_by_time[c("blmp-1","nhr-85","nhr-23"), 1:10] |>
-  pheatmap::pheatmap(cluster_rows = FALSE,
-                     cluster_cols = FALSE)
+
+#~| block B ----
+tf_block_B <- c("grh-1","lin-14","nhr-25")
+
+list(
+  puls = all_genes |>
+    filter(shape == "pulsatile") |>
+    pull(gene_name) |>
+    unique(),
+  target_of_B = celest |>
+    filter(source_name %in% tf_block_B) |>
+    pull(target_name) |>
+    unique()
+) |>
+  eulerr::euler() |>
+  plot(quantities = TRUE)
+
+
+genes_puls_and_target_block_B <- intersect(
+  all_genes |>
+    filter(shape == "pulsatile") |>
+    pull(gene_name) |>
+    unique(),
+  celest |>
+    filter(source_name %in% tf_block_B) |>
+    pull(target_name) |>
+    unique()
+)
+
+
+# genes_puls_and_target_block_B |> write_lines("intermediates/2502/250617_celest_tfs/genes_puls_and_target_block_B.txt")
+
+
+#~| any ----
+# background list
+
+list(
+  puls = all_genes |>
+    filter(shape == "pulsatile") |>
+    pull(gene_name) |>
+    unique(),
+  target_of_any = celest |>
+    pull(target_name) |>
+    unique()
+) |>
+  eulerr::euler() |>
+  plot(quantities = TRUE)
+
+
+genes_puls_and_target_any <- intersect(
+  all_genes |>
+    filter(shape == "pulsatile") |>
+    pull(gene_name) |>
+    unique(),
+  celest |>
+    pull(target_name) |>
+    unique()
+)
+
+
+# genes_puls_and_target_any |> write_lines("intermediates/2502/250617_celest_tfs/genes_puls_and_target_any.txt")
+
+
+
+
+#~~ compare ----
+
+list(
+  A = genes_puls_and_target_block_A,
+  B = genes_puls_and_target_block_B,
+  any = genes_puls_and_target_any
+) |>
+  eulerr::euler() |>
+  plot(quantities = TRUE)
+
+
+
+# visually
+
+setdiff(genes_puls_and_target_block_A,
+        genes_puls_and_target_block_B) |>
+  str_subset("-") |>
+  sort()
+
+setdiff(genes_puls_and_target_block_B,
+        genes_puls_and_target_block_A) |>
+  str_subset("-") |>
+  sort()
+
+
+
+
+
+
+
+#~ Method 1 ILso only ----
+#~| block A ----
+
+tf_block_A <- c("blmp-1","nhr-85","nhr-23", "let-607", "klf-1", "nhr-41")
+tf_block_A <- c("blmp-1","nhr-85","nhr-23")
+
+list(
+  puls = all_genes |>
+    filter(cell_type == "ILso",
+           shape == "pulsatile") |>
+    pull(gene_name) |>
+    unique(),
+  target_of_A = celest |>
+    filter(source_name %in% tf_block_A) |>
+    pull(target_name) |>
+    unique()
+) |>
+  eulerr::euler() |>
+  plot(quantities = TRUE)
+
+genes_puls_in_ILso_and_target_block_A <- intersect(
+  all_genes |>
+    filter(cell_type == "ILso",
+           shape == "pulsatile") |>
+    pull(gene_name) |>
+    unique(),
+  celest |>
+    filter(source_name %in% tf_block_A) |>
+    pull(target_name) |>
+    unique()
+)
+
+# genes_puls_in_ILso_and_target_block_A |> write_lines("intermediates/2502/250617_celest_tfs/genes_puls_in_ILso_and_target_block_A.txt")
+
+
+
+#~| block B ----
+tf_block_B <- c("grh-1","lin-14","nhr-25")
+
+list(
+  puls = all_genes |>
+    filter(cell_type == "ILso",
+           shape == "pulsatile") |>
+    pull(gene_name) |>
+    unique(),
+  target_of_B = celest |>
+    filter(source_name %in% tf_block_B) |>
+    pull(target_name) |>
+    unique()
+) |>
+  eulerr::euler() |>
+  plot(quantities = TRUE)
+
+
+genes_puls_in_ILso_and_target_block_B <- intersect(
+  all_genes |>
+    filter(cell_type == "ILso",
+           shape == "pulsatile") |>
+    pull(gene_name) |>
+    unique(),
+  celest |>
+    filter(source_name %in% tf_block_B) |>
+    pull(target_name) |>
+    unique()
+)
+
+
+# genes_puls_in_ILso_and_target_block_B |> write_lines("intermediates/2502/250617_celest_tfs/genes_puls_in_ILso_and_target_block_B.txt")
+
+
+#~| any ----
+# background list
+
+list(
+  puls = all_genes |>
+    filter(cell_type == "ILso",
+           shape == "pulsatile") |>
+    pull(gene_name) |>
+    unique(),
+  target_of_any = celest |>
+    pull(target_name) |>
+    unique()
+) |>
+  eulerr::euler() |>
+  plot(quantities = TRUE)
+
+
+genes_puls_in_ILso_and_target_any <- intersect(
+  all_genes |>
+    filter(cell_type == "ILso",
+           shape == "pulsatile") |>
+    pull(gene_name) |>
+    unique(),
+  celest |>
+    pull(target_name) |>
+    unique()
+)
+
+
+# genes_puls_in_ILso_and_target_any |> write_lines("intermediates/2502/250617_celest_tfs/genes_puls_in_ILso_and_target_any.txt")
+
+
+#~~ compare ----
+
+list(
+  A = genes_puls_in_ILso_and_target_block_A,
+  B = genes_puls_in_ILso_and_target_block_B,
+  any = genes_puls_in_ILso_and_target_any
+) |>
+  eulerr::euler() |>
+  plot(quantities = TRUE)
+
+
+# visually
+
+setdiff(genes_puls_in_ILso_and_target_block_A,
+        genes_puls_in_ILso_and_target_block_B) |>
+  str_subset("-") |>
+  sort()
+
+setdiff(genes_puls_in_ILso_and_target_block_B,
+        genes_puls_in_ILso_and_target_block_A) |>
+  str_subset("-") |>
+  sort()
+
+
+
+
+
+#~ Method 2 ----
+
+
+
+# Reuse content of the previous loop to focus on a ct/timebin
+
+ct <- "ILso"
+
+
+
+
+message(ct)
+mods_uncentered <- qs::qread(file.path(dir_step2, paste0(ct, "_mods_uncentered.qs")))
+
+# computed same for all genes
+mean_sf <- lapply(mods_uncentered,
+                  \(.mod) exp(.mod$model$`offset(log(size_factors))`)) |>
+  unlist() |>
+  log() |>
+  mean() |>
+  exp()
+
+len <- 128
+
+preds_uncentered <- vapply(mods_uncentered,
+                           \(.mod) predict(.mod,
+                                           type = "response",
+                                           newdata = data.frame(
+                                             pseudotime = (0:(len-1))/len ,
+                                             size_factors = rep(mean_sf, len))
+                           ),
+                           FUN.VALUE = double(len))
+
+
+time_max <- apply(preds_uncentered, 2, which.max) / len
+
+peak_times <- left_join(
+  enframe(time_max,
+          name = "gene_name",
+          value = "peak_pseudotime"),
+  osc_table,
+  by = "gene_name"
+) |>
+  filter(bulk_class == "Osc")
+
+alignment <- align_circular(peak_times$bulk_peak,
+                            peak_times$peak_pseudotime*360)
+
+time_max_deg <- if (alignment$invert) {
+  ((360 - time_max*360) - alignment$shift) %% 360
+} else {
+  (time_max*360 - alignment$shift) %% 360
+}
+
+plot(peak_times$bulk_peak,
+     time_max_deg[peak_times$gene_name])
+
+time_max_pct <- (100/360) * ( time_max_deg - origin_deg ) %% 360
+
+
+puls_genes <- all_genes |>
+  filter(cell_type == ct,
+         shape == "pulsatile") |>
+  mutate(time_peak_pct = time_max_pct[gene_name])
+
+
+
+
+
+#~| Block A ----
+
+time_bin_start <- 5
+time_bin_end <- 30
+
+tf_block_A <- c("blmp-1","nhr-85","nhr-23")
+
+
 
 
 puls_genes_in_bin <- puls_genes |>
-  filter(time_peak >= bins_start[[1]],
-         time_peak < bins_end[[5]] ) |>
+  filter(time_peak_pct >= time_bin_start,
+         time_peak_pct <= time_bin_end ) |>
   pull(gene_name)
 
 length(puls_genes_in_bin)
 
-celest |>
-  filter(source_name %in% c("blmp-1","nhr-85","nhr-23"),
+
+gene_puls_ILso_bin_and_block_A <- celest |>
+  filter(source_name %in% tf_block_A,
          target_name %in% puls_genes_in_bin) |>
-  pull(target_name) |> unique() |> length() #paste(collapse = ", ")
-
-celest |>
-  filter(source_name %in% c("blmp-1","nhr-85","nhr-23"),
-         target_name %in% puls_genes_in_bin) |>
-  select(4:6,9:10) |>
-  rowwise() |>
-  mutate(evidence = list(c(
-    "with_motif"[which(with_motif)],
-                            "in_ChIP"[which(in_ChIP)],
-                            "in_eY1H"[which(in_eY1H)]
-                           ))) |>
-  ungroup() |>
-  summarize(TF = paste(source_name, collapse = ", "),
-            evidence = paste(unique(unlist(evidence)), collapse = ", "),
-            .by = target_name) |>
-  flextable::flextable()
+  pull(target_name) |> unique()
 
 
+# celest |>
+#   filter(source_name %in% c("blmp-1","nhr-85","nhr-23"),
+#          target_name %in% puls_genes_in_bin) |>
+#   select(4:6,9:10) |>
+#   rowwise() |>
+#   mutate(evidence = list(c(
+#     "with_motif"[which(with_motif)],
+#                             "in_ChIP"[which(in_ChIP)],
+#                             "in_eY1H"[which(in_eY1H)]
+#                            ))) |>
+#   ungroup() |>
+#   summarize(TF = paste(source_name, collapse = ", "),
+#             evidence = paste(unique(unlist(evidence)), collapse = ", "),
+#             .by = target_name) |>
+#   flextable::flextable()
 
 
 
-#~|~ Block B ----
-tf_by_time[c("eor-1","nhr-41","nhr-25"), 24:50] |> 
-  pheatmap::pheatmap(cluster_rows = FALSE,
-                     cluster_cols = FALSE)
+
+
+#~| Block B ----
+time_bin_start <- 70
+time_bin_end <- 90
+
+tf_block_B <- c("grh-1","lin-14","nhr-25")
+
+
 
 
 puls_genes_in_bin <- puls_genes |>
-  filter(time_peak >= bins_start[[28]],
-         time_peak < bins_end[[44]] ) |>
+  filter(time_peak_pct >= time_bin_start,
+         time_peak_pct <= time_bin_end ) |>
   pull(gene_name)
 
 length(puls_genes_in_bin)
 
-celest |>
-  filter(source_name %in% c("eor-1","nhr-41","nhr-25"),
-         target_name %in% puls_genes_in_bin) |>
-  pull(target_name) |> unique() |> paste(collapse = ", ")#length() #paste(collapse = ", ")
 
-celest |>
-  filter(source_name %in% c("eor-1","nhr-41","nhr-25"),
+gene_puls_ILso_bin_and_block_B <- celest |>
+  filter(source_name %in% tf_block_B,
          target_name %in% puls_genes_in_bin) |>
-  rowwise() |>
-  mutate(evidence = list(c(
-    "with_motif"[which(with_motif)],
-    "in_ChIP"[which(in_ChIP)],
-    "in_eY1H"[which(in_eY1H)]
-  ))) |>
-  ungroup() |>
-  summarize(TF = paste(source_name, collapse = ", "),
-            evidence = paste(unique(unlist(evidence)), collapse = ", "),
-            .by = target_name) |>
-  flextable::flextable()
+  pull(target_name) |> unique()
 
+
+
+#~~ compare ----
+
+list(
+  A = gene_puls_ILso_bin_and_block_A,
+  B = gene_puls_ILso_bin_and_block_B,
+  any = genes_puls_in_ILso_and_target_any
+) |>
+  eulerr::euler() |>
+  plot(quantities = TRUE)
+
+
+# visually
+
+setdiff(gene_puls_ILso_bin_and_block_A,
+        gene_puls_ILso_bin_and_block_B) |>
+  str_subset("-") |>
+  sort()
+
+setdiff(gene_puls_ILso_bin_and_block_B,
+        gene_puls_ILso_bin_and_block_A) |>
+  str_subset("-") |>
+  sort()
+
+# gene_puls_ILso_bin_and_block_A |> clipr::write_clip()
+# gene_puls_ILso_bin_and_block_B |> clipr::write_clip()
+
+
+#~~~ compare prev lists ----
+list(
+  bin = gene_puls_ILso_bin_and_block_A,
+  all_time = genes_puls_in_ILso_and_target_block_A
+) |>
+  eulerr::euler() |>
+  plot(quantities = TRUE)
 
 
 
