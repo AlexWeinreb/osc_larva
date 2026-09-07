@@ -1735,6 +1735,7 @@ mean_sf <- lapply(mods_uncentered,
 # goi <- "nhr-23"
 # goi <- "col-109"
 # goi <- "pugs-11"
+# goi <- "mam-5"
 # 
 # 
 # goi <- "rps-27A"
