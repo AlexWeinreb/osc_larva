@@ -1657,7 +1657,7 @@ dir_step1 <- "intermediates/2502/250609_step1/"
 # dir_step1 <- "D:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250609_step1/250609_step1/"
 
 
-dir_fig_gam <- "presentations/figures/260422_gam_illustrations"
+dir_fig_gam <- "presentations/figures/260907_gam_illustrations"
 # dir.create(dir_fig_gam)
 
 

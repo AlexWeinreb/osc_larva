@@ -265,7 +265,13 @@ ggsave("cluster_average.pdf",
 
 
 
-#~ save results ----
+
+
+
+
+
+
+# Save results table S3 ----
 
 cluster_results <- clusters |>
   separate_wider_delim(cellgene,
@@ -282,7 +288,9 @@ cluster_results <- clusters |>
 #   write_csv(file.path(dir_clust, "250624_cluster_results.csv"))
 
 
-# supp file, all genes and cell types as matrix
+
+
+#~~ table S4, all genes and cell types as matrix ----
 
 cellgenes_mat <- cluster_results |>
   mutate(shape = case_match(shape,
@@ -296,13 +304,124 @@ cellgenes_mat <- cluster_results |>
   mutate(gene_id = s2i(gene_name, gids, warn_missing = TRUE),
          .before = 2) |>
   arrange(gene_name)
-writexl::write_xlsx(cellgenes_mat,
-                    file.path(dir_figures, "cellgenes_mat.xlsx"))
+# writexl::write_xlsx(cellgenes_mat,
+#                     file.path(dir_figures, "cellgenes_mat.xlsx"))
 
 
 
+
+
+
+#~ Compute time of peak ----
+
+source("R/utils_heatmap_processing.R")
+
+
+# For gene name conversion, cf "step4" script
+osc_table <- readxl::read_excel("data/msb209498-sup-0003-datasetev1.xlsx",
+                                sheet = "Dataset EV1 WBidToGeneNames_Osc",
+                                na = "NA") |>
+  mutate(gene_id = wb_clean_gene_names(WB_ID, refresh = Inf),
+         gene_name = i2s(gene_id, gids) ) |>
+  filter(! is.na(gene_name)) |>
+  mutate(osc_amplitude = if_else(is.na(OscAmplitude), 0, OscAmplitude)) |>
+  select(gene_name, bulk_class = Class, osc_amplitude, bulk_peak = PeakPhase) |>
+  group_by(gene_name) |>
+  slice_max(osc_amplitude,
+            with_ties = FALSE) |>
+  ungroup()
+
+
+stopifnot(!any(is.na(osc_table$gene_name)))
+stopifnot(anyDuplicated(osc_table$gene_name) == 0L)
+
+
+
+# align each cell type's pseudotime on a common origin (dpy-6 following Sonntag et al)
+origin_deg <- osc_table$bulk_peak[[ which( osc_table$gene_name == "dpy-6" ) ]]
+
+grid_len <- 128
+cell_types <- unique(cluster_results$cell_type)
+
+res_peak_times <- vector("list", length(cell_types)) |>
+  set_names(cell_types)
+for(ct in cell_types){
+  
+  message(ct)
+  
+  mods_uncentered <- qs::qread(file.path(dir_step2, paste0(ct, "_mods_uncentered.qs")))
+  
+  # computed same for all genes
+  mean_sf <- lapply(mods_uncentered,
+                    \(.mod) exp(.mod$model$`offset(log(size_factors))`)) |>
+    unlist() |>
+    log() |>
+    mean() |>
+    exp()
+  
+  
+  
+  preds_uncentered <- vapply(mods_uncentered,
+                             \(.mod) predict(.mod,
+                                             type = "response",
+                                             newdata = data.frame(
+                                               pseudotime = (0:(grid_len-1))/grid_len ,
+                                               size_factors = rep(mean_sf, grid_len))
+                             ),
+                             FUN.VALUE = double(grid_len))
+  
+  
+  time_max_pt <- apply(preds_uncentered, 2, which.max) / grid_len
+  
+  
+  # align to bulk phase
+  
+  peak_times <- left_join(
+    enframe(time_max_pt,
+            name = "gene_name",
+            value = "peak_pseudotime"),
+    osc_table,
+    by = "gene_name"
+  ) |>
+    filter(bulk_class == "Osc")
+  
+  alignment <- align_circular(peak_times$bulk_peak,
+                              peak_times$peak_pseudotime*360)
+  
+  time_max_deg <- if (alignment$invert) {
+    ((360 - time_max_pt*360) - alignment$shift) %% 360
+  } else {
+    (time_max_pt*360 - alignment$shift) %% 360
+  }
+  
+  
+  time_max_pct <- (100/360) * ( time_max_deg - origin_deg ) %% 360
+  
+  stopifnot(identical(
+    names(mods_uncentered),
+    names(time_max_pct)
+  ))
+  
+  res_peak_times[[ ct ]] <- tibble(
+    cell_type = ct,
+    gene_name = names(mods_uncentered),
+    peak_time_percent = time_max_pct
+  )
+}
+
+peaks <- bind_rows(res_peak_times)
 
 all.equal(cluster_results |> select(cell_type, gene_name),
+          peaks |> select(cell_type, gene_name))
+
+cluster_results_timed <- left_join(cluster_results,
+                                   peaks,
+                                   by = c("cell_type", "gene_name"))
+
+
+
+#~ add predictors ----
+all.equal(cluster_results_timed |> select(cell_type, gene_name),
           all_descriptors |> select(cell_type, gene_name))
 
 preds <- mat_pred |>
@@ -312,15 +431,23 @@ preds <- mat_pred |>
                        delim = "|",
                        names = c("cell_type", "gene_name"))
   
-all.equal(cluster_results |> select(cell_type, gene_name),
+all.equal(cluster_results_timed |> select(cell_type, gene_name),
           preds |> select(cell_type, gene_name))
 
-# bind_cols(
-#   cluster_results,
-#   preds |> select(-cell_type, -gene_name) |> rename_with(~paste0("pred_",.x)),
-#   all_descriptors |> select(-cell_type, -gene_name) |> rename_with(~paste0("desc_",.x))
-# ) |>
-#   writexl::write_xlsx(file.path(dir_clust, "table_S3_cellgene_clusters.xlsx"))
+cluster_results_full <- bind_cols(
+  cluster_results_timed,
+  preds |> select(-cell_type, -gene_name) |> rename_with(~paste0("pred_",.x)),
+  all_descriptors |> select(-cell_type, -gene_name) |> rename_with(~paste0("desc_",.x))
+)
+
+# Export. Without rounding, 27 MB
+cluster_results_full |>
+  mutate(
+    across(peak_time_percent, ~ round(.x, 1)),
+    across(starts_with("pred"), ~ round(.x, 2)),
+    across(starts_with("desc"), ~ round(.x, 4))
+  ) |>
+  writexl::write_xlsx(file.path(dir_figures, "table_S3_cellgene_clusters.xlsx"))
 
 
 
