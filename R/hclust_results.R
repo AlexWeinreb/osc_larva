@@ -24,7 +24,7 @@ dir_step2 <- "intermediates/2502/250624_step2"
 # if working from external HDD
 # dir_step2 <- "E:/backups/Projects_june2025/glia/osc_larva/intermediates/2502/250624_step2"
 
-dir_figures <- "presentations/figures/260422_clust_metrics/"
+dir_figures <- "presentations/figures/260907_clust_metrics/"
 # dir.create(dir_figures)
 
 
@@ -538,7 +538,7 @@ osc_genes_compare |>
 
 # illustrate metrics ----
 
-dir_step1 <- "D:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250609_step1/250609_step1/"
+# dir_step1 <- "D:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250609_step1/"
 
 ilso_subseu <- qs::qread( file.path(dir_step1,
                                     paste0("ILso", "_seu_unsmoothed.qs")) )
@@ -569,6 +569,7 @@ ref <- circ_perm_mat(matrix(ref, ncol = 1))
 
 goi <- "col-33"
 goi <- "his-35"
+goi <- "grl-18"
 
 
 mod <- mods_centered[[goi]]
@@ -774,14 +775,14 @@ ggsave(paste0(goi, "_devexpl.pdf"),
 
 all_descriptors |>
   filter(cell_type == "ILso",
-         gene_name %in% c("col-33", "his-35")) |>
+         gene_name %in% c("grl-18", "his-35")) |>
   select(gene_name,
          baseline, max_peak, dist_dtw, dev_expl) |>
   mutate(baseline = log10(1 + baseline),
          max_peak = log10(1 + max_peak))
 
 
-mat_pred[c("ILso|col-33", "ILso|his-35"),]
+mat_pred[c("ILso|grl-18", "ILso|his-35"),]
 
 
 
