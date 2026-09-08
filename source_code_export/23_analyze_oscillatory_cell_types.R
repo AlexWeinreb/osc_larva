@@ -14,13 +14,13 @@ gids <- wb_load_gene_ids(295) |>
           name = "GFP"
   )
 
-source("R/utils_heatmap_processing.R")
+source("R/utils_heatmap_processing.R")  # --> z03
 
 dir_clust <- "intermediates/2502/250624_cluster"
 
-# dir_step2 <- "intermediates/2502/250624_step2/"
+dir_step2 <- "intermediates/2502/250624_step2/"
 # dir_step2 <- "E:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250624_step2/"
-dir_step2 <- "D:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250624_step2/"
+# dir_step2 <- "D:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250624_step2/"
 
 
 dir_step3 <- "intermediates/2502/250624_step3_genes_by_celltype/"
@@ -151,44 +151,7 @@ hist(by_cell_type$uniformity_index, breaks = 50)
 
 #~ entropy ----
 
-## tests and explorations
-# ct <- "ILso"
-# mat <- heatmaps_scaled[[ct]]
-# y <- 2*pi*apply(mat, 2, which.max) / nrow(mat)
-# 
-# circular::rao.spacing.test(circular::circular(y))
-# 
-# pvals <- heatmaps_list |>
-#   map_dbl(\(.hm){
-#     pos_peaks <- apply(.hm, 2, which.max) / nrow(.hm)
-#     goftest::cvm.test(pos_peaks, null = "punif")$p.value
-#   })
-# 
-# hist(pvals, breaks = 50)
-# 
-# printMat::matimage(mat)
-# points(seq_len(ncol(mat)) / ncol(mat) ,
-#        1 - apply(mat, 2, which.max) / nrow(mat),
-#        col = 'purple', cex = 2, pch = "-")
-# 
-# hist(apply(mat, 2, which.max)/nrow(mat), breaks = 50)
-# hist(runif(ncol(mat)), breaks = 50, add = TRUE, col = alpha('lightgreen', .2))
-# 
-# qqplot(qunif(ppoints(ncol(mat))), apply(mat, 2, which.max)/nrow(mat))
-# abline(0, 1, col = "red")
-# 
-# 
-# circular::rose.diag(circular::circular(runif(10000)*2*pi),
-#                     bins = 24,
-#                     axes = FALSE,
-#                     col = "lightblue", border = "lightblue",
-#                     prop = 1.5)
-# 
-# circular::rose.diag(circular::circular(pos_peaks*2*pi),
-#                     bins = 24,
-#                     axes = FALSE,col = "grey",prop = 1.5,
-#                     add = TRUE)
-
+# > +++ Fig. 5B +++ ----
 
 
 ct <- "ILso"
@@ -275,7 +238,6 @@ by_cell_type |> filter(cell_type %in% c("ILso", "BWM"))
 
 
 #~ distance ----
-
 
 by_cell_type$similarity_diag <- map_dbl(heatmaps_list,
                                         \(hm){
@@ -436,7 +398,7 @@ ggplot(by_cell_type) +
 
 
 
-# Compare bulk ----
+# Compare Phase Coherence ----
 
 dir_assembled <- "intermediates/2502/250605_assembled/"
 
@@ -475,6 +437,9 @@ cell_types_both |>
 
 # ggsave("phasic_cell_types_unannot.pdf", path = dir_figures3,
 #        width = 90, height = 60, units = "mm")
+
+
+# > +++ Fig. 5C +++ ----
 
 
 cell_types_both |>
@@ -556,13 +521,17 @@ by_cell_type |>
 #   qs::qsave(file.path(dir_step3, "cell_types.qs"))
 
 
-# For supp table
+
+# > +++ Table EV5 +++ ----
+
 # cell_types_both |>
 #   write_csv(file.path(dir_figures3, "cell_types_osc.csv"))
 
 
 
 # dir.create(file.path(dir_step3, "heatmaps_cts"))
+
+
 
 iwalk(heatmaps_list,
       \(.hm, .ct){
@@ -610,6 +579,7 @@ iwalk(heatmaps_list,
 
 # Save prettier heatmaps
 
+# > +++ Fig. 5A +++ ----
 
 
 # hmp_sparsified <- heatmaps_list[[9]]

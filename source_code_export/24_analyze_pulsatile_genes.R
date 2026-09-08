@@ -212,7 +212,8 @@ cell_types_info |>
 # Compare clusters to bulk ----
 
 
-# Note: the version in paper is done in `hclust_results.R`, before running step3.
+# Note: this reproduces the plot generated in `22_analyze_plot_hclust_results.R`, 
+# that one was used as figure, this is just a check.
 
 cell_types_info |>
   ggplot() +
@@ -223,7 +224,7 @@ cell_types_info |>
   geom_point(aes(x = mean_coherence, y = perplexity, color = tissue,
                  shape = p_coherence_adj < .05),
              size = 3)
-# note same plot was saved in step 3 (use that one for figures)
+
 
 
 cell_types_osc <- cell_types_info |>
@@ -283,8 +284,8 @@ genelist_bulk_nonpuls <- osc_genes_compare |>
 
 length(genelist_bulk_nonpuls)
 
-dict <- wormbaseEnrich::fetch_dictionary("tissue")
-dict <- wormbaseEnrich::fetch_dictionary("go")
+dict <- wormbaseEnrich::fetch_dictionary("tissue", cache = Inf)
+dict <- wormbaseEnrich::fetch_dictionary("go", cache = Inf)
 
 enrres <- wormbaseEnrich::enrichment_analysis(
   genelist_bulk_nonpuls |> s2i(gids),
@@ -332,6 +333,8 @@ osc_genes_compare |>
 #        width = 75, height = 45, units = "mm")
 
 
+
+# > +++ Fig. 4F +++ ----
 
 osc_genes_compare |>
   filter(bulk_class == "Osc") |>
@@ -580,6 +583,8 @@ hc <- as.dist(1-dist_mat_prop) |>
   hclust(method = "ward.D2")
 
 
+# > +++ Fig. 5D +++ ----
+
 pheatmap::pheatmap(mat_intersections,
                    cluster_rows = hc,
                    cluster_cols = hc,
@@ -603,7 +608,10 @@ pheatmap::pheatmap(mat_intersections,
 # dev.off()
 
 
+
+
 #~ Intersection sizes ----
+# > +++ Fig. 5E +++ ----
 
 in_osc_ct |>
   filter(is_puls) |>
@@ -666,7 +674,7 @@ in_osc_ct <- all_genes |>
 
 #~ GO ----
 
-dict <- wormbaseEnrich::fetch_dictionary("go")
+dict <- wormbaseEnrich::fetch_dictionary("go", cache = Inf)
 
 all_go <- cell_types_osc |>
   set_names() |>
@@ -766,6 +774,9 @@ panther_filt <- all_panther |>
 # genelist |> i2s(gids)
 
 
+
+# > +++ Table EV6 +++ ----
+
 manual_annot_panther_families <- readxl::read_excel("data/gene_families/manual_annot_panther_families.xlsx")
 
 
@@ -789,7 +800,8 @@ panther_filt <- panther_filt |>
 
 
 
-#~~ res ----
+
+#~~ panther res ----
 
 # Remove underscores in cell types
 
@@ -829,6 +841,9 @@ panther_filt_plot <- panther_filt |>
                          levels = rev(hc_fams$labels[hc_fams$order])),
          cell_type = factor(cell_type,
                             levels = hc_cts$labels[hc_cts$order]))
+
+
+# > +++ Fig. 5G +++ ----
 
 panther_filt_plot |>
   ggplot() +
@@ -882,23 +897,13 @@ genelist_hedgehog <- readxl::read_excel("data/gene_families/hedgehog_hao2006_tab
   wb_clean_gene_names()
 
 
-# genelist_zp_old <- read_tsv("data/gene_families/IPR001507_ZP_proteins.tsv",
-#                         skip = 1L) |>
-#   pull(`WormBase Gene ID`) |>
-#   unique()
+
 
 genelist_zp <- readxl::read_excel("data/gene_families/zp_cohen2019.xlsx") |>
   pull(gene_id) |>
   unique()
 
-# genelist_zp_old |> setdiff(genelist_zp) |> i2s(gids)
 
-# list(IPR = genelist_zp_old, Cohen = genelist_zp) |> eulerr::euler() |> plot(quantities = TRUE)
-
-# genelist_col_old <- read_tsv("data/gene_families/IPR008160_col.tsv",
-#                          skip = 1L) |>
-#   pull(`WormBase Gene ID`) |>
-#   unique()
 
 genelist_appg <- readxl::read_excel("data/gene_families/David-Raizen_2014_bio20147500-sup-table_s5.xlsx",
                                  sheet = 1,
@@ -909,18 +914,13 @@ genelist_appg <- readxl::read_excel("data/gene_families/David-Raizen_2014_bio201
 
 
 
-genelist_teuscher2019 <- readxl::read_excel("data/gene_families/teuscher_2019_table_S1.xlsx",
-                                            sheet = "Ce Matrisome",
-                                            skip = 1L)
+genelist_col <- readxl::read_excel("data/gene_families/teuscher_2019_table_S1.xlsx",
+                                    sheet = "Ce Matrisome",
+                                    skip = 1L) |>
+  filter(`Matrisome Category` == "Cuticular Collagens") |>
+  pull("WormBase ID") |>
+  wb_clean_gene_names()
 
-table(genelist_teuscher2019$`Matrisome Category`)
-
-
-
-genelist_col <- genelist_teuscher2019$`WormBase ID`[genelist_teuscher2019$`Matrisome Category` == "Cuticular Collagens"]
-
-# list(IPR = genelist_col_old,
-#      teuscher = genelist_col) |> eulerr::euler() |> plot(quantities = TRUE)
 
 
 
@@ -928,8 +928,6 @@ genelist_col <- genelist_teuscher2019$`WormBase ID`[genelist_teuscher2019$`Matri
 
 
 #~| Plot proportions ----
-
-
 
 
 bind_rows(
@@ -1002,6 +1000,8 @@ for(man_fam in c("collagens", "hedgehog","appg","zp")){
   
   tot_height <- 3.4*n_bars + 8.7
   
+  # > +++ Fig. 5F +++ ----
+  
   dat |>
     ggplot() +
     theme_classic() +
@@ -1020,612 +1020,6 @@ for(man_fam in c("collagens", "hedgehog","appg","zp")){
   #        width = 40, height = tot_height, units = "mm")
   
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Export ILso genes in families ----
-
-lookup_famid <- dict_panther |>
-  pivot_longer(-wbid,
-               names_to = "family_long",
-               values_to = "present") |>
-  filter(present == 1L) |>
-  separate_wider_regex(family_long,
-                       patterns = c("^[[:print:]]* ",
-                                    family_id = "PTHR[0-9]+(?:\\:SF[0-9]+)?",
-                                    " WBbt:0000000$")) |>
-  inner_join(panther_filt |>
-               filter(cell_type == "ILso") |>
-               select(family_id) |>
-               mutate(family_terms = case_match(
-                 family_id,
-                 "PTHR47327" ~ "cuticlins/apple domain",
-                 "PTHR22907" ~ "ZP domain cuticlins",
-                 "PTHR10127" ~ "NAS Zn metalloproteinases",
-                 "PTHR24637" ~ "collagens",
-                 "PTHR10796" ~ "patched-related")),
-             by = "family_id") |>
-  mutate(gene_name = i2s(wbid, gids)) |>
-  select(gene_name, family_id, family_description = family_terms) |>
-  mutate(source = "PANTHER") |>
-  bind_rows(tibble(
-    gene_name = genelist_hedgehog,
-    family_id = "N.A.",
-    family_description = "hedgehog-related",
-    source = "Hao 2006 Table 1"
-  )) |>
-  bind_rows(tibble(
-    gene_name = genelist_cutl |> setdiff(genelist_cutl_extended) |> i2s(gids),
-    family_id = "N.A.",
-    family_description = "cuticlin",
-    source = "Additional cuticlin by name"
-  )) |>
-  bind_rows(tibble(
-    gene_name = genelist_mam |> i2s(gids),
-    family_id = "N.A.",
-    family_description = "mam",
-    source = "By name and direct paralogy"
-  )) |>
-  bind_rows(tibble(
-    gene_name = genelist_sundaram |> i2s(gids),
-    family_id = "N.A.",
-    family_description = "Sundaram",
-    source = "Sundaram and Pujol 2024 Supp table"
-  ))
-
-
-osc_table_nodup <- osc_table |>
-  summarize(osc_amplitude = mean(osc_amplitude),
-            .by = c(gene_name, bulk_class))
-
-all_genes |>
-  filter(cell_type == "ILso") |>
-  inner_join(lookup_famid,
-             by = "gene_name") |>
-  relocate(family_description, .after = gene_name) |>
-  left_join(osc_table_nodup) |> View()
-  # writexl::write_xlsx("data/gene_families/250625_ILso_osc_genes_from_defined_families.xlsx")
-
-all_genes |>
-  filter(cell_type == "ILso") |>
-  inner_join(lookup_famid,
-             by = "gene_name") |>
-  relocate(family_description, .after = gene_name) |>
-  left_join(osc_table_nodup) |>
-  filter(shape == "pulsatile", bulk_class == "nonOsc")
-
-
-# block A
-genes_block_A <- c("C10B5.3","dhs-16","C26B9.3","grl-10","let-653","noah-1","fkb-5","atf-8","ets-4",
-                 "F32B4.8","fasn-1","phy-2","ugt-58","F46C3.6","F47B7.2","txdc-12.2","noah-2","F52C9.5",
-                 "bus-18","ptr-10","dad-1","F59B10.5","H10E21.5","strm-1","egg-6","atf-2","calu-1",
-                 "spi-1","ugt-59","acs-3","T10B5.10","tgn-38","peb-1","cutl-6","mlt-11","lpr-6","lpr-5",
-                 "lpr-4","lpr-3","Y105E8A.13","nhr-91","Y38H8A.1","Y43F4A.1","cutl-25","rml-5","nex-1",
-                 "cuti-1","wrt-10","glam-5","fbn-1")
-# block B
-genes_block_B <- c("B0361.9","nas-4","col-39","gpx-5","pana-1","cal-5","C34D1.4","gmap-1","C54D10.9",
-                 "F10D7.11","epic-1","lips-10","F25B5.3","zipt-2.2","tag-290","spig-16","clec-139",
-                 "col-34","sox-3","F41D9.2","cpn-1","F47G4.4","F49E2.5","F53F4.2","F59E11.7","famk-1",
-                 "ceeh-1","K04G2.7","vem-1","lag-1","epic-2","tyr-2","M05D6.9","lin-46","cutl-11",
-                 "srap-1","madf-4","T23F2.5","kel-8","ztf-6","Y43E12A.2","Y54G2A.11","Y57G11A.4","ztf-29",
-                 "sto-4","ZC416.2","ZC449.4","mlt-7")
-
-all_genes |>
-  filter(cell_type == "ILso") |>
-  inner_join(lookup_famid,
-             by = "gene_name") |>
-  relocate(family_description, .after = gene_name) |>
-  left_join(osc_table_nodup) |>
-  filter(gene_name %in% c(genes_block_A, genes_block_B))
-
-
-
-genes_in_blocks_and_ilso <- all_genes |>
-  filter(cell_type == "ILso") |>
-  inner_join(lookup_famid,
-             by = "gene_name") |>
-  filter(gene_name %in% c(genes_block_A, genes_block_B)) |>
-  distinct()
-
-all_genes |>
-  filter(gene_name %in% c(genes_block_A, genes_block_B)) |>
-  summarize(nb_expressed = n(),
-            nb_pulsatile = sum(shape == "pulsatile"),
-            nb_non_pulsatile = sum(shape == "nonpulsatile"),
-            .by = gene_name) |>
-  inner_join(lookup_famid,
-             by = "gene_name") |>
-  select(gene_name, family_description, nb_pulsatile, nb_non_pulsatile, nb_expressed)
-  # flextable::flextable() |> print(preview = "docx")
-
-
-
-# Compare sets ----
-all_genes |>
-  filter(gene_name %in% i2s(genelist, gids),
-         cell_type %in% cell_types_osc_both) |>
-  summarize(n_peaky = sum(shape == "pulsatile"),
-            n_tot = n(),
-            `%` = round(100*n_peaky / n_tot),
-            .by = cell_type) |>
-  arrange(desc(n_peaky))
-
-
-list(ILso = all_genes |>
-       filter(gene_name %in% i2s(genelist, gids),
-              cell_type == "ILso") |>
-       pull(gene_name),
-     hypodermis = all_genes |>
-       filter(gene_name %in% i2s(genelist, gids),
-              cell_type == "hypodermis") |>
-       pull(gene_name)) |>
-  eulerr::euler() |>
-  plot(quantities = TRUE,
-       main = "expressed")
-
-
-list(ILso = all_genes |>
-       filter(gene_name %in% i2s(genelist, gids),
-              cell_type == "ILso",
-              peaky == "peak") |>
-       pull(gene_name),
-     hypodermis = all_genes |>
-       filter(gene_name %in% i2s(genelist, gids),
-              cell_type == "hypodermis",
-              peaky == "peak") |>
-       pull(gene_name)) |>
-  eulerr::euler() |>
-  plot(quantities = TRUE,
-       main = "pulsatile")
-
-
-list(
-  ILso_expr = all_genes |>
-    filter(gene_name %in% i2s(genelist, gids),
-           cell_type == "ILso") |>
-    pull(gene_name),
-  hypodermis_expr = all_genes |>
-    filter(gene_name %in% i2s(genelist, gids),
-           cell_type == "hypodermis") |>
-    pull(gene_name),
-  ILso_spiky = all_genes |>
-    filter(gene_name %in% i2s(genelist, gids),
-           cell_type == "ILso",
-           peaky == "peak") |>
-    pull(gene_name),
-  hypodermis_spiky = all_genes |>
-    filter(gene_name %in% i2s(genelist, gids),
-           cell_type == "hypodermis",
-           peaky == "peak") |>
-    pull(gene_name)
-)|>
-  UpSetR::fromList() |>
-  UpSetR::upset()
-
-
-
-
-#~ plot btw cell types ----
-
-# look for genes that are puls in one cell type, nonpuls in another
-# this approach based on puls/nonpuls, below with gene expression filtering
-
-genes_differ_btw_ct <- all_genes |>
-  filter(cell_type %in% setdiff(cell_types_osc_both, "PHsh")) |>
-  summarize(nb_ct_where_puls = sum(shape == "pulsatile"),
-            nb_ct_where_expr = n(),
-            .by = gene_name) |>
-  filter(nb_ct_where_puls > 0,
-         nb_ct_where_puls < nb_ct_where_expr)
-
-all_genes |>
-  filter(cell_type %in% setdiff(cell_types_osc_both, "PHsh")) |>
-  filter(gene_name %in% genes_differ_btw_ct$gene_name) |>
-  arrange(gene_name) |>
-  filter(str_detect(gene_name, "\\-"))
-
-
-
-#~ Genes osc in one, expr in another ----
-
-dir_step1 <- "intermediates/2502/250330_step1/"
-
-
-gene_expressions <- map_dfr(cell_types_osc_both,
-                            ~ {
-                              qs::qread(file.path(dir_step1, paste0(.x, "_gene_expressions.qs"))) |>
-                                add_column(cell_type = .x,
-                                           .before = 1) |>
-                                as_tibble()
-                            })
-stopifnot(all.equal(
-  gene_expressions |>
-    filter(cell_type %in% cell_types_osc_both) |>
-    mutate(cellgene = paste0(cell_type, "|", gene_name)) |>
-    filter(prop_cells >= .05) |>
-    pull(cellgene) |>
-    sort(),
-  all_genes |>
-    filter(cell_type %in% cell_types_osc_both) |>
-    pull(cellgene) |>
-    sort()
-))
-# note: everything in all_genes is above threshold of prop_cells >.05
-
-
-
-
-all_genes |>
-  filter(cell_type %in% c("ILso", "seam")) |>
-  left_join(gene_expressions,
-            by = c("gene_name", "cell_type")) |>
-  filter(prop_cells > .2, nb_cells > 50) |>
-  summarize(prop_puls = mean(shape == "pulsatile"),
-            n_expressed = n(),
-            .by = gene_name) |>
-  filter(n_expressed >= 2,
-         prop_puls >= .2,
-         prop_puls <= .8) |>
-  filter(str_detect(gene_name, "\\-"))
-
-
-
-# check individual genes
-ilso_subseu <- qs::qread( file.path(dir_step1,
-                                    paste0("ILso", "_seu.qs")) )
-
-
-seam_subseu <- qs::qread( file.path(dir_step1,
-                                    paste0("seam", "_seu.qs")) )
-
-amphso_subseu <- qs::qread( file.path(dir_step1,
-                                    paste0("AM_PHso", "_seu.qs")) )
-
-hyp_subseu <- qs::qread( file.path(dir_step1,
-                                      paste0("hypodermis", "_seu.qs")) )
-
-goi <- "pana-1"
-
-all_genes |>
-  filter(cell_type %in% cell_types_osc_both) |>
-  left_join(gene_expressions,
-            by = c("gene_name", "cell_type")) |>
-  filter(gene_name == goi) |>
-  select(gene_name, cell_type, shape, nb_cells, prop_cells)
-
-
-
-
-Seurat::FeaturePlot(ilso_subseu,
-                    features = goi,
-                    reduction = "pca",
-                    pt.size = 2, #min.cutoff = 0,max.cutoff = 1,
-                    alpha = .5) +
-  ggtitle(goi, "ILso")
-
-
-Seurat::FeaturePlot(seam_subseu,
-                    features = goi,
-                    reduction = "pca",
-                    pt.size = 2, #min.cutoff = 0,max.cutoff = 1,
-                    alpha = .5) +
-  ggtitle(goi, "seam")
-
-Seurat::FeaturePlot(hyp_subseu,
-                    features = goi,
-                    reduction = "pca",
-                    pt.size = 2, #min.cutoff = 0,max.cutoff = 1,
-                    alpha = .5) +
-  ggtitle(goi, "hypodermis")
-
-
-
-
-Seurat::FeaturePlot(amphso_subseu,
-                    features = goi,
-                    reduction = "pca",
-                    pt.size = 2, #min.cutoff = 0,max.cutoff = 1,
-                    alpha = .5) +
-  ggtitle(goi, "AM/PHso")
-
-
-
-
-
-
-
-
-
-
-# Families in time ----
-
-source("R/utils_heatmap_processing.R")
-
-# dir_step2 <- "E:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250624_step2/"
-# dir_step4 <- "E:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250801_step4_analysis/"
-
-all(paste0(cell_types_osc, "_mods_uncentered.qs") %in% list.files(dir_step2))
-
-
-
-
-puls_genes_timed <- map_dfr(cell_types_osc,
-        \(ct) {
-          
-          message(ct)
-          
-          mods_uncentered <- qs::qread(file.path(dir_step2, paste0(ct, "_mods_uncentered.qs")))
-          
-          # computed same for all genes
-          mean_sf <- lapply(mods_uncentered,
-                            \(.mod) exp(.mod$model$`offset(log(size_factors))`)) |>
-            unlist() |>
-            log() |>
-            mean() |>
-            exp()
-          
-          len <- 128
-          
-          preds_uncentered <- vapply(mods_uncentered,
-                                     \(.mod) predict(.mod,
-                                                     type = "response",
-                                                     newdata = data.frame(
-                                                       pseudotime = (0:(len-1))/len ,
-                                                       size_factors = rep(mean_sf, len))
-                                     ),
-                                     FUN.VALUE = double(len))
-          
-          
-          time_max <- apply(preds_uncentered, 2, which.max) / len
-          
-          # preds_uncentered1 <- preds_uncentered[,1:20]
-          # time_max1 <- time_max[1:20]
-          # ngenes <- ncol(preds_uncentered1)
-          # printMat::matimage(log1p(preds_uncentered1))
-          # points((1:ngenes - 1)/(ngenes - 1), (1 - time_max1), pch = "-", cex = 3.5, col = 'purple')
-          
-          
-          
-          # align to bulk phase
-          
-          peak_times <- left_join(
-            enframe(time_max,
-                    name = "gene_name",
-                    value = "peak_pseudotime"),
-            osc_table,
-            by = "gene_name"
-          ) |>
-            filter(bulk_class == "Osc")
-          
-          alignment <- align_circular(peak_times$bulk_peak,
-                                      peak_times$peak_pseudotime*360)
-          
-          time_max_deg <- if (alignment$invert) {
-            ((360 - time_max*360) - alignment$shift) %% 360
-          } else {
-            (time_max*360 - alignment$shift) %% 360
-          }
-          
-          png(file.path(dir_step4, paste0(ct, "_alignment.png")))
-          plot(peak_times$bulk_peak,
-               time_max_deg[peak_times$gene_name])
-          dev.off()
-          
-          
-          
-          
-          all_genes |>
-            filter(cell_type == ct,
-                   shape == "pulsatile") |>
-            mutate(time_peak_deg = time_max_deg[gene_name])
-          
-          
-        })
-
-
-# qs::qsave(puls_genes_timed,
-#           file.path(dir_step4, "puls_genes_timed.qs"))
-
-
-# ordered by bulk (ugly because many pulsatile genes have NA phase in bulk)
-puls_genes_timed |>
-  mutate(
-    gene_name = factor(gene_name,
-                       levels = rev(
-                         osc_table |>
-                           arrange(bulk_peak) |>
-                           pull(gene_name) |>
-                           intersect(puls_genes_timed$gene_name)
-                       ))
-  ) |>
-  ggplot() +
-  theme_classic() +
-  scale_x_discrete(breaks = rev(puls_genes_ordered)[(1:20)*5200/20]) +
-  coord_flip() +
-  geom_point(aes(x = gene_name, y = time_peak_deg),
-             alpha = .2, shape = 16)
-
-
-
-
-# pre-order genes
-puls_genes_averaged <- puls_genes_timed |>
-  mutate(phase_peak = circular::circular(time_peak_deg, units = "degree")) |>
-  summarize(mean_phase = circular::mean.circular(phase_peak),
-            .by = gene_name) |>
-  mutate(mean_phase_deg = (as.numeric(mean_phase) + 360) %% 360 ) |>
-  arrange(desc(mean_phase_deg))
-
-puls_genes_ordered <- puls_genes_averaged |>
-  pull(gene_name) |>
-  fct_inorder() |>
-  levels()
-
-
-
-puls_genes_timed |>
-  mutate(gene_name = factor(gene_name, levels = rev(puls_genes_ordered))) |>
-  ggplot() +
-  theme_classic() +
-  scale_x_discrete(breaks = rev(puls_genes_ordered)[(1:20)*5200/20]) +
-  coord_flip() +
-  geom_point(aes(x = gene_name, y = time_peak_deg),
-             alpha = .2, shape = 16)
-
-
-left_join(puls_genes_averaged,
-          osc_table,
-          by = "gene_name") |>
-  ggplot() +
-  theme_classic() +
-  xlab("Phase from bulk") + ylab("Average phase from sc") +
-  geom_point(aes(x = bulk_peak, y = mean_phase_deg),
-             alpha = .3)
-
-
-puls_genes_timed |>
-  pivot_wider(id_cols = gene_name,
-              values_from = time_peak_deg,
-              names_from = cell_type) |>
-  ggplot() + theme_classic() +
-  geom_point(aes(x = ILso, y = AM_PHso))
-
-
-
-
-#By family
-bind_rows(
-  tibble(family = "collagens",
-         gene_id = genelist_col),
-  tibble(family = "Hh",
-         gene_id = genelist_hedgehog),
-  tibble(family = "APPG",
-         gene_id = genelist_appg),
-  tibble(family = "ZP",
-         gene_id = genelist_zp)
-) |>
-  mutate(gene_name = i2s(gene_id, gids)) |>
-  left_join(puls_genes_averaged,
-            by = "gene_name") |>
-  ggplot() +
-  theme_classic() +
-  ylab(NULL) + xlab("Phase of peak (avg btw cell types)") +
-  scale_x_continuous(limits = c(0,360)) +
-  geom_point(aes(x = mean_phase_deg, y = family, color = family),
-             alpha = .6, show.legend = FALSE)
-  # geom_density(aes(x = mean_phase_deg, fill = family),
-  #              alpha = .3)
-
-
-# Timings from Sundaram and Pujol
-
-bind_rows(
-  tibble(family = "precuticule",
-         gene_name = c("lpr-3", "noah-1", "sym-1", "noah-2", "fbn-1")),
-  tibble(family = "furrow col",
-         gene_name = c("dpy-2", "dpy-3", "dpy-7", "dpy-8", "dpy-9", "dpy-10" )),
-  tibble(family = "annuli col",
-         gene_name = c("sqt-3", "dpy-4", "dpy-5", "dpy-13"))
-) |>
-  left_join(puls_genes_averaged,
-            by = "gene_name") |>
-  ggplot() +
-  theme_classic() +
-  ylab(NULL) + xlab("Phase of peak (avg btw cell types)") +
-  scale_x_continuous(limits = c(0,360)) +
-  geom_point(aes(x = mean_phase_deg, y = family, color = family),
-             alpha = .6, show.legend = FALSE)
-
-
-
-bind_rows(
-  tibble(family = "precuticule",
-         gene_name = c("lpr-3", "noah-1", "sym-1", "noah-2", "fbn-1")),
-  tibble(family = "furrow col",
-         gene_name = c("dpy-2", "dpy-3", "dpy-7", "dpy-8", "dpy-9", "dpy-10" )),
-  tibble(family = "annuli col",
-         gene_name = c("sqt-3", "dpy-4", "dpy-5", "dpy-13"))
-) |>
-  left_join(puls_genes_averaged,
-            by = "gene_name") |>
-  ggplot() +
-  theme_classic() +
-  ylab(NULL) + xlab("Phase of peak (avg btw cell types)") +
-  scale_x_continuous(limits = c(0,360)) +
-  coord_polar() +
-  geom_segment(aes(x = mean_phase_deg, y = 0, yend = 1, color = family),
-             alpha = .6, show.legend = FALSE)
-
-
-
-
-
-#~ heatmap ----
-
-ct
-all_tests_bin <- qs::qread(file.path(dir_step4, "bins", paste0(ct, ".qs")))
-
-signif_fams <- all_tests_bin |>
-  filter(FDR < 0.05, observed > 0) |>
-  summarize(family = list(family_id),
-            .by = time_bin) |>
-  deframe() |> unlist() |> unique()
-
-if(length(signif_fams) < 2) next
-
-fam_by_time <- all_tests_bin |>
-  filter(family_id %in% signif_fams) |>
-  arrange(time_bin) |>
-  mutate(signif = -log10(FDR)) |>
-  # mutate(signif = odds_ratio) |>
-  pivot_wider(id_cols = family_id,
-              names_from = time_bin,
-              values_from = signif) |>
-  column_to_rownames("family_id") |>
-  as.matrix()
-
-
-pt_colnames <- round(bins_start + (bin_width/2), 1)
-pt_colnames[2 * (1:(length(pt_colnames)/2))] <- ""
-colnames(fam_by_time) <- pt_colnames
-
-
-pheatmap::pheatmap(fam_by_time,
-                   cluster_rows = TRUE,
-                   clustering_distance_rows = "correlation",
-                   cluster_cols = FALSE,
-                   scale = "none")
-
-n_tfs <- nrow(tf_by_time)
-
-# height 2.5 for ILso/main figure, for supp,  2.7 mm (.1 in) per gene + 6 mm (.24 in) for legend
-# divide by 2 in figure
-pheatmap::pheatmap(
-  tf_by_time,
-  color = colorRampPalette(c("white", "#C994C7", "#DD1C77"))(100),
-  border_color = NA,
-  cluster_rows = TRUE,
-  cluster_cols = FALSE,
-  clustering_distance_rows = "correlation",
-  filename = paste0(dir_out, "/heatmaps_timebins/", ct,".pdf"),
-  fontsize = 10,
-  width = 9, height = .5+n_tfs*.15
-)
-
-
-
-
 
 
 
@@ -1731,6 +1125,14 @@ mean_sf <- lapply(mods_uncentered,
 
 #~~ genes ----
 
+# > +++ Fig. 4A +++ ----
+# > +++ Fig. EV3A +++ ----
+# > +++ Fig. EV4C +++ ---- 
+
+# 4A and EV4C use same code: 4A use selected genes and ggsave individual plots
+# EV4C prepare a list of genes to plot, and assemble them before ggsave
+
+
 # goi <- "grl-18"
 # goi <- "nhr-23"
 # goi <- "col-109"
@@ -1755,8 +1157,12 @@ tab <- inner_join(
   by = "gene_name"
 )
 
+
+# > +++ Fig. EV4B +++ ----
 tab |>
   count(high_osc_amplitude, sc_shape)
+
+
 
 set.seed(456)
 genes_to_plot <- bind_rows(
@@ -1975,7 +1381,8 @@ mean_sf <- lapply(mods_uncentered,
   exp()
 
 
-
+# > +++ Fig. EV5A +++ ----
+# > +++ Fig. EV5B +++ ----
 
 
 #~ gene ----
@@ -2072,221 +1479,6 @@ dat |>
 #        width = 50, height = 45, units = "mm")
 
 
-
-
-
-
-
-
-
-## Other sc plots ----
-
-# dir_step1 <- "D:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250609_step1/"
-
-subseu <- qs::qread( file.path(dir_step1,
-                               paste0("hypodermis", "_seu_unsmoothed.qs")) )
-
-
-
-
-
-
-
-
-
-# 
-# patchwork::wrap_plots(
-#   FeaturePlot(qs::qread( file.path(dir_step1,paste0("hypodermis", "_seu_unsmoothed.qs")) ),
-#               reduction = "pca",
-#               features = "cell_phase_masked",
-#               pt.size = 1.5) +
-#     scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
-#                           limits = c(0, 360)) +
-#     ggtitle("hypodermis") +
-#     NoLegend()
-#   ,
-#   FeaturePlot(qs::qread( file.path(dir_step1,paste0("hypodermis", "_seu_unsmoothed.qs")) ),
-#               reduction = "pca",
-#               features = "mam-2",
-#               pt.size = 1.5,
-#               order = TRUE) +
-#     ggtitle(NULL) +
-#     NoLegend()
-#   ,
-#   FeaturePlot(qs::qread( file.path(dir_step1,paste0("hypodermis", "_seu_unsmoothed.qs")) ),
-#               reduction = "pca",
-#               features = "ham-2",
-#               pt.size = 1.5,
-#               order = TRUE) +
-#     ggtitle(NULL) +
-#     NoLegend()
-#   ,
-#   FeaturePlot(qs::qread( file.path(dir_step1,paste0("ILso", "_seu_unsmoothed.qs")) ),
-#               reduction = "pca",
-#               features = "cell_phase_masked",
-#               pt.size = 1.5) +
-#     scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
-#                           limits = c(0, 360)) +
-#     ggtitle("ILso") +
-#     NoLegend()
-#   ,
-#   FeaturePlot(qs::qread( file.path(dir_step1,paste0("ILso", "_seu_unsmoothed.qs")) ),
-#               reduction = "pca",
-#               features = "mam-2",
-#               pt.size = 1.5,
-#               order = TRUE) +
-#     ggtitle(NULL) +
-#     NoLegend()
-#   ,
-#   FeaturePlot(qs::qread( file.path(dir_step1,paste0("ILso", "_seu_unsmoothed.qs")) ),
-#               reduction = "pca",
-#               features = "ham-2",
-#               pt.size = 1.5,
-#               order = TRUE) +
-#     ggtitle(NULL) +
-#     NoLegend()
-#   ,
-#   FeaturePlot(qs::qread( file.path(dir_step1,paste0("seam", "_seu_unsmoothed.qs")) ),
-#               reduction = "pca",
-#               features = "cell_phase_masked",
-#               pt.size = 1.5) +
-#     scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
-#                           limits = c(0, 360)) +
-#     ggtitle("seam") +
-#     NoLegend()
-#   ,
-#   FeaturePlot(qs::qread( file.path(dir_step1,paste0("seam", "_seu_unsmoothed.qs")) ),
-#               reduction = "pca",
-#               features = "mam-2",
-#               pt.size = 1.5,
-#               order = TRUE) +
-#     ggtitle(NULL) +
-#     NoLegend()
-#   ,
-#   FeaturePlot(qs::qread( file.path(dir_step1,paste0("seam", "_seu_unsmoothed.qs")) ),
-#               reduction = "pca",
-#               features = "ham-2",
-#               pt.size = 1.5,
-#               order = TRUE) +
-#     ggtitle(NULL) +
-#     NoLegend()
-#   ,
-#   nrow = 3,
-#   byrow = FALSE,
-#   axis_titles = "collect"
-# )
-# 
-
-FeaturePlot(qs::qread( file.path(dir_step1,
-                                 paste0("hypodermis", "_seu_unsmoothed.qs")) ),
-            reduction = "pca",
-            features = "mam-2",
-            pt.size = 1.5,
-            order = TRUE,
-            combine = FALSE)
-
-
-
-
-genes_sel <- c('C26B9.7', 'mam-2', 'F45E4.5','ham-2', 'Y11D7A.3')
-
-
-
-subseu <- qs::qread( file.path(dir_step1,paste0("hypodermis", "_seu_unsmoothed.qs")))
-genes_sel <- c('C26B9.7','Y11D7A.3')
-c(FeaturePlot(subseu,
-              reduction = "pca",
-              features = "cell_phase_masked",
-              pt.size = 1.5) +
-    scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
-                          limits = c(0, 360)) +
-    ggtitle("hypodermis")
-  ,
-FeaturePlot(subseu,
-            reduction = "pca",
-            features = genes_sel,
-            pt.size = 1.5,
-            order = TRUE,
-            combine = FALSE)
-) |>
-  map(~ .x + theme(legend.position = "bottom")) |>
-  patchwork::wrap_plots()
-
-
-subseu <- qs::qread( file.path(dir_step1,paste0("ILso", "_seu_unsmoothed.qs")) )
-genes_sel <- c("mam-2", "ham-2")
-c(FeaturePlot(subseu,
-              reduction = "pca",
-              features = "cell_phase_masked",
-              pt.size = 1.5) +
-    scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
-                          limits = c(0, 360)) +
-    ggtitle("ILso")
-  ,
-  FeaturePlot(subseu,
-              reduction = "pca",
-              features = genes_sel,
-              pt.size = 1.5,
-              order = TRUE,
-              combine = FALSE)
-) |>
-  map(~ .x + theme(legend.position = "bottom")) |>
-  patchwork::wrap_plots()
-
-
-
-#~ gene ----
-
-goi <- "C26B9.7"
-goi <- "Y11D7A.3"
-goi <- "mam-2"
-goi <- "F45E4.5"
-goi <- "ham-2"
-
-
-
-#~| cells ----
-
-
-FeaturePlot(subseu,
-            reduction = "pca",
-            features = "cell_phase",
-            pt.size = 1.5) +
-  scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
-                        limits = c(0, 360))
-
-FeaturePlot(subseu,
-            reduction = "pca",
-            features = goi,
-            pt.size = 1.5,
-            order = TRUE)
-
-dat <- FetchData(subseu, vars = c("PC_1","PC_2",goi))
-
-dat |>
-  ggplot() +
-  theme_classic() +
-  theme(
-    axis.title = element_text(size = 10),
-    axis.text = element_text(size = 7),
-    plot.title = element_text(face = "italic",
-                              size = 10),
-    legend.position = "top",
-    legend.margin = margin(),
-    legend.box.margin = margin(),
-    legend.title = element_blank(),
-    legend.text = element_text(size = 7),
-    legend.key.size = unit(3, "mm"),
-    plot.margin = unit(c(0,0,0,0), "mm")
-  ) +
-  labs(x = "PC 1", y = "PC 2") +
-  scale_color_gradient(low = alpha("grey", .3), high = alpha("blue2", .8)) +
-  # ggtitle(goi) +
-  ggrastr::geom_point_rast(aes(x = PC_1, y = PC_2,
-                               color = .data[[goi]]),
-                           shape = 16,
-                           size = 1,
-                           raster.dpi = 500)
 
 
 

@@ -104,6 +104,9 @@ annot_clusts <- clusters |>
 
 
 #~ plot metrics ----
+
+# > +++ Fig. 4C +++ ----
+
 # png("presentations/figures/250624_hclust/heatmap_genes_pred_wide.png",
 #     width = 11.25, height = 4, units = "in", res = 500)
 pheatmap::pheatmap(t(mat_pred),
@@ -119,6 +122,8 @@ pheatmap::pheatmap(t(mat_pred),
                                                                      name = "PiYG"))(100))
 
 # dev.off()
+
+
 
 #~ plot tree ----
 plot(hc, labels = FALSE)
@@ -168,7 +173,14 @@ cluster_means |>
 #                    annotation_col = annot_clusts)
 
 
+
+
+
 #~ heatmap pseudotime ----
+
+# > +++ Fig. 4D +++ ----
+
+
 # png("presentations/figures/250624_hclust/manh_heatmap_genes_time_wide.png",
 #     width = 11.25, height = 4, units = "in", res = 500)
 pheatmap::pheatmap(log1p(smooth_centered[,rownames(mat_pred)]),
@@ -184,7 +196,10 @@ pheatmap::pheatmap(log1p(smooth_centered[,rownames(mat_pred)]),
 # dev.off()
 
 
+
+
 #~ plot average curves ----
+
 len <- nrow(smooth_centered)
 
 all_clustered_fits <- log1p(smooth_centered[,rownames(mat_pred)]) |>
@@ -218,6 +233,9 @@ fits_averaged_by_clust <- all_clustered_fits |>
     .by = c(cluster, pseudotime)
   ) |>
   mutate(cluster = paste("cluster ", cluster))
+
+
+# > +++ Fig. EV3D +++ ----
 
 selected_fits |>
   mutate(cluster = paste("cluster ", cluster)) |>
@@ -256,9 +274,9 @@ selected_fits |>
   )
 
 
-ggsave("cluster_average.pdf",
-       path = "presentations/figures/250624_hclust/",
-       width = 105, height = 96, units = "mm")
+# ggsave("cluster_average.pdf",
+#        path = "presentations/figures/250624_hclust/",
+#        width = 105, height = 96, units = "mm")
 
 
 
@@ -272,6 +290,8 @@ ggsave("cluster_average.pdf",
 
 
 # Save results table S3 ----
+
+
 
 cluster_results <- clusters |>
   separate_wider_delim(cellgene,
@@ -291,6 +311,8 @@ cluster_results <- clusters |>
 
 
 #~~ table S4, all genes and cell types as matrix ----
+
+# > +++ Table EV4 +++ ----
 
 cellgenes_mat <- cluster_results |>
   mutate(shape = case_match(shape,
@@ -314,10 +336,10 @@ cellgenes_mat <- cluster_results |>
 
 #~ Compute time of peak ----
 
-source("R/utils_heatmap_processing.R")
+source("R/utils_heatmap_processing.R") # --> z03_utils_heatmap_processing
 
 
-# For gene name conversion, cf "step4" script
+# For gene name conversion, cf "24" script
 osc_table <- readxl::read_excel("data/msb209498-sup-0003-datasetev1.xlsx",
                                 sheet = "Dataset EV1 WBidToGeneNames_Osc",
                                 na = "NA") |>
@@ -440,14 +462,19 @@ cluster_results_full <- bind_cols(
   all_descriptors |> select(-cell_type, -gene_name) |> rename_with(~paste0("desc_",.x))
 )
 
+
+# > +++ Table EV3 +++ ----
+
 # Export. Without rounding, 27 MB
-cluster_results_full |>
-  mutate(
-    across(peak_time_percent, ~ round(.x, 1)),
-    across(starts_with("pred"), ~ round(.x, 2)),
-    across(starts_with("desc"), ~ round(.x, 4))
-  ) |>
-  writexl::write_xlsx(file.path(dir_figures, "table_S3_cellgene_clusters.xlsx"))
+# cluster_results_full |>
+#   mutate(
+#     across(peak_time_percent, ~ round(.x, 1)),
+#     across(starts_with("pred"), ~ round(.x, 2)),
+#     across(starts_with("desc"), ~ round(.x, 4))
+#   ) |>
+#   writexl::write_xlsx(file.path(dir_figures, "table_S3_cellgene_clusters.xlsx"))
+
+
 
 
 
@@ -494,6 +521,8 @@ osc_genes_compare |>
   (\(df) table(bulk = df$bulk_class, `single-cell` = df$`single-cell`, useNA = 'ifany'))()
 
 
+# > +++ Fig. 4E +++ ----
+
 # pdf(file.path(dir_figures, "osc_vs_pulsatile_euler.pdf"),
 #     width = 2, height = 2)
 list(
@@ -508,8 +537,8 @@ list(
 
 
 
-## Compare OscAmplitude
 
+## Compare OscAmplitude
 
 osc_genes_compare |>
   filter(bulk_class == "Osc") |>
@@ -554,117 +583,12 @@ osc_genes_compare |>
 
 
 
-
-# # Compare euclidean and manhattan ----
-# res_eucl <- read_csv(file.path(dir_clust, "250610_cluster_results.csv")) |>
-#   mutate(cell_gene = paste0(cell_type, "_", gene_name))
-# res_manh <- read_csv(file.path(dir_clust, "250610_manh_cluster_results.csv")) |>
-#   mutate(cell_gene = paste0(cell_type, "_", gene_name))
-# 
-# list(eucl = res_eucl$cell_gene[res_eucl$shape == "pulsatile"],
-#      manh = res_manh$cell_gene[res_manh$shape == "pulsatile"]) |>
-#   eulerr::euler() |> plot(quantities = TRUE)
-# 
-# all.equal(res_eucl |> select(cell_type, gene_name), res_manh |> select(cell_type, gene_name))
-# res <- cbind(
-#   res_eucl |> select(cell_type, gene_name, cluster_eucl = cluster, shape_eucl = shape),
-#   res_manh |> select(cluster_manh = cluster, shape_manh = shape)
-# ) |>
-#   as_tibble()
-# 
-# res |>
-#   count(cluster_eucl, shape_eucl, cluster_manh, shape_manh) |>
-#   mutate(cluster_eucl = as.factor(cluster_eucl),
-#          cluster_manh = as.factor(cluster_manh)) |>
-#   ggplot() +
-#   theme_classic() +
-#   scale_fill_viridis_c() +
-#   geom_tile(aes(x = cluster_eucl, y = cluster_manh, fill = (n) ))
-# 
-# table(res$cluster_eucl, res$cluster_manh)
-# 
-# # examine genesets where clusterings disagree
-# geneset <- res |>
-#   filter(cluster_eucl == 4,
-#          cluster_manh == 9) |>
-#   mutate(cell_gene = paste0(cell_type, "|", gene_name)) |>
-#   pull(cell_gene)
-# 
-# 
-# length(geneset)
-# 
-# 
-# all_clustered_fits <- log1p(smooth_centered[,geneset]) |>
-#   as.data.frame() |>
-#   rownames_to_column("time") |>
-#   as_tibble() |>
-#   pivot_longer(-time,
-#                names_to = "cellgene",
-#                values_to = "log_cnt") |>
-#   separate_wider_delim(cellgene,
-#                        delim = "|",
-#                        names = c("cell_type", "gene_name")) |>
-#   mutate(time = as.numeric(time))
-# 
-# 
-# selected <- all_clustered_fits |>
-#   select(cell_type, gene_name) |>
-#   distinct() |>
-#   slice_sample(n = 15)
-# 
-# all_clustered_fits |>
-#   inner_join(selected) |>
-#   ggplot() +
-#   theme_classic() +
-#   scale_color_brewer(type = "qual", palette = "Set2") +
-#   scale_fill_brewer(type = "qual", palette = "Set2") +
-#   # facet_grid(rows = vars(cluster)) +
-#   geom_hline(aes(yintercept = 0),
-#              linetype = 'dashed', color = 'grey80') +
-#   geom_ribbon(
-#     aes(x = time, ymin = average_signal - sd_signal, ymax = average_signal + sd_signal),
-#     alpha = .2,
-#     fill = "orange2",
-#     data = all_clustered_fits |>
-#       summarize(average_signal = mean(log_cnt),
-#                 sd_signal = sd(log_cnt),
-#                 .by = c(time))
-#   ) +
-#   geom_line(
-#     aes(x = time, y = log_cnt, group = interaction(cell_type, gene_name)),
-#     alpha = .4,
-#     linewidth = .2
-#   ) +
-#   geom_line(
-#     aes(x = time, y = average_signal),
-#     linewidth = 1.5,
-#     color = "orange2",
-#     data = all_clustered_fits |>
-#       summarize(average_signal = mean(log_cnt),
-#                 sd_signal = sd(log_cnt),
-#                 .by = c(time))
-#   )
-# 
-# #> Looking at some of the disagreements:
-# #> eucl  manh
-# #>    5     9  some good, some bad; keep
-# #>    7     3  more bad, discard
-# #>    2     6  discard
-# #>    2     7  discard
-# #>    7     7  discard
-# #>    4     9  keep
-# 
-# #>> keep the Euclidean
-
-
-
-
-
-
-
-
 # illustrate metrics ----
 
+# > +++ Fig. EV3C +++ ----
+
+dir_step1 <- "intermediates/2502/250609_step1"
+# dir_step1 <- "E:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250609_step1"
 # dir_step1 <- "D:/2025-06-27/Projects/glia/osc_larva/intermediates/2502/250609_step1/"
 
 ilso_subseu <- qs::qread( file.path(dir_step1,
@@ -740,9 +664,9 @@ dat |>
 
 
 
-ggsave(paste0(goi, "_expr.pdf"),
-       path = dir_figures,
-       width = 50, height = 45, units = "mm")
+# ggsave(paste0(goi, "_expr.pdf"),
+#        path = dir_figures,
+#        width = 50, height = 45, units = "mm")
 
 
 
@@ -803,9 +727,9 @@ dat |>
 
 
 
-ggsave(paste0(goi, "_baseline.pdf"),
-       path = dir_figures,
-       width = 50, height = 45, units = "mm")
+# ggsave(paste0(goi, "_baseline.pdf"),
+#        path = dir_figures,
+#        width = 50, height = 45, units = "mm")
 
 
 
@@ -839,9 +763,9 @@ tibble(
 
 
 
-ggsave(paste0(goi, "_dtw.pdf"),
-       path = dir_figures,
-       width = 50, height = 45, units = "mm")
+# ggsave(paste0(goi, "_dtw.pdf"),
+#        path = dir_figures,
+#        width = 50, height = 45, units = "mm")
 
 
 
@@ -891,9 +815,9 @@ ggplot() +
 
 
   
-ggsave(paste0(goi, "_devexpl.pdf"),
-       path = dir_figures,
-       width = 50, height = 45, units = "mm")
+# ggsave(paste0(goi, "_devexpl.pdf"),
+#        path = dir_figures,
+#        width = 50, height = 45, units = "mm")
 
 
 

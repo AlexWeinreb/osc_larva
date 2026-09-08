@@ -100,6 +100,8 @@ for(ct in cell_types){
   
   
   #~~ All grey
+  # > +++ Fig. 2D +++ ----
+  
   pdf(file.path(dir_fig_velocyto, paste0(ct, "_velocity_grey.pdf")),
       width = 50 * in2mm, height = 47.7 * in2mm, pointsize = 10)
   
@@ -127,6 +129,9 @@ for(ct in cell_types){
   
   
   #~~ Color ----
+  
+  # > +++ Fig. 3C +++ ----
+  
   pdf(file.path(dir_fig_velocyto, paste0(ct, "_velocity_phase.pdf")),
       width = 50 * in2mm, height = 47.7 * in2mm, pointsize = 10)
   

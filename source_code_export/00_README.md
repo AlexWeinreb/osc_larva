@@ -304,37 +304,40 @@ In `14_assemble_main_seurat_object.R` assemble all cell types from L2 and L4 (he
   * Main Seurat object saved as `250509_assembled/250509_seu_all_herma.qs`
 
 +++ Fig. 1B, C
-+++ Fig. 2A
++++ Fig. 2A, B, C
 
-+++ Fig. 3B, D
++++ Fig. 3A, B, D
 
 +++ Fig. EV 1A, B
-+++ Fig. EV 2A
++++ Fig. EV 2A, B, C, D
 
 
 
 
-### 15 Step 1a: impute, preprocess for fit
+### 15/ impute, preprocess for fit
 
 
-In `R/step_1a_preproc_ct.R`, called with `src/step_1a_preproc_ct.sh`:
-  * inputs: Seurat object `250605_assembled/250606_seu_all_herma.qs.qs` from assembled
-* impute or not, run SCT, run PCA; save plots and objects
+In `15_impute_preprocess_cell_type.R`, (called from wrapper):
+* inputs: Seurat object `250605_assembled/250606_seu_all_herma.qs` from `14_assemble...`
+  * impute or not, run SCT, run PCA; save plots and objects
 * outputs in `250609_step1` for each cell type
 
 
-note older versions: `250330_step1`: only kept cell types with cells from L2 and L4. `250502`: process all cell types with > 20 cells.
 
 
 
-### 16 Step 2a: GAM fit and smooth curve processing
 
-Compute pseudotime (from smoothed PCA step 1) and fit GAM (using unsmoothed counts). We fit GAM twice in a row: once without centering, that we use for representations and timings.
 
-We use the peak of the uncentered to run a second fit, on a pre-centered curve. From this, we keep
-* coefficients of the GAM
-* descriptors of the smooth curve (amplitude, auc, ...)
-* similarity of smooth curve to thin peak (DTW distance)
+### 16/ Pseudotime, GAM fit and smooth curve processing
+
+Compute pseudotime (from smoothed PCA step 1) and fit GAM (using unsmoothed counts).
+
+We fit GAM twice in a row: First one "uncentered", that we use for representations and timings.
+We use the peak position of the uncentered to position the peak in the middle, 
+and run a second "centered" fit. From this, we keep
+ * coefficients of the GAM
+ * descriptors of the smooth curve (amplitude, auc, ...)
+ * similarity of smooth curve to thin peak (DTW distance)
 
 These are used for clustering.
 
@@ -342,15 +345,15 @@ These are used for clustering.
 
 
 
-`step_2a_gam.R` is to be run on cluster as dsq jobarray, called from dSQ. Contents:
+`16_gam_smooth_curve_processing.R` (run as dSQ job `16-1_gam.dsq.txt`). Contents:
   * load intermediates from step 1 `250609_step1`
-* prefilter, run ElPiGraph and a NB-GAM (with size factors), save the models, descriptors, smooth fits
-* save intermediates in "intermediates/2502/250624_step2"
+  * prefilter, run ElPiGraph and a NB-GAM (with size factors), save the models, descriptors, smooth fits
+  * save intermediates in "intermediates/2502/250624_step2"
 
 Outputs:
   * `{cell_type}_descriptors.qs` used for clustering (step 3)
-* `{cell_type}_preds.qs` (uncentered smooth) and `{cell_type}_preds_cent_clipped.qs` (centered, clipped smooth), for plotting
-* the model objects from `mgcv::gam` (shouldn't be needed)
+  * `{cell_type}_preds.qs` (uncentered smooth) and `{cell_type}_preds_cent_clipped.qs` (centered, clipped smooth), for plotting
+  * the model objects from `mgcv::gam` (shouldn't be needed)
 
 
 
@@ -370,62 +373,54 @@ Job prepared with:
 ml dSQ; dsq --job-file joblists/step_2a_gam.dsq.txt  --cpus-per-task 1 --mem 15G --time 00:20:00 --partition day; ml unload dSQ
 ```
 
-Notes older versions:
-* previously used pseudotimeDE at this step, along with filtering on curve shape as step 3. No longer useful: most/all genes appear DE with pseudotime, replace with simple GAM and curve shape filtering. Keeping state of repo at that point in branch `pseudotimede`.
-* used binomial fit in some versions, later used NB-GAM on raw counts without offset, and Gaussian GAM on SCT data
-* bootstraps on dtw in previous version: CI wasn't obviously a better predictor than the dtw distance itself
+For plotting: `16-x1_plot_elpigraph.R`
++++ Fig. EV3B
 
 
 
 
 
 
-
-
-### Step 1b: Velocyto
+# Velocyto
 
 Overview:
   * rerun CellRanger if needed,
-* replace filtered matrix,
-* Velocyto to quantify unspliced reads,
-* reorganize by cell type (based on step 1a),
-* plot each cell type
+  * replace filtered matrix,
+  * Velocyto to quantify unspliced reads,
+  * reorganize by cell type (based on step 1a),
+  * plot each cell type
 
 
-#### CellRanger
-
-Reran `cr_count.sh` with saving bam (in scratch dir: `250331_align`).
-
-Notes the bams are often 10-20 GB, not easily stored on long term.
+## CellRanger
 
 
-#### 17 Replace filtered matrix
 
-Problem: velocyto will always read `filtered_feature_bc_matrix`. But here I use a manual reannotation keeping more cells.
+Note: the bams are often 10-20 GB, not easily stored on long term. If needed, 
+rerun `02_cellranger_align_count.sh` with saving bam (in scratch dir: `250331_align`).
 
-In `R/save_filtered_matrices_for_velocyto.R`, for each sample we rename the CellRanger `filtered_feature_bc_matrix` and replace it with an export of the Seurat object.
+
+## 17/ Prepare filtered matrix as Velocyto input
+
+Problem: velocyto will always read `filtered_feature_bc_matrix`, usually provided by CellRanger. 
+But here I use a manual EmptyDrops reannotation keeping more cells.
+
+In `17_save_filtered_matrices_for_velocyto.R`, for each sample we rename the 
+CellRanger `filtered_feature_bc_matrix` and replace it with an export of the Seurat object.
 * inputs: `scratch/250331_align` bams and `250328_assembled/250329_seu_all_herma.qs`
 * for each sample,
-* rename `filtered_...` to `cr_filtered_feature_bc_matrix`
-* take the count matrix from `assembled` (subset sample), rename cell bc if needed
-* save this subset of "assembled" in `filtered_feature_bc_matrix`
+ * rename `filtered_...` to `cr_filtered_feature_bc_matrix`
+ * take the count matrix from `assembled` (subset sample), rename cell bc if needed
+ * save this subset of "assembled" in `filtered_feature_bc_matrix`
 
 
-#### 18 Velocyto quantification and plot
 
-In `src/velocyto_sample.sh`
+## 18/ Velocyto quantification and plot
+
+In `18_velocyto_sample.sh` (dsq array, cf 18-1)
 * input: `250331_align/{sample}/outs/` for each sample (uses bam and filtered matrix)
 * run `velocyto run10x`
 * output in `250331_align/{sample}/velocyto/sample.loom`
 
-Run as dsq array; joblist file in `joblists/velocyto_samples.dsq.txt`
-
-Contents (one row per sample):
-  ```
-bash ./src/velocyto_sample.sh "200730_batch1_CHB3840b"
-bash ./src/velocyto_sample.sh "201013_batch2_CHB3840b_CEG_fqs"
-...
-```
 
 dsq prepared with:
   ```
@@ -434,41 +429,42 @@ ml dSQ; dsq --job-file joblists/velocyto_samples.dsq.txt  --cpus-per-task 6 --me
 
 
 
-#### Save copy of loom files
+## Save copy of loom files
 
 
 Copy files out of scratch, work directly from them later.
+
 ```
 cp -v /vast/palmer/scratch/hammarlund/aw853/250331_align/*/velocyto/*.loom intermediates/2502/250409_loom/
-  ```
+```
 
 
-#### 19 Reorganize by cell type
+## 19/ Reorganize by cell type
 
 Consistently with other approach, we split by cell type and process each cell type separately.
 
-In `R/velocyto_load_loom.R`, called from `src/runR_velocyto_load_loom.sh`
+In `19_velocyto_load_loom.R` (called from wrapper)
 * inputs: `250409_loom/{sample}.loom`, `250605_assembled/250606_seu_all_herma.qs`
 * Process:
-  * read all loom files using velocyto.R
-* combine into big "spliced" and "unspliced" matrices
+ * read all loom files using velocyto.R
+ * combine into big "spliced" and "unspliced" matrices
 * output: matrices in `250825_velocyto/emat_tot.qs` and `nmat_tot.qs`
 
 
-#### 20 Plot velocyto
 
-For each cell type, run `velocyto_cell_type.R`. Inputs:
-  * from step 1, the seu_unsmoothed object to reuse its PCA and average phase precomputed
-* from dir_velocyto, the total matrices emat and nmat, to compute velocity.
+## 20/ Plot velocyto
+
+For each cell type, run `20_velocyto_cell_type.R`. Inputs:
+ * from 15_impute..., the seu_unsmoothed object to reuse its PCA and average phase precomputed
+ * from dir_velocyto, the total matrices emat and nmat, to compute velocity.
 Outputs:
-  * plots in pdf and png of PCA with/without colors and arrows
-* preprocessed objects to replot (qs format).
+ * plots in pdf and png of PCA with/without colors and arrows
+ * preprocessed objects to replot (qs format).
 
 
-Using joblist:
-  
-  
-  ```r
+Using joblist (cf 20-1):
+
+```r
 paste(
   "module load R; Rscript R/velocyto_cell_type.R",
   "--dir_step1 'intermediates/2502/250609_step1'",
@@ -487,104 +483,119 @@ ml dSQ; dsq --job-file joblists/velocyto_cell_type.dsq.txt  --cpus-per-task 1 --
 
 #### 20.2 replot nicely
 
-The previous velocyto plots may not look good. But since we save the preprocessed object, we can easily replot cells of interest with custom parameters.
+The previous velocyto plots may not look good. But since we save the preprocessed object, 
+we can easily replot cells of interest with custom parameters.
 
-In `velocyto_celltypes_replot.R`, code copied from `velocyto_cell_type.R` but for more interactive use.
+In `20-2_velocyto_celltypes_replot.R`, code copied from `velocyto_cell_type.R` but for more interactive use.
 
-Save in `presentatons/figures/250825/velocyto`.
-
-
-
-
-###### older
-
-Note: older version
-instead, interactively ran `R/velocyto.R`
-* for each cell type annotated in "assembled", subset the corresponding cells, create AnnData object
-* output: `250409_anndata/{sample}.h5ad`
-
-
-At the end of `R/velocyto.R`, additional code for velocity estimate and plotting with velocyto.R (not used in practice).
-
-
-Note: previous attempts to use VeloCycle, in folder `ipynb/`. While it seems to work, it's not answering the questions I have here.
-
-
-then step 2b: scVelo
++++ Fig. 2D
++++ Fig. 3C
 
 
 
-With `step_2b_scvelo_cell_type.R` run with dSQ:
-* input: `250409_anndata/{sample}.h5ad`
-* minimal filtering, recover_dynamics (not actually used), velocity with *stochastic* model, extract genes by fit_likelihood
-* outputs:
-  * `250501_scvelo/{sample}_velocity.png`
-  * `250501_scvelo/{sample}_scvelo_fit.qs` table of genes by fit_likelihood
-  * `250501_scvelo/{sample}_adata.pkl` with processed object (not used)
+# Calling pulsatile genes
 
-Using joblist:
+## 21/ Clustering of gene expression profiles
 
-
-```r
-paste(
-"module load R; Rscript R/step2b_scvelo_cell_type.R",
-"--dir_in_anndata 'intermediates/2502/250409_anndata'",
-"--dir_out_scvelo 'intermediates/2502/250501_scvelo'",
-"--i", seq_along(list.files(params$dir_in_anndata, pattern = "\\.h5ad$") |> str_subset("scvel", negate = TRUE))
-) |>
-  writeLines("joblists/step_2b_scvelo_ct.dsq.txt")
-```
-
-Job run with
-```
-ml dSQ; dsq --job-file joblists/step_2b_scvelo_ct.dsq.txt  --cpus-per-task 1 --mem 20G --time 00:40:00 --partition day; ml unload dSQ
-```
-
-Tests and manual version in `test_scVelo.R` (not used).
+In `21_hclust_identify_pulsatile_genes.R` (called from wrapper):
+  * load descriptors from `16_gam_smooth_curve_processing`
+  * transformations (exp(-a*x)), normalize (box-cox), scale; cluster with fastclust::hclust
+  * save
 
 
+## 22/ Identification of pulsatile genes
 
-
-
-
-
-
-
-### 21-22 Clustering
-
-In `R/cluster_cellgenes.R`, called from `runR_cluster_hclust.sh`:
-* load descriptors from step 2a `250624_step2`
-* transformations (exp(-a*x)), normalize (box-cox), scale; cluster with fastclust::hclust
-* save
-
-In `R/hclust_results.R`, load this clustering, cutree and cluster identification.
-
-
+In `22_analyze_plot_hclust_results.R`, load 21's clustering, cutree and cluster identification.
 All results saved in `250624_cluster`.
 
++++ Fig. 4C, D, E
 
-In `explore_step3_timeseries_distances.R`, temporary explorations, to delete later.
++++ Fig. EV3C, D
 
-In `R/step_3_process_celltypes.R`, temporary explorations (manually annotate some genes to compare to gene clustering).
-
-
-
-
-### 23 Step 3: process cell types, curve shape, heatmaps
-
-
-In `step3_heatmap_from_clust.R`, look at each cell type's pulsatile genes. Categorize cell types as oscillatory or not based on entropy of peaks.
++++ Table EV3
++++ Table EV4
 
 
 
-### 24-25 Step 4: Analysis
 
 
-In `R/step_4_analysis.R` look at genes.
-
-In `R/CelEst.R` looks at TFs.
+## 23/ process cell types, heatmaps
 
 
+In `23_analyze_oscillatory_cell_types.R`, look at each cell type's pulsatile genes. 
+Categorize cell types as oscillatory or not based on entropy of peaks.
+
+
++++ Fig. 5A, B, C
+
++++ Table EV5
+
+
+### 24/ Analysis of pulsatile genes
+
+
+In `24_analyze_pulsatile_genes.R` look at pulsatile genes in oscillatory cell types.
+
+See also `x01_panther_build_dict.R` for the PANTHER.db dictionary that is used in that script.
+
++++ Fig. 4A, F
++++ Fig. 5D, E, F, G
+
++++ Fig. EV3A
++++ Fig. EV4B, C
++++ Fig. EV5A, B
+
++++ Table EV6 (manually compiled, used as input)
+
+
+
+# Additional analyzes
+
+
+## 25/ Transcription factors and timing
+
+In `25_CelEst_transcription_factors.R` looks at TFs.
+
+Load the CelEst GRN 
+
++++ Fig. 6A, B
++++ Fig. EV6A, B
++++ Fig. EV7
++++ Table EV7
+
+
+## 26/ Peak width in the Meeuse dataset
+
+
+`26_meeuse_peak_width.R` loads data provided from Meeuse et al (2020) to analyze peak width.
+ 
++++ Fig. EV4A
+
+
+## 27/ Subsample perplexity
+
+`27_subsample_perplexity.R` 
+
++++ Fig. EV5C
+
+
+
+
+
+# Figures vs scripts
+
+
+| Script | Figures |
+|:-------|:--------|
+| 14     | Fig 1B, 1C, 2A, 2B, 2C, 3A, 3B, 3D; EV 1A, 1B, 2A, 2B, 2C, 2D |
+| 16     | EV 3B |
+| 20.2   | Fig 2D, 3C |
+| 22     | Fig 4D, 4E; EV 3C, 3D |
+| 23     | Fig 5A, 5B, 5C |
+| 24     | Fig 4A, 4F, 5D, 5E, 5F, 5G; EV 3A, 4B, 4C, 5A, 5B |
+| 25     | Fig 6A, 6B; EV 6A, 6B, 7 |
+| 26     | EV 4A |
+| 27     | EV 5C |
 
 
 
