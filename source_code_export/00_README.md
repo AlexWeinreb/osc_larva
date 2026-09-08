@@ -303,6 +303,14 @@ In `14_assemble_main_seurat_object.R` assemble all cell types from L2 and L4 (he
 * outputs:
   * Main Seurat object saved as `250509_assembled/250509_seu_all_herma.qs`
 
++++ Fig. 1B, C
++++ Fig. 2A
+
++++ Fig. 3B, D
+
++++ Fig. EV 1A, B
++++ Fig. EV 2A
+
 
 
 

@@ -7,8 +7,8 @@ library(ggrastr)
 library(Seurat)
 library(wbData)
 
-source("R/utils.R")
-source("R/mean_phase_rho.R")
+source("R/utils.R")              # --> z01_utils.R
+source("R/mean_phase_rho.R")     # --> z02_mean_phase_rho.R
 
 # SCTransform requires 1.3 GB for this data
 # options(future.globals.maxSize = 1.5 * 1024^3)
@@ -37,17 +37,15 @@ osc_raw <- readxl::read_excel("data/msb209498-sup-0003-datasetev1.xlsx",
 
 
 dir_out <- "intermediates/2502/250605_assembled"
-# dir_out_individual_cts <- file.path(dir_out, "250330_cell_types")
-
 dir_third_processed <- "intermediates/2502/250529_third_processed/"
 
 
 
 
 
-# Just herma from third pass ----
+# Assemble annotations from third pass ----
 
-#~ load ----
+#~ load files ----
 
 
 files_list <- list.files(dir_third_processed) |>
@@ -199,6 +197,9 @@ DimPlot(seu,
 
 
 
+# > +++ Fig. 1C +++ ----
+
+
 FetchData(seu, vars = c("tissue", "umap_1", "umap_2", "cell_type")) |>
   mutate(tissue = if_else(cell_type == "ILso", "ILso", tissue)) |>
   ggplot() +
@@ -228,6 +229,8 @@ DimPlot(seu,
         alpha = .1) +
   NoLegend()
 
+
+# > +++ Fig. EV 1A +++ ----
 
 FetchData(seu, vars = c("cell_type", "umap_1", "umap_2")) |>
   ggplot() +
@@ -262,6 +265,9 @@ DimPlot(seu,
         alpha = .1)
 
 
+# > +++ Fig. EV 1B +++ ----
+
+
 FetchData(seu, vars = c("stage", "umap_1", "umap_2")) |>
   ggplot() +
   theme_classic() +
@@ -290,7 +296,6 @@ FetchData(seu, vars = c("stage", "umap_1", "umap_2")) |>
 #        scale = 2)
 
 
-# colorspace::darken("#beaed4", amount = .2)
 
 
 
@@ -426,6 +431,9 @@ seu$cell_phase_masked <- if_else(seu$length_signif, seu$cell_phase, NA_real_)
 # seu <- qs::qread( file.path(dir_out, "250606_seu_all_herma.qs"))
 
 
+
+
+# > +++ Fig. 3A +++ ----
 
 # plot phases
 
@@ -725,6 +733,7 @@ dotprod_agg_by_ct <- dotprod_by_cell |>
   arrange(tissue, desc(mean_coherence)) |>
   mutate(cell_type = fct_inorder(cell_type))
 
+
 dotprod_by_cell |>
   filter(cell_type %in% cell_types_to_plot) |>
   mutate(cell_type = factor(cell_type, levels = levels(dotprod_agg_by_ct$cell_type))) |>
@@ -827,6 +836,7 @@ dotprod_agg_by_ct <- dotprod_by_cell |>
 
 
 
+# > +++ Fig. 3D +++ ----
 
 # save plot with ggrastr
 
@@ -918,6 +928,9 @@ ggplot(dat) +
 
 dat2 <- left_join(dat, samples_table,
                   by = c(orig.ident = "sample_name"))
+
+
+# > +++ Fig. 1B +++ ----
 
 ggplot() +
   theme_void() +
@@ -1015,13 +1028,15 @@ DimPlot(sub,
         group.by = "cell_type",
         label = TRUE) + NoLegend()
 
-ggsave(paste0("celltype_",tissue_here,".png"), path = "presentations/figures/250611_umap_tissues/",
-       width = 60, height = 60, units = "mm",
-       scale = 2)
-ggsave(paste0("celltype_",tissue_here,".pdf"), path = "presentations/figures/250611_umap_tissues/",
-       width = 60, height = 60, units = "mm",
-       scale = 2)
+# ggsave(paste0("celltype_",tissue_here,".png"), path = "presentations/figures/250611_umap_tissues/",
+#        width = 60, height = 60, units = "mm",
+#        scale = 2)
+# ggsave(paste0("celltype_",tissue_here,".pdf"), path = "presentations/figures/250611_umap_tissues/",
+#        width = 60, height = 60, units = "mm",
+#        scale = 2)
 
+
+# > +++ Fig. 3B +++ ----
 
 FetchData(sub,
           vars = c("umap_1", "umap_2",
@@ -1038,12 +1053,12 @@ FetchData(sub,
              alpha = .2,
              show.legend = FALSE)
 
-ggsave(paste0("phase_",tissue_here,".png"), path = "presentations/figures/250611_umap_tissues/",
-       width = 60, height = 60, units = "mm",
-       scale = 2)
-ggsave(paste0("phase_",tissue_here,".pdf"), path = "presentations/figures/250611_umap_tissues/",
-       width = 60, height = 60, units = "mm",
-       scale = 2)
+# ggsave(paste0("phase_",tissue_here,".png"), path = "presentations/figures/250611_umap_tissues/",
+#        width = 60, height = 60, units = "mm",
+#        scale = 2)
+# ggsave(paste0("phase_",tissue_here,".pdf"), path = "presentations/figures/250611_umap_tissues/",
+#        width = 60, height = 60, units = "mm",
+#        scale = 2)
 
 
 # ____________ ----
@@ -1105,6 +1120,7 @@ DimPlot(sub,
   NoLegend()
 
 
+# > +++ Fig. 2A +++ ----
 
 dat |> 
   ggplot() +
@@ -1130,6 +1146,7 @@ dat |>
 #        width = 70, height = 70, units = "mm")
 
 
+# > +++ Fig. 2C +++ ----
 
 dat |> 
   ggplot() +
@@ -1150,6 +1167,7 @@ dat |>
 
 # ggsave("pca_ILso_color.pdf", path = dir_figure,
 #        width = 70, height = 70, units = "mm")
+
 
 
 #~~ cells, radial ----
@@ -1193,6 +1211,9 @@ dat_1_cell |>
 
 
 
+# > +++ Fig. 2B +++ ----
+
+
 # Average black, individual colored
 dat_1_cell |>
   ggplot() +
@@ -1234,6 +1255,7 @@ dat_1_cell |>
 # ggsave(paste0("phases_ILso_cell_",cell_nb,"_col.pdf"),
 #        path = dir_figure,
 #        width = 50, height = 40, units = "mm")
+
 
 
 
@@ -1376,6 +1398,8 @@ stopifnot(identical(
 ))
 
 
+# > +++ Fig. EV2A +++ ----
+
 dat |> 
   ggplot() +
   theme_classic() +
@@ -1400,6 +1424,7 @@ dat |>
 
 
 
+# > +++ Fig. EV2D +++ ----
 
 dat |> 
   ggplot() +
@@ -1434,6 +1459,7 @@ dat_1_cell <- enframe(mat[,cell_nb],
 
 
 
+# > +++ Fig. EV2B +++ ----
 
 # Average black, individual colored
 dat_1_cell |>
@@ -1500,6 +1526,8 @@ stopifnot( empirical == sub$cell_rho[cell_nb] )
 
 perms <- replicate(n = 10000,
                    rho_from_mat(mat2, sample(osc_table$peak_phase_deg)))
+
+# > +++ Fig. EV2C bottom +++ ----
 
 as_tibble(perms) |>
   ggplot() +
@@ -1576,6 +1604,9 @@ stopifnot( empirical == sub$cell_rho[cell_nb] )
 perms <- replicate(n = 10000,
                    rho_from_mat(mat2, sample(osc_table$peak_phase_deg)))
 
+
+# > +++ Fig. EV2C top +++ ----
+
 as_tibble(perms) |>
   ggplot() +
   theme_classic() +
@@ -1610,240 +1641,15 @@ tibble(mean_angle = sub$cell_phase[[cell_nb]],
 
 
 
-# UMAP phases ----
-
-FetchData(seu,
-          vars = c("umap_1", "umap_2",
-                   "cell_phase_masked", "cell_rho")) |>
-  ggplot() +
-  theme_classic() +
-  # theme(legend.position = "none") +
-  scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
-                        limits = c(0, 360)) +
-  scale_alpha_continuous(limits = c(0,1),
-                         trans = scales::transform_exp()) +
-  scale_fill_gradient(high = "black", low = "grey90",
-                      limits = c(0,1),
-                      trans = scales::transform_exp()) +
-  aes(x = umap_1, y = umap_2) +
-  geom_point(aes(fill = cell_rho),alpha = 0) +
-  geom_point(aes(color = cell_phase_masked,
-                 alpha = .2*cell_rho),
-             shape = 16,
-             size = 2,
-             show.legend = FALSE)
-
-# ggsave("umap_all.pdf", path = "presentations/",
-#        width = 100, height = 70, units = "mm",
-#        scale = 2)
-
-
-# no alpha scale
-
-
-FetchData(seu,
-          vars = c("umap_1", "umap_2",
-                   "cell_phase_masked", "cell_rho")) |>
-  ggplot() +
-  theme_classic() +
-  # theme(legend.position = "none") +
-  scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
-                        limits = c(0, 360)) +
-  aes(x = umap_1, y = umap_2) +
-  geom_point(aes(color = cell_phase_masked),
-             shape = 16,
-             size = 2,
-             alpha = .2,
-             show.legend = FALSE)
-
-# ggsave("umap_all.png", path = "presentations/",
-#        width = 140, height = 120, units = "mm",
-#        scale = 2)
-
-
-
-
-
-FetchData(seu,
-          vars = c("PC_1", "PC_2", "cell_type", "stage")) |>
-  filter(cell_type == "AM_PHso") |>
-  ggplot() +
-  theme_classic() +
-  theme(legend.position = "none") +
-  geom_point(aes(x = PC_1, y = PC_2,
-                 color = stage),
-             alpha = .2)
-
-sub <- seu |>
-  subset(cell_type == "AM_PHso") |>
-  SCTransform(verbose = FALSE) |>
-  RunPCA(npcs = 2, verbose = FALSE)
-
-
-FetchData(sub,
-          vars = c("PC_1", "PC_2", "cell_type", "stage")) |>
-  filter(cell_type == "AM_PHso") |>
-  ggplot() +
-  theme_classic() +
-  theme(legend.position = "none") +
-  geom_point(aes(x = PC_1, y = PC_2,
-                 color = stage),
-             alpha = .2)
-
-
-
-FetchData(sub,
-          vars = c("PC_1", "PC_2", "length_signif", "cell_phase")) |>
-  mutate(cell_phase_masked = if_else(length_signif,
-                                     cell_phase,
-                                     NA)) |>
-  ggplot() +
-  theme_classic() +
-  theme(legend.position = "none") +
-  scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
-                        limits = c(0, 360)) +
-  geom_point(aes(x = PC_1, y = PC_2,
-                 color = cell_phase_masked),
-             alpha = .2)
-
-sub <- qs::qread(file.path(dir_out_individual_cts, "AM_PHso.qs"))
-
-
-# compare older version ----
-# the results
-seu_new <- qs::qread(file.path(dir_out, "250605_seu_all_herma.qs"))
-seu_old <- qs::qread("intermediates/2502/250509_assembled/250509_seu_all_herma.qs" )
-
-
-
-# Find correspondences of sample indices by majority vote
-correspondence <- inner_join(
-  seu_old[[]] |>
-    rownames_to_column("cell_bc") |>
-    separate_wider_delim(cell_bc,
-                         delim = "_",
-                         names = c("sample", "cell_bc"),
-                         too_many = "merge") |>
-    select(sample, cell_bc, cell_type, tissue),
-  seu_new[[]] |>
-    rownames_to_column("cell_bc") |>
-    separate_wider_delim(cell_bc,
-                         delim = "_",
-                         names = c("sample", "cell_bc"),
-                         too_many = "merge") |>
-    select(sample, cell_bc, cell_type, tissue),
-  by = "cell_bc",
-  relationship = "many-to-many"
-) |>
-  count(sample.x, sample.y, name = "shared_count") |>
-  group_by(sample.x) |>
-  slice_max(shared_count, n = 1, with_ties = FALSE) |>
-  select(s_old = sample.x, s_new = sample.y)
-
-
-merged <- full_join(
-  seu_old[[]] |>
-    rownames_to_column("cell_bc") |>
-    separate_wider_delim(cell_bc,
-                         delim = "_",
-                         names = c("sample", "cell_bc"),
-                         too_many = "merge") |>
-    left_join(correspondence,
-              by = c(sample = "s_old")) |>
-    select(-sample) |> rename(sample = s_new),
-  seu_new[[]] |>
-    rownames_to_column("cell_bc") |>
-    separate_wider_delim(cell_bc,
-                         delim = "_",
-                         names = c("sample", "cell_bc"),
-                         too_many = "merge"),
-  by = c("sample", "cell_bc")
-) |>
-  rename(cell_type_old = cell_type.x,
-         cell_type_new = cell_type.y,
-         tissue_old = tissue.x,
-         tissue_new = tissue.y)
-
-merged |>
-  ggplot() +
-  theme_classic() +
-  geom_jitter(aes(x = tissue_old, y = tissue_new),
-              alpha = .1)
-
-merged |>
-  filter(tissue_old == "other") |>
-  ggplot() +
-  theme_classic() +
-  geom_jitter(aes(x = cell_type_old, y = cell_type_new),
-              alpha = .1)
-
-
-merged |>
-  filter(tissue_old == "skin" | tissue_new == "skin") |>
-  ggplot() +
-  theme_classic() +
-  geom_jitter(aes(x = cell_type_old, y = cell_type_new),
-              alpha = .1)
-
-
-
-merged |>
-  filter(tissue_old == "glia" | tissue_new == "glia") |>
-  ggplot() +
-  theme_classic() +
-  geom_jitter(aes(x = cell_type_old, y = cell_type_new),
-              alpha = .1)
-
-
-
-merged |>
-  filter(tissue_old == "glia" | tissue_new == "glia",
-         cell_type_old == "ADE_PDEso", is.na(cell_type_new)) |> 
-  select(starts_with("stage")) |>
-  count(stage.x, stage.y)
-
-
-
-merged |>
-  filter(tissue_old == "glia" | tissue_new == "glia",
-         cell_type_old == "socket_s9" | cell_type_old == "socket_s7" |cell_type_new == "glia_sheath_2") |>
-  count(stage.x, stage.y, cell_type_old, cell_type_new)
-
-
-
-
-
-xx <- merged |>
-  filter(cell_type_old == "OLso" | cell_type_new == "OLso") |>
-  pull(cell_bc)
-
-xx <- merged |>
-  filter(cell_type_new == "CEPso") |>
-  pull(cell_bc)
-
-sub$tmp <- colnames(sub) %in% xx
-DimPlot(sub, group.by = "tmp")
-
-
-xx <- colnames(sub)[sub$seurat_clusters == 2]
-
-merged |>
-  filter(cell_bc %in% colnames(sub)[sub$seurat_clusters == 2]) |>
-  count(stage.x, stage.y, cell_type_old, cell_type_new)
-
-
-
 # ___________ ----
 # Sample timings ----
 
-selected_ct <- table(seu$cell_type, seu$orig.ident) |>  as.data.frame() |> as_tibble() |>
-  filter(Freq > 100) |>
-  count(Var1) |>
-  filter(n > 3) |>
-  pull(Var1)
+# > +++ response to reviewers +++ ----
+
 
 selected_ct <- c("hypodermis", "ILso", "pharynx_epithelial", "seam")
-selected_samples <- c("210413_batch3_CHB3840b","210427_batch5_CHB3840b","200730_batch1_CHB3840b","201013_batch2_CHB3840b_CEG_fqs")
+selected_samples <- c("210413_batch3_CHB3840b","210427_batch5_CHB3840b",
+                      "200730_batch1_CHB3840b","201013_batch2_CHB3840b_CEG_fqs")
 
 FetchData(seu, vars = c("orig.ident", "cell_phase_masked", "cell_type")) |>
   filter(cell_type %in% selected_ct,
@@ -1860,145 +1666,6 @@ FetchData(seu, vars = c("orig.ident", "cell_phase_masked", "cell_type")) |>
 
 
 
-
-
-
-
-# ___________ ----
-# Check glial subtypes ----
-
-library(wormOsc)
-
-SetDefaultAssay <- function(seu, assay = "RNA"){
-  DefaultAssay(seu) <- assay
-  seu
-}
-genes_cc <- readr::read_csv("https://github.com/hbc/tinyatlas/raw/refs/heads/master/cell_cycle/Caenorhabditis_elegans.csv")
-
-table(seu$cell_type[seu$tissue == "glia"])
-
-n_pcs <- 6L
-
-sub <- seu |>
-  subset(cell_type == "glia_socket_2") |>
-  SetDefaultAssay() |>
-  DietSeurat(assays = "RNA", layers = "counts") |>
-  SCTransform() |>
-  RunPCA(verbose = FALSE) |>
-  RunUMAP(dims = 1:n_pcs)
-  
-ElbowPlot(sub) + geom_vline(aes(xintercept = n_pcs))
-
-FeaturePlot(sub,
-            reduction = "pca",
-            features = "cell_phase",
-            pt.size = 1.5) +
-  scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
-                        limits = c(0, 360))
-
-FeaturePlot(sub,
-            reduction = "umap",
-            features = "cell_phase",
-            pt.size = 1.5) +
-  scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
-                        limits = c(0, 360))
-
-
-
-sub_corr <- sub |>
-  SetDefaultAssay() |>
-  DietSeurat(assays = "RNA", layers = "counts") |>
-  AddMetaData(list(
-    cos_phase = cos(sub$cell_phase * pi/180),
-    sin_phase = sin(sub$cell_phase * pi/180),
-    cos2_phase = cos(2 * sub$cell_phase * pi/180),
-    sin2_phase = sin(2 * sub$cell_phase * pi/180)
-  )) |>
-  SCTransform(vars.to.regress = c("cos_phase", "sin_phase", "cos2_phase", "sin2_phase")) |>
-  RunPCA(verbose = FALSE) |>
-  RunUMAP(dims = 1:n_pcs)
-
-ElbowPlot(sub_corr) + geom_vline(aes(xintercept = n_pcs))
-
-FeaturePlot(sub_corr,
-            reduction = "pca",
-            features = "cell_phase",
-            pt.size = 1.5) +
-  scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
-                        limits = c(0, 360))
-
-FeaturePlot(sub_corr,
-            reduction = "umap",
-            features = "cell_phase",
-            pt.size = 1.5) +
-  scale_color_gradientn(colors = pals::kovesi.cyclic_mrybm_35_75_c68(50),
-                        limits = c(0, 360))
-
-# ___________ ----
-
-# ### Assemble everything (male and herma) ----
-# 
-# samples_table <- read_tsv("data/samples_table.tsv",
-#                           col_types = "cffff") |>
-#   mutate(file_path = file.path(dir_prefilt,
-#                                sample_name |>
-#                                  paste0(".qs")))
-# 
-# 
-# 
-# seu_list <- samples_table$file_path |>
-#   map(qs::qread)
-# 
-# 
-# seu <- merge(seu_list[[1]],
-#              seu_list[-1])
-# 
-# rm(seu_list)
-# 
-# seu <- JoinLayers(seu)
-# 
-# 
-# 
-# #~ annotate metadata ----
-# samples_table_lut <- samples_table |>
-#   column_to_rownames("sample_name")
-# 
-# seu$sex <- samples_table_lut[seu$orig.ident, "sex"]
-# seu$promoter <- samples_table_lut[seu$orig.ident, "promoter"]
-# seu$stage <- samples_table_lut[seu$orig.ident, "stage"]
-# 
-# 
-# 
-# # process ----
-# seu <- SCTransform(seu,
-#                    conserve.memory = TRUE)
-# 
-# seu <- RunPCA(seu, npcs = 200, verbose = FALSE)
-# 
-# npca <- 40
-# 
-# ElbowPlot(seu, ndims = 200) +
-#   geom_vline(aes(xintercept = npca))
-# 
-# # qs::qsave(seu, file.path(dir_out, "250328_seu_pca.qs"))
-# 
-# DimPlot(seu,
-#         group.by = "sex",
-#         reduction = "pca",
-#         pt.size = 2,
-#         alpha = .05) +
-#   NoLegend()
-# 
-# 
-# seu <- RunUMAP(seu, dims = 1:npca)
-# 
-# 
-# DimPlot(seu,
-#         group.by = "sex",
-#         reduction = "umap",
-#         pt.size = 2,
-#         alpha = .05) +
-#   NoLegend()
 
 
 
